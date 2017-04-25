@@ -36,3 +36,6 @@ missing
 install-sh
 **/Makefile.in
 **/Makefile
+**/config.status
+**/config.log
+*.swp
