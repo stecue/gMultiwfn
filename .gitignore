@@ -33,7 +33,6 @@ src/Multiwfn
 autom4te.cache/
 aclocal.m4
 missing
-install-sh
 **/Makefile.in
 **/Makefile
 **/config.status
