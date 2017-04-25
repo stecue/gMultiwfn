@@ -28,3 +28,11 @@
 *.out
 *.app
 src/Multiwfn
+
+# Config files
+autom4te.cache/
+aclocal.m4
+missing
+install-sh
+**/Makefile.in
+**/Makefile
