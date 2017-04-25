@@ -30,6 +30,7 @@
 src/Multiwfn
 
 # Config files
+configure
 autom4te.cache/
 aclocal.m4
 missing
