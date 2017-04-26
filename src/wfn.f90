@@ -33,7 +33,7 @@ write(*,*) "Bug reporting, question and suggestion, please contact: Sobereva@sin
 
 call date_and_time(nowdate,nowtime)
 write(*,"(' ( The number of threads:',i3,'   Current date: ',a,'-',a,'-',a,'   Time: ',a,':',a,':',a,' )')") &
-rtNThreads(),nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)
+ nthreads  ,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)
 write(*,*)
 
 ! call system("echo %GAUSS_EXEDIR%")
@@ -451,7 +451,7 @@ else if (infuncsel1==3) then
     curvey=0D0
     if (ipromol==1) goto 311
 310    continue
-!$OMP parallel do shared(curvex,curvey) private(i,rnowx,rnowy,rnowz) num_threads(rtNThreads())
+!$OMP parallel do shared(curvex,curvey) private(i,rnowx,rnowy,rnowz) num_threads( nthreads  )
     do i=1,npointcurve  !Calculate data for line plot
         rnowx=orgx1D+i*transx
         rnowy=orgy1D+i*transy
@@ -1117,7 +1117,7 @@ else if (infuncsel1==4) then
         call genentroplane(3)
         ncustommap=0
     else
-    !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS( nthreads  )
         do i=1,ngridnum1
             do j=1,ngridnum2
                 rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
@@ -1137,7 +1137,7 @@ else if (infuncsel1==4) then
                 end if
             end do
         end do
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
     end if
 
 421    if (ncustommap/=0) then !Calculate data for custom map
@@ -1570,7 +1570,7 @@ else if (infuncsel1==4) then
                 if (idrawplanevdwctr==0) then
                     idrawplanevdwctr=1
                     write(*,*) "Please wait..."
-                    !$OMP PARALLEL DO private(ipt,jpt,rnowx,rnowy,rnowz) shared(planemattmp) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO private(ipt,jpt,rnowx,rnowy,rnowz) shared(planemattmp) schedule(dynamic) NUM_THREADS( nthreads  )
                     do ipt=0,ngridnum1-1
                         do jpt=0,ngridnum2-1
                             rnowx=orgx2D+ipt*v1x+jpt*v2x
@@ -1579,7 +1579,7 @@ else if (infuncsel1==4) then
                             planemattmp(ipt+1,jpt+1)=fdens(rnowx,rnowy,rnowz)
                         end do
                     end do
-                    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                     write(*,*) "Done, now you can replot the graph to check effect"
                 else if (idrawplanevdwctr==1) then
                     idrawplanevdwctr=0
@@ -1698,12 +1698,12 @@ else if (infuncsel1==4) then
                             write(*,"(' Found',i8,' (3,-1) CPs in the plane')") nple3n1path
                             allocate(ple3n1path(3,n3n1plept,2,nple3n1path))
                             write(*,*) "Generating interbasin paths from (3,-1) CPs, Please wait..."
-                            !$OMP PARALLEL DO SHARED(numcp) PRIVATE(icp) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(numcp) PRIVATE(icp) schedule(dynamic) NUM_THREADS( nthreads  )
                             do icp=1,numcp
                                 if (cp2ple3n1path(icp)/=0) call gen3n1plepath(ifunctopo,icp,cp2ple3n1path(icp))
         !                         write(*,"('Finished the in-plane path generation from (3,-1)',i8)") icp
                             end do
-                            !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                         else
                             write(*,*) "No (3,-1) CP is closed to the plane"
                         end if
@@ -1852,11 +1852,11 @@ else if (infuncsel1==5) then
         CALL CPU_TIME(time_begin)
         if (ipromol==1) goto 509 !Calculate promolecular property, so skip the first time calculation (namely for the whole system)
     508 continue
-        !$OMP PARALLEL DO SHARED(extpt) PRIVATE(iextpt) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(extpt) PRIVATE(iextpt) schedule(dynamic) NUM_THREADS( nthreads  )
         do iextpt=1,numextpt !Calculate function value
             extpt(iextpt,4)=calcfuncall(infuncsel2,extpt(iextpt,1),extpt(iextpt,2),extpt(iextpt,3))
         end do
-        !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
     509    if (ncustommap/=0) then !cycling will stop when all the file have been dealed
             if (icustom==0) then
         !Note: For promolecular property, x,y,z hasn't been saved in extpt at first time, while after calculation of atoms, extpt already has %x,%y,%z
@@ -2473,7 +2473,6 @@ else if (infuncsel1==98) then
 !!!---------------------------------------
 !1000!!------------------- Set special parameters
 else if (infuncsel1==1000) then
-ompNumThreads=rtNThreads()
 1000 write(*,*)
     write(*,*) "0 Return to main menu"
     write(*,"(a,3f12.6)") " 1 Set reference point, current(Bohr):",refx,refy,refz
@@ -2485,7 +2484,7 @@ ompNumThreads=rtNThreads()
         write(*,"(a)") " 4 Set the plane for user-defined function 38 (Defined)"
     end if
     write(*,"(a,1PD18.8)") " 5 Set global temporary variable, current:",globaltmp
-    write(*,"(a,i3)") " 10 Set the number of threads, current:", ompNumThreads
+    write(*,"(a,i3)") " 10 Set the number of threads, current:", nthreads
     write(*,*) "100 Check the sanity of present wavefunction"
     read(*,*) i
     if (i==1) then

@@ -710,7 +710,7 @@ do while(.true.)
                 write(*,*) "1 Print some details"
                 write(*,*) "2 Print all details"
                 read(*,*) ishowsearchlevel
-                if (rtNThreads()>1) write(*,*) "Warning: The printed details may be messed up since parallel mode is enabled!"
+                if ( nthreads  >1) write(*,*) "Warning: The printed details may be messed up since parallel mode is enabled!"
             else if (isel2==8) then
                 write(*,"(a)") "Input a value, if absolute value of determinant of Hessiant matrix is lower than this value, then it will be regarded as singular, e.g. 1D-21"
                 read(*,*) singularcrit
@@ -828,19 +828,19 @@ do while(.true.)
                 if ( distmat(iatm,jatm) <= vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) ntime=ntime+1
             end do
         end do
-        !$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm) schedule(dynamic) NUM_THREADS( nthreads  )
         do iatm=1,ncenter
             do jatm=iatm+1,ncenter
                 if ( distmat(iatm,jatm) > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
-                    !$OMP CRITICAL
+!$OMP CRITICAL
                     itime=itime+1
-                    !$OMP end CRITICAL
+!$OMP end CRITICAL
                 write(*,"('#',i5,' /',i5,a,i5,'(',a,')',a,i5,'(',a,')')") &
                 itime,ntime,": Trying from midpoint between ",iatm,a(iatm)%name," and",jatm,a(jatm)%name
                 call findcp( (a(iatm)%x+a(jatm)%x)/2D0,(a(iatm)%y+a(jatm)%y)/2D0,(a(iatm)%z+a(jatm)%z)/2D0, ifunctopo,0)
             end do
         end do    
-        !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
         if ((numcp-numcpold)/=0) then
             call sortCP(numcpold+1)
             write(*,*) "                            ==== Summary ===="
@@ -865,23 +865,23 @@ do while(.true.)
                 end do
             end do
         end do
-        !$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm) schedule(dynamic) NUM_THREADS( nthreads  )
         do iatm=1,ncenter
             do jatm=iatm+1,ncenter
                 if ( distmat(iatm,jatm) > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
                 do katm=jatm+1,ncenter
                     if ( distmat(katm,iatm) > vdwsumcrit*(vdwr(a(katm)%index)+vdwr(a(iatm)%index)).or.&
                     distmat(katm,jatm) > vdwsumcrit*(vdwr(a(katm)%index)+vdwr(a(jatm)%index)) ) cycle
-                    !$OMP CRITICAL
+!$OMP CRITICAL
                     itime=itime+1
-                    !$OMP end CRITICAL
+!$OMP end CRITICAL
                     write(*,"('#',i5,' /',i5,a ,i5,'(',a,')' ,i5,'(',a,')' ,i5,'(',a,')' )") &
                     itime,ntime,": Trying from triangle center of ",iatm,a(iatm)%name,jatm,a(jatm)%name,katm,a(katm)%name
                     call findcp( (a(iatm)%x+a(jatm)%x+a(katm)%x)/3D0,(a(iatm)%y+a(jatm)%y+a(katm)%y)/3D0,(a(iatm)%z+a(jatm)%z+a(katm)%z)/3D0, ifunctopo,0)
                 end do
             end do
         end do
-        !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
         if ((numcp-numcpold)/=0) then
             call sortCP(numcpold+1)
             write(*,*) "                            ==== Summary ===="
@@ -911,7 +911,7 @@ do while(.true.)
                 end do
             end do
         end do
-        !$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm,latm) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm,latm) schedule(dynamic) NUM_THREADS( nthreads  )
         do iatm=1,ncenter !Test how many iterations will be done; ij,jk,kl,li,lj,ik
             do jatm=iatm+1,ncenter
                 if ( distmat(iatm,jatm) > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
@@ -922,9 +922,9 @@ do while(.true.)
                         distmat(latm,iatm) > vdwsumcrit*(vdwr(a(latm)%index)+vdwr(a(iatm)%index)).or.&
                         distmat(latm,jatm) > vdwsumcrit*(vdwr(a(latm)%index)+vdwr(a(jatm)%index)).or.&
                         distmat(iatm,katm) > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(katm)%index))) cycle
-                        !$OMP CRITICAL
+!$OMP CRITICAL
                         itime=itime+1
-                        !$OMP end CRITICAL
+!$OMP end CRITICAL
                         write(*,"('#',i5,' /',i5,a ,i5,'(',a,')' ,i5,'(',a,')' ,i5,'(',a,')' ,i5,'(',a,')')") &
                         itime,ntime,": Trying from center of ",&
                         iatm,a(iatm)%name,jatm,a(jatm)%name,katm,a(katm)%name,latm,a(latm)%name
@@ -934,7 +934,7 @@ do while(.true.)
                 end do
             end do
         end do
-        !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
         if ((numcp-numcpold)/=0) then
             call sortCP(numcpold+1)
             write(*,*) "                            ==== Summary ===="
@@ -998,20 +998,20 @@ do while(.true.)
                     randptx(1)=sphcenx !The first try point is set to sphere center, this is faciliate to locate CP at nuclei
                     randpty(1)=sphceny
                     randptz(1)=sphcenz
-                    !$OMP PARALLEL DO SHARED(itime) PRIVATE(i) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(i) schedule(dynamic) NUM_THREADS( nthreads  )
                     do i=1,numsearchpt_tmp
                         dispt_cen=dsqrt( (randptx(i)-sphcenx)**2+(randpty(i)-sphceny)**2+(randptz(i)-sphcenz)**2 )
                         if (dispt_cen>toposphrad) cycle
                         call findcp(randptx(i),randpty(i),randptz(i),ifunctopo,0)
-                        !$OMP CRITICAL
+!$OMP CRITICAL
                         itime=itime+1
                         if (itime>ioutcount+99.or.ifunctopo==12) then
                             write(*,"('#',i10,' /',i10)") itime,numsearchpt*nsearchcen
                             ioutcount=ioutcount+100
                         end if
-                        !$OMP end CRITICAL
+!$OMP end CRITICAL
                     end do
-                    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
                 end do
                 deallocate(randptx,randpty,randptz)
                 

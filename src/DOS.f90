@@ -458,7 +458,7 @@ else if (isel==0.or.isel==10) then
         LDOScomp=0
         OPfrag12=0
         if (idoPDOS==1) then
-            !$OMP PARALLEL DO SHARED(compfrag,OPfrag12) PRIVATE(ifrag,imo,allsqr,i,j,ibas,jbas) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(compfrag,OPfrag12) PRIVATE(ifrag,imo,allsqr,i,j,ibas,jbas) schedule(dynamic) NUM_THREADS( nthreads  )
             do imo=istart,iend !Cycle each orbital, don't use nmo, because for unrestricted wavefunction nmo=2*nbasis
                 if (ipopmethod==3) allsqr=sum(tmpmat(:,imo)**2)
                 do ifrag=1,nfragmax
@@ -485,7 +485,7 @@ else if (isel==0.or.isel==10) then
                     end do
                 end if
             end do
-            !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
         end if
         if (isel==10) then !Calculate LDOS for a point
             do imo=istart,iend !Cycle each orbital

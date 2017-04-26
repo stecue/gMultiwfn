@@ -1,0 +1,26 @@
+TITLE      b3lyp/6-31G* opted
+REMARK   1 File created by GaussView 5.0.8
+HETATM    1  C           0       0.000   3.562  -0.296                       C
+HETATM    2  C           0       0.000   2.837   0.879                       C
+HETATM    3  C           0       0.000   1.423   0.866                       C
+HETATM    4  C           0       0.000   0.729  -0.381                       C
+HETATM    5  C           0       0.000   1.500  -1.567                       C
+HETATM    6  C           0       0.000   2.883  -1.529                       C
+HETATM    7  C           0       0.000   0.680   2.094                       C
+HETATM    8  C           0       0.000  -0.729  -0.381                       C
+HETATM    9  C           0       0.000  -1.423   0.866                       C
+HETATM   10  C           0       0.000  -0.680   2.094                       C
+HETATM   11  C           0       0.000  -2.837   0.879                       C
+HETATM   12  H           0       0.000  -3.348   1.839                       H
+HETATM   13  C           0       0.000  -3.562  -0.296                       C
+HETATM   14  C           0       0.000  -2.883  -1.529                       C
+HETATM   15  C           0       0.000  -1.500  -1.567                       C
+HETATM   16  H           0       0.000   1.233   3.030                       H
+HETATM   17  H           0       0.000   4.648  -0.272                       H
+HETATM   18  H           0       0.000   3.348   1.839                       H
+HETATM   19  H           0       0.000   1.007  -2.533                       H
+HETATM   20  H           0       0.000   3.447  -2.458                       H
+HETATM   21  H           0       0.000  -1.233   3.030                       H
+HETATM   22  H           0       0.000  -4.648  -0.272                       H
+HETATM   23  H           0       0.000  -3.447  -2.458                       H
+HETATM   24  H           0       0.000  -1.007  -2.533                       H

@@ -1,0 +1,1 @@
+for /f  %%i in ('dir *.chk /b') do (formchk %%i)

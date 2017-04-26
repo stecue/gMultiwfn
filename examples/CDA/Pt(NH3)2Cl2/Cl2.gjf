@@ -1,0 +1,8 @@
+# b3lyp/cc-pvdz nosymm pop=full IOp(3/32=2)
+
+b3lyp/lanl2dz+cc-pvdz opted
+
+-2 1
+ Cl                -0.00002600   -1.74121400   -1.38512100
+ Cl                 0.00002600    1.74121400   -1.38512100
+

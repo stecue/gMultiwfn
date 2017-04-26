@@ -1,0 +1,16 @@
+TITLE      opt for AuGe12
+REMARK   1 File created by GaussView 5.0.9
+HETATM    1 Ge           0       1.305   0.000   2.493                      Ge
+HETATM    2 Ge           0       1.427   2.289   1.175                      Ge
+HETATM    3 Ge           0       2.289   1.427  -1.175                      Ge
+HETATM    4 Ge           0       2.289  -1.427  -1.175                      Ge
+HETATM    5 Ge           0       1.427  -2.289   1.175                      Ge
+HETATM    6 Ge           0      -1.305   0.000   2.493                      Ge
+HETATM    7 Ge           0      -1.427   2.289   1.175                      Ge
+HETATM    8 Ge           0       0.000   1.305  -2.493                      Ge
+HETATM    9 Ge           0       0.000  -1.305  -2.493                      Ge
+HETATM   10 Ge           0      -2.289   1.427  -1.175                      Ge
+HETATM   11 Ge           0      -2.289  -1.427  -1.175                      Ge
+HETATM   12 Ge           0      -1.427  -2.289   1.175                      Ge
+HETATM   13 Au           0       0.000   0.000   0.000                      Au
+END

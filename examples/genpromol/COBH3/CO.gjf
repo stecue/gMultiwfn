@@ -1,0 +1,9 @@
+#P HF/6-31G* nosymm out=wfn
+
+CO
+
+0 1
+ C                     0.        0.       -0.09962 
+ O                     0.        0.       -1.20782 
+
+C:\genpromol\COBH3\CO.wfn

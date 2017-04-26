@@ -1,0 +1,173 @@
+<Title>
+ Cl/lanl2dz
+</Title>
+<Keywords>
+ GTO
+</Keywords>
+<Number of Nuclei>
+ 1
+</Number of Nuclei>
+<Number of Occupied Molecular Orbitals>
+ 7
+</Number of Occupied Molecular Orbitals>
+<Number of Perturbations>
+ 0
+</Number of Perturbations>
+<Net Charge>
+ 0
+</Net Charge>
+<Number of Electrons>
+ 7
+</Number of Electrons>
+<Number of Alpha Electrons>
+ 4
+</Number of Alpha Electrons>
+<Number of Beta Electrons>
+ 3
+</Number of Beta Electrons>
+<Electronic Spin Multiplicity>
+ 2
+</Electronic Spin Multiplicity>
+<Number of Core Electrons>
+ 10
+</Number of Core Electrons>
+<Nuclear Names>
+ Cl1
+</Nuclear Names>
+<Atomic Numbers>
+ 17
+</Atomic Numbers>
+<Nuclear Charges>
+  7.000000000000e+00
+</Nuclear Charges>
+<Nuclear Cartesian Coordinates>
+  0.000000000000e+00  0.000000000000e+00  0.000000000000e+00
+</Nuclear Cartesian Coordinates>
+<Number of Primitives>
+ 12
+</Number of Primitives>
+<Primitive Centers>
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1                   1
+                   1                   1
+</Primitive Centers>
+<Primitive Types>
+                   1                   1                   1                   2                   2
+                   3                   3                   4                   4                   2
+                   3                   4
+</Primitive Types>
+<Primitive Exponents>
+  2.231000000000e+00  4.720000000000e-01  1.631000000000e-01  6.296000000000e+00  6.333000000000e-01
+  6.296000000000e+00  6.333000000000e-01  6.296000000000e+00  6.333000000000e-01  1.819000000000e-01
+  1.819000000000e-01  1.819000000000e-01
+</Primitive Exponents>
+<Additional Electron Density Function (EDF)>
+<Number of EDF Primitives>
+ 24
+</Number of EDF Primitives>
+<EDF Primitive Centers>
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1
+</EDF Primitive Centers>
+<EDF Primitive Types>
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1                   1
+                   1                   1                   1                   1
+</EDF Primitive Types>
+<EDF Primitive Exponents>
+  5.939569301590e+06  3.033255977470e+06  1.549041918310e+06  7.910743051340e+05  4.039907176480e+05
+  2.063124777110e+05  1.053609318230e+05  5.380637214860e+04  2.747817083330e+04  1.403272218880e+04
+  7.166317336820e+03  3.659739249530e+03  1.868978269460e+03  9.544613792240e+02  4.874302389260e+02
+  2.489238883750e+02  1.271219905030e+02  6.491944415170e+01  3.315346316010e+01  1.693101556660e+01
+  8.646435720220e+00  4.415615257680e+00  2.254993703160e+00  1.151594127780e+00
+</EDF Primitive Exponents>
+<EDF Primitive Coefficients>
+  1.871505671540e+02  4.702291646220e+02 -1.570030741130e+02  3.338770174020e+02  1.064311662010e+02
+  1.671640715600e+02  1.928741505910e+02  4.027685329064e+03 -6.364036594268e+03  5.523918476165e+03
+ -1.897671956660e+03  4.079080022691e+02  8.684302902425e+02  4.384732951905e+02  5.133091992216e+02
+  3.451481741102e+02  1.786090102580e+02  1.682695146310e+01  7.012081767580e+00  1.792920505798e+01
+  1.821410878316e+01  4.138649506590e+00  6.883653500460e-02  7.911797905500e-05
+</EDF Primitive Coefficients>
+</Additional Electron Density Function (EDF)>
+<Molecular Orbital Occupation Numbers>
+  1.000000000000e+00
+  1.000000000000e+00
+  1.000000000000e+00
+  1.000000000000e+00
+  1.000000000000e+00
+  1.000000000000e+00
+  1.000000000000e+00
+</Molecular Orbital Occupation Numbers>
+<Molecular Orbital Energies>
+ -8.326208313663e-01
+ -4.077274355436e-01
+ -3.515213232648e-01
+ -3.515213232648e-01
+ -7.762826799612e-01
+ -3.330097519285e-01
+ -3.330097519285e-01
+</Molecular Orbital Energies>
+<Molecular Orbital Spin Types>
+ Alpha
+ Alpha
+ Alpha
+ Alpha
+ Beta
+ Beta
+ Beta
+</Molecular Orbital Spin Types>
+<Molecular Orbital Primitive Coefficients>
+<MO Number>
+ 1
+</MO Number>
+ -3.898011765359e-01  3.112197624038e-01  7.815913988823e-02 -0.000000000000e+00
+  0.000000000000e+00 -0.000000000000e+00  0.000000000000e+00 -0.000000000000e+00
+  0.000000000000e+00  0.000000000000e+00  0.000000000000e+00  0.000000000000e+00
+<MO Number>
+ 2
+</MO Number>
+ -0.000000000000e+00  0.000000000000e+00  0.000000000000e+00 -0.000000000000e+00
+  0.000000000000e+00 -0.000000000000e+00  0.000000000000e+00 -5.163776371076e-01
+  4.666942714513e-01  0.000000000000e+00  0.000000000000e+00  9.033581952026e-02
+<MO Number>
+ 3
+</MO Number>
+ -0.000000000000e+00  0.000000000000e+00  0.000000000000e+00 -0.000000000000e+00
+  0.000000000000e+00 -4.981358764243e-01  4.502076449975e-01 -0.000000000000e+00
+  0.000000000000e+00  0.000000000000e+00  9.377847733756e-02  0.000000000000e+00
+<MO Number>
+ 4
+</MO Number>
+ -0.000000000000e+00  0.000000000000e+00  0.000000000000e+00 -4.981358764243e-01
+  4.502076449975e-01 -0.000000000000e+00  0.000000000000e+00 -0.000000000000e+00
+  0.000000000000e+00  9.377847733756e-02  0.000000000000e+00  0.000000000000e+00
+<MO Number>
+ 5
+</MO Number>
+ -3.865925445118e-01  3.086579699920e-01  7.910592632979e-02 -0.000000000000e+00
+  0.000000000000e+00 -0.000000000000e+00  0.000000000000e+00 -0.000000000000e+00
+  0.000000000000e+00  0.000000000000e+00  0.000000000000e+00  0.000000000000e+00
+<MO Number>
+ 6
+</MO Number>
+ -0.000000000000e+00  0.000000000000e+00  0.000000000000e+00 -0.000000000000e+00
+  0.000000000000e+00 -4.897459026828e-01  4.426249140630e-01 -0.000000000000e+00
+  0.000000000000e+00  0.000000000000e+00  9.534325928603e-02  0.000000000000e+00
+<MO Number>
+ 7
+</MO Number>
+ -0.000000000000e+00  0.000000000000e+00  0.000000000000e+00 -4.897459026828e-01
+  4.426249140630e-01 -0.000000000000e+00  0.000000000000e+00 -0.000000000000e+00
+  0.000000000000e+00  9.534325928603e-02  0.000000000000e+00  0.000000000000e+00
+</Molecular Orbital Primitive Coefficients>
+<Energy = T + Vne + Vee + Vnn>
+ -1.489606295909e+01
+</Energy = T + Vne + Vee + Vnn>
+<Virial Ratio (-V/T)>
+ 3.652569134300e+00
+</Virial Ratio (-V/T)>

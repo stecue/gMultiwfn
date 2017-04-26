@@ -1915,7 +1915,7 @@ espexpcut=log10(espprecutoff)*3
 !$OMP nu,imo,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alri,Amsj,Antk,Fn,&
 !$OMP sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp,&
-!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval,espprivate) shared(eleesp) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval,espprivate) shared(eleesp) schedule(dynamic) NUM_THREADS( nthreads  )
 do iprim=1,nprims
     espprivate=0D0
     icen=b(iprim)%center
@@ -2030,9 +2030,9 @@ do iprim=1,nprims
         end do
         espprivate=espprivate+addesp*term
     end do !end j primitive
-    !$OMP critical
+!$OMP critical
     eleesp=eleesp+espprivate
-    !$OMP end critical
+!$OMP end critical
 end do !end i primitive
 !$OMP end parallel do
 eleesp=-eleesp
@@ -2072,7 +2072,7 @@ end do
 !$OMP twoepsqPC,tl,tm,tn,Alrivec,Amsjvec,Antkvec,Alri,Amsj,Antk,Fnmat,Fnvec,&
 !$OMP sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp,&
 !$OMP Cx,Cy,Cz,Cxold,Cyold,Czold,term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval,pleprivate) &
-!$OMP shared(planemat,ifinish) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP shared(planemat,ifinish) schedule(dynamic) NUM_THREADS( nthreads  )
 do iprim=1,nprims
     pleprivate=0D0
     icen=b(iprim)%center
@@ -2208,9 +2208,9 @@ do iprim=1,nprims
     end do !end j primitive
     ifinish=ifinish+1
     write(*,"(' Finished: ',i6,' /',i6)") ifinish,nprims
-    !$OMP CRITICAL
+!$OMP CRITICAL
     planemat=planemat+pleprivate
-    !$OMP END CRITICAL
+!$OMP END CRITICAL
 end do !end i primitive
 !$OMP END PARALLEL DO
 end subroutine
@@ -2234,7 +2234,7 @@ espexpcut=log10(espprecutoff)*3
 !$OMP twoepsqPC,tl,tm,tn,Alrivec,Amsjvec,Antkvec,Fnmat,Fnvec, &
 !$OMP sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp,cubprivate, &
 !$OMP Cx,Cy,Cz,term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,tmpval,prefac) &
-!$OMP shared(cubmat,ifinish) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP shared(cubmat,ifinish) schedule(dynamic) NUM_THREADS( nthreads  )
 do iprim=1,nprims
     cubprivate=0D0
     icen=b(iprim)%center
@@ -2370,9 +2370,9 @@ do iprim=1,nprims
     end do !end j primitive
     ifinish=ifinish+1
     write(*,"(' Finished: ',i6,'/',i6)") ifinish,nprims
-    !$OMP CRITICAL
+!$OMP CRITICAL
     cubmat=cubmat+cubprivate
-    !$OMP END CRITICAL
+!$OMP END CRITICAL
 end do !end i primitive
 !$OMP END PARALLEL DO
 CALL CPU_TIME ( time_end )
@@ -2398,7 +2398,7 @@ espexpcut=log10(espprecutoff)*3
 !$OMP parallel do private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi, &
 !$OMP nu,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alri,Amsj,Antk,Fn,sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,&
-!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval) shared(GTFattmat) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval) shared(GTFattmat) schedule(dynamic) NUM_THREADS( nthreads  )
 do iprim=1,nprims
     icen=b(iprim)%center
     Aexp=b(iprim)%exp

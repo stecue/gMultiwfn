@@ -917,7 +917,7 @@ do ii=1,nprims
 end do
 
 if (itype==1) then
-    !$OMP PARALLEL DO SHARED(ovlpmat) PRIVATE(iorba,iorbb,accum,ii,jj) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(ovlpmat) PRIVATE(iorba,iorbb,accum,ii,jj) schedule(dynamic) NUM_THREADS( nthreads  )
     do iorba=1,numalphaMO !alpha orbitals
         write(*,"(' Finished:',i6,'    /',i6)") iorba,isplit-1
         do iorbb=isplit,nmo !beta orbitals
@@ -930,7 +930,7 @@ if (itype==1) then
             ovlpmat(iorba,iorbb-isplit+1)=accum
         end do
     end do
-    !$OMP end parallel do
+!$OMP end parallel do
 
     write(*,*)
     do iorb=1,numbetaMO
@@ -1004,7 +1004,7 @@ do iatm=1,ncenter
     gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
     gridatm%y=gridatmorg%y+a(iatm)%y
     gridatm%z=gridatmorg%z+a(iatm)%z
-    !$OMP parallel do shared(funcval) private(i,rnowx,rnowy,rnowz) num_threads(rtNThreads())
+!$OMP parallel do shared(funcval) private(i,rnowx,rnowy,rnowz) num_threads( nthreads  )
     do i=1+iradcut*sphpot,radpot*sphpot
         rnowx=gridatm(i)%x
         rnowy=gridatm(i)%y
@@ -1021,7 +1021,7 @@ do iatm=1,ncenter
             funcval(i,3)=weizsacker(rnowx,rnowy,rnowz) !Steric energy
         end if
     end do
-    !$OMP end parallel do
+!$OMP end parallel do
     
     call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
     do i=1+iradcut*sphpot,radpot*sphpot
@@ -1096,9 +1096,9 @@ if (imethod==1) then !I found if imethod=1 is parallelized too, the speed is muc
         end do
     end do
 else if (imethod==2) then
-    !$OMP PARALLEL SHARED(in) PRIVATE(i,intmp,nowx,nowy,nowz) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL SHARED(in) PRIVATE(i,intmp,nowx,nowy,nowz) NUM_THREADS( nthreads  )
     intmp=0
-    !$OMP DO schedule(dynamic)
+!$OMP DO schedule(dynamic)
     do i=1,ntot
         CALL RANDOM_NUMBER(nowx)
         CALL RANDOM_NUMBER(nowy)
@@ -1108,11 +1108,11 @@ else if (imethod==2) then
         nowz=nowz*lengthz+minz
         if (fdens(nowx,nowy,nowz)>mcisoval) intmp=intmp+1
     end do
-    !$OMP end do
-    !$OMP CRITICAL
+!$OMP end do
+!$OMP CRITICAL
     in=in+intmp
-    !$OMP end CRITICAL
-    !$OMP END PARALLEL
+!$OMP end CRITICAL
+!$OMP END PARALLEL
 end if
 
 tmp=boxvol*(dfloat(in)/ntot)

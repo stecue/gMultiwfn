@@ -523,22 +523,22 @@ if (itype==1) then
     if (ihirshmode==1) then
         write(*,*) "Generating promolecular density from atom densities..."
         do iatm=1,ncenter
-            !$OMP parallel do shared(allpotw) private(jatm,i) num_threads(rtNThreads())
+!$OMP parallel do shared(allpotw) private(jatm,i) num_threads( nthreads  )
             do jatm=1,ncenter_org !Cycle points of every atom
                 do i=1+iradcut*sphpot,radpot*sphpot
                     allpotw(jatm,i)=allpotw(jatm,i)+calcatmdens(iatm,allpotx(jatm,i),allpoty(jatm,i),allpotz(jatm,i),0)
                 end do
             end do
-            !$OMP end parallel do
+!$OMP end parallel do
             write(*,"(' Atom',i6,'(',a,') finished')") iatm,a_org(iatm)%name
         end do
         write(*,*) "Generating Hirshfeld weight..."
         do iatm=1,ncenter_org
-            !$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads(rtNThreads())
+!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads( nthreads  )
             do i=1+iradcut*sphpot,radpot*sphpot
                 if (allpotw(iatm,i)/=0D0) allpotw(iatm,i)=calcatmdens(iatm,allpotx(iatm,i),allpoty(iatm,i),allpotz(iatm,i),0)/allpotw(iatm,i)
             end do
-            !$OMP end parallel do
+!$OMP end parallel do
             allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirsfheld weight with single-center integration weight
         end do
     else if (ihirshmode==2) then
@@ -548,7 +548,7 @@ if (itype==1) then
         do iatm=1,ncenter !Firstly, store promolecular density to allpotw, now calc the part from atom: iatm
             call dealloall
             call readwfn(custommapname(iatm),1)
-            !$OMP parallel do shared(allpotw) private(jatm,i) num_threads(rtNThreads())
+!$OMP parallel do shared(allpotw) private(jatm,i) num_threads( nthreads  )
             do jatm=1,ncenter_org !Cycle points of each atom, because current wfn file is atomic, so use _org
                 do i=1,iatmnumpot
                     !For faster calculation, distant points are cut, however leads results weird in individual cases, so it is disabled
@@ -557,18 +557,18 @@ if (itype==1) then
                     allpotw(jatm,i)=allpotw(jatm,i)+fdens(allpotx(jatm,i),allpoty(jatm,i),allpotz(jatm,i))
                 end do
             end do
-            !$OMP end parallel do
+!$OMP end parallel do
             write(*,"(' Atom',i6,'(',a,') finished')") iatm,a_org(iatm)%name
         end do
         write(*,*) "Generating Hirshfeld weight..."
         do iatm=1,ncenter_org
             call dealloall
             call readwfn(custommapname(iatm),1)
-            !$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads(rtNThreads())
+!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads( nthreads  )
             do i=1,iatmnumpot
                 if (allpotw(iatm,i)/=0.0D0) allpotw(iatm,i)=fdens(allpotx(iatm,i),allpoty(iatm,i),allpotz(iatm,i))/allpotw(iatm,i)
             end do
-            !$OMP end parallel do
+!$OMP end parallel do
             allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirsfheld weight with single-center integration weight
         end do
         call dealloall
@@ -637,36 +637,36 @@ do while(.true.)
             if (MOtype(imo)==2) orbtype="Beta      "
             if (ishowmo==-2) then !Calculate only on atom
                 tmp=0D0
-                !$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(rtNThreads())
+!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads( nthreads  )
                 tmpprivate=0D0
-                !$OMP do schedule(dynamic)
+!$OMP do schedule(dynamic)
                 do ipot=1+iradcut*sphpot,radpot*sphpot
                     if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
                     value=fmo(allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),imo)**2
                     tmpprivate=tmpprivate+value*allpotw(iatm,ipot)
                 end do
-                !$OMP end do
-                !$OMP CRITICAL
+!$OMP end do
+!$OMP CRITICAL
                 tmp=tmp+tmpprivate
-                !$OMP end CRITICAL
-                !$OMP end parallel
+!$OMP end CRITICAL
+!$OMP end parallel
             else if (ishowmo==-3) then
                 tmp=0D0
                 do itmp=1,nfragorbcomp
                     iatm=fragorbcomp(itmp)
-                    !$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(rtNThreads())
+!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads( nthreads  )
                     tmpprivate=0D0
-                    !$OMP do schedule(dynamic)
+!$OMP do schedule(dynamic)
                     do ipot=1+iradcut*sphpot,radpot*sphpot
                         if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
                         value=fmo(allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),imo)**2
                         tmpprivate=tmpprivate+value*allpotw(iatm,ipot)
                     end do
-                    !$OMP end do
-                    !$OMP CRITICAL
+!$OMP end do
+!$OMP CRITICAL
                     tmp=tmp+tmpprivate
-                    !$OMP end CRITICAL
-                    !$OMP end parallel
+!$OMP end CRITICAL
+!$OMP end parallel
                 end do
             end if
             write(*,"(i5,1x,a,f13.4,f9.3,f11.3,'%',f15.6)") imo,orbtype,MOene(imo),MOocc(imo),tmp*100,MOocc(imo)*tmp
@@ -703,19 +703,19 @@ do while(.true.)
         accum=0D0
         do iatm=1,ncenter
             tmp=0D0
-            !$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(rtNThreads())
+!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads( nthreads  )
             tmpprivate=0
-            !$OMP do schedule(dynamic)
+!$OMP do schedule(dynamic)
             do ipot=1+iradcut*sphpot,radpot*sphpot
                 if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
                 value=fmo(allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),ishowmo)**2
                 tmpprivate=tmpprivate+value*allpotw(iatm,ipot)
             end do
-            !$OMP end do
-            !$OMP CRITICAL
+!$OMP end do
+!$OMP CRITICAL
             tmp=tmp+tmpprivate
-            !$OMP end CRITICAL
-            !$OMP end parallel
+!$OMP end CRITICAL
+!$OMP end parallel
             accum=accum+tmp
             resultvec(iatm)=tmp
         end do

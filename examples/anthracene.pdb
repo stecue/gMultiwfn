@@ -1,0 +1,51 @@
+TITLE      b3lyp/cc-pvtz opted
+REMARK   1 File created by GaussView 5.0.8
+HETATM    1  C           0       0.711   3.646   0.000                       C
+HETATM    2  C           0       1.401   2.471   0.000                       C
+HETATM    3  C           0       0.720   1.219   0.000                       C
+HETATM    4  C           0      -0.720   1.219   0.000                       C
+HETATM    5  C           0      -1.401   2.471   0.000                       C
+HETATM    6  C           0      -0.711   3.646   0.000                       C
+HETATM    7  C           0       1.398  -0.000   0.000                       C
+HETATM    8  C           0      -1.398  -0.000   0.000                       C
+HETATM    9  C           0      -0.720  -1.219   0.000                       C
+HETATM   10  C           0       0.720  -1.219   0.000                       C
+HETATM   11  C           0       1.401  -2.471   0.000                       C
+HETATM   12  H           0       2.484  -2.470   0.000                       H
+HETATM   13  C           0       0.711  -3.646   0.000                       C
+HETATM   14  C           0      -0.711  -3.646   0.000                       C
+HETATM   15  C           0      -1.401  -2.471   0.000                       C
+HETATM   16  H           0       2.482  -0.000   0.000                       H
+HETATM   17  H           0       1.242   4.589   0.000                       H
+HETATM   18  H           0       2.484   2.470  -0.000                       H
+HETATM   19  H           0      -2.484   2.470   0.000                       H
+HETATM   20  H           0      -1.242   4.589   0.000                       H
+HETATM   21  H           0      -2.482  -0.000   0.000                       H
+HETATM   22  H           0       1.242  -4.589   0.000                       H
+HETATM   23  H           0      -1.242  -4.589   0.000                       H
+HETATM   24  H           0      -2.484  -2.470   0.000                       H
+END
+CONECT    1    2    6   17
+CONECT    2    1    3   18
+CONECT    3    2    4    7
+CONECT    4    3    5    8
+CONECT    5    4    6   19
+CONECT    6    5    1   20
+CONECT    7    3   10   16
+CONECT    8    4    9   21
+CONECT    9    8   10   15
+CONECT   10    9    7   11
+CONECT   11   10   12   13
+CONECT   12   11
+CONECT   13   11   14   22
+CONECT   14   13   15   23
+CONECT   15   14    9   24
+CONECT   16    7
+CONECT   17    1
+CONECT   18    2
+CONECT   19    5
+CONECT   20    6
+CONECT   21    8
+CONECT   22   13
+CONECT   23   14
+CONECT   24   15

@@ -1,0 +1,13 @@
+mol new avgsl2r.cub
+mol addfile avgRDG.cub
+mol delrep 0 top
+mol representation CPK 1.0 0.3 18.0 16.0
+mol addrep top
+mol representation Isosurface 0.25000 1 0 0 1 1
+mol color Volume 0
+mol addrep top
+mol scaleminmax top 1 -0.025 0.025
+color scale method BGR
+color Display Background white
+axes location Off
+display depthcue off

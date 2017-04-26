@@ -41,7 +41,7 @@ do ifps=1,ifpsend
     do itmp=1,nfragatmnum
         fragatm(itmp)=itmp
     end do
-    !$OMP PARALLEL DO SHARED(avgdens,avggrad,avghess) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp,gradtmp,hesstmp) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(avgdens,avggrad,avghess) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp,gradtmp,hesstmp) schedule(dynamic) NUM_THREADS( nthreads  )
     do k=1,nz
         tmpz=orgz+(k-1)*dz
         do j=1,ny
@@ -55,7 +55,7 @@ do ifps=1,ifpsend
             end do
         end do
     end do
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 end do
 close(10)
 avgdens=avgdens/nfps
@@ -175,7 +175,7 @@ do while (.true.)
             call readxyz(filename,1,0)
             if (ifps<ifpsstart) cycle
             write(*,"(' Processing frame',i8,' ...')") ifps
-            !$OMP PARALLEL DO SHARED(thermflu) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(thermflu) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS( nthreads  )
             do k=1,nz
                 tmpz=orgz+(k-1)*dz
                 do j=1,ny
@@ -187,7 +187,7 @@ do while (.true.)
                     end do
                 end do
             end do
-            !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
         end do
         close(10)
         thermflu=dsqrt(thermflu/nfps)/avgdens
@@ -786,7 +786,7 @@ do while(.true.)
         iprogstp=20
         iprogcrit=iprogstp
         write(*,*) "Calculating..."
-        !$OMP PARALLEL DO SHARED(radval,radpos,ifinish,iprogcrit) PRIVATE(irad,radnow,isph,rnowx,rnowy,rnowz,tmpval) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(radval,radpos,ifinish,iprogcrit) PRIVATE(irad,radnow,isph,rnowx,rnowy,rnowz,tmpval) schedule(dynamic) NUM_THREADS( nthreads  )
         do irad=1,nradpt
             radnow=rlow+(irad-1)*radstp
             radpos(irad)=radnow
@@ -805,7 +805,7 @@ do while(.true.)
                 iprogcrit=iprogcrit+iprogstp
             end if
         end do
-        !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
         
         !Calculate integration of RDF
         intradval(1)=0D0
@@ -967,23 +967,23 @@ do iatm=1,ncenter
     !Calculate value of all MOs of the first and second wavefunction at all grids
     call dealloall
     call readinfile(filename2,1) !Load wfn2
-    !$OMP parallel do shared(MOvalgrd2) private(ipt) num_threads(rtNThreads()) schedule(dynamic)
+!$OMP parallel do shared(MOvalgrd2) private(ipt) num_threads( nthreads  ) schedule(dynamic)
     do ipt=1+iradcut*sphpot,radpot*sphpot
         call orbderv(1,istart2,iend2,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,MOvalgrd2(ipt,:))
     end do
-    !$OMP end parallel do
+!$OMP end parallel do
     call dealloall
     call readinfile(firstfilename,1) !Retrieve to wfn1
-    !$OMP parallel do shared(MOvalgrd) private(ipt) num_threads(rtNThreads()) schedule(dynamic)
+!$OMP parallel do shared(MOvalgrd) private(ipt) num_threads( nthreads  ) schedule(dynamic)
     do ipt=1+iradcut*sphpot,radpot*sphpot
         call orbderv(1,istart1,iend1,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,MOvalgrd(ipt,:))
     end do
-    !$OMP end parallel do
+!$OMP end parallel do
 
     !Calculate Becke weight at all grids
     call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
     
-    !$OMP parallel do shared(convmat) private(imo,jmo,tmpval,ipt) num_threads(rtNThreads()) schedule(dynamic)
+!$OMP parallel do shared(convmat) private(imo,jmo,tmpval,ipt) num_threads( nthreads  ) schedule(dynamic)
     do imo=istart1,iend1
         do jmo=istart2,iend2
             tmpval=0D0
@@ -993,7 +993,7 @@ do iatm=1,ncenter
             convmat(imo,jmo)=convmat(imo,jmo)+tmpval
         end do
     end do
-    !$OMP end parallel do
+!$OMP end parallel do
 end do
 CALL CPU_TIME(time_end)
 call walltime(iwalltime2)
@@ -2030,10 +2030,10 @@ else if (isel==3.or.isel==7.or.isel==17) then
                             w1=tmpw(arrg(iper,2))
                             w2=tmpw(arrg(iper,3))
                             w3=tmpw(arrg(iper,4))
-                            !$OMP PARALLEL SHARED(gamma1,gamma2) PRIVATE(istat,jstat,kstat,t1c,t2c,p1,p2,g1t,g2t) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL SHARED(gamma1,gamma2) PRIVATE(istat,jstat,kstat,t1c,t2c,p1,p2,g1t,g2t) NUM_THREADS( nthreads  )
                             g1t=0
                             g2t=0
-                            !$OMP DO schedule(dynamic)
+!$OMP DO schedule(dynamic)
                             do istat=1,numstat
                                 do jstat=1,numstat
                                     !Gamma 1
@@ -2052,12 +2052,12 @@ else if (isel==3.or.isel==7.or.isel==17) then
                                     g2t=g2t+p1/p2
                                 end do
                             end do
-                            !$OMP END DO
-                            !$OMP CRITICAL
+!$OMP END DO
+!$OMP CRITICAL
                             gamma1=gamma1+g1t
                             gamma2=gamma2+g2t
-                            !$OMP END CRITICAL
-                            !$OMP END PARALLEL
+!$OMP END CRITICAL
+!$OMP END PARALLEL
                         end do
                         gamma(idir,jdir,kdir,ldir)=gamma1-gamma2
                         
@@ -2194,11 +2194,11 @@ else if (isel==4) then
                             w2=tmpw(arrd(iper,3))
                             w3=tmpw(arrd(iper,4))
                             w4=tmpw(arrd(iper,5))
-                            !$OMP PARALLEL SHARED(delta1,delta2,delta3) PRIVATE(istat,jstat,kstat,lstat,t1c,t2c,t3c,p1,p2,p3,p4,d1t,d2t,d3t) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL SHARED(delta1,delta2,delta3) PRIVATE(istat,jstat,kstat,lstat,t1c,t2c,t3c,p1,p2,p3,p4,d1t,d2t,d3t) NUM_THREADS( nthreads  )
                             d1t=0
                             d2t=0
                             d3t=0
-                            !$OMP DO schedule(dynamic)
+!$OMP DO schedule(dynamic)
                             do istat=1,numstat
                                 do jstat=1,numstat
                                     do kstat=1,numstat
@@ -2230,13 +2230,13 @@ else if (isel==4) then
                                     end do
                                 end do
                             end do
-                            !$OMP END DO
-                            !$OMP CRITICAL
+!$OMP END DO
+!$OMP CRITICAL
                             delta1=delta1+d1t
                             delta2=delta2+d2t
                             delta3=delta3+d3t
-                            !$OMP END CRITICAL
-                            !$OMP END PARALLEL
+!$OMP END CRITICAL
+!$OMP END PARALLEL
                         end do
                         delta(idir,jdir,kdir,ldir,mdir)=delta1-delta2/2-delta3/2
                         
@@ -2422,9 +2422,9 @@ do imo=1,nmo
         
         if (itype==1.or.itype==2.or.itype==3) then !Vector integral
             vecint=0D0
-            !$OMP PARALLEL SHARED(vecint) PRIVATE(iGTF,jGTF,ides,vecinttmp) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL SHARED(vecint) PRIVATE(iGTF,jGTF,ides,vecinttmp) NUM_THREADS( nthreads  )
             vecinttmp=0D0
-            !$OMP DO schedule(dynamic)
+!$OMP DO schedule(dynamic)
             do iGTF=1,nprims
                 do jGTF=1,nprims
                     if (iGTF>=jGTF) then
@@ -2439,11 +2439,11 @@ do imo=1,nmo
                     end if
                 end do
             end do
-            !$OMP END DO
-            !$OMP CRITICAL
+!$OMP END DO
+!$OMP CRITICAL
             vecint=vecint+vecinttmp
-            !$OMP END CRITICAL
-            !$OMP END PARALLEL
+!$OMP END CRITICAL
+!$OMP END PARALLEL
             if (irange==6) then
                 write(*,"(' Result:',3f18.10)") vecint(:)
             else
@@ -2542,11 +2542,11 @@ do while(.true.)
         gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
         gridatm%y=gridatmorg%y+a(iatm)%y
         gridatm%z=gridatmorg%z+a(iatm)%z
-        !$OMP parallel do shared(funcval) private(i) num_threads(rtNThreads())
+!$OMP parallel do shared(funcval) private(i) num_threads( nthreads  )
         do i=1+iradcut*sphpot,radpot*sphpot
             funcval(i)=calcfuncall(ifunc,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
         end do
-        !$OMP end parallel do
+!$OMP end parallel do
         call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
         do i=1+iradcut*sphpot,radpot*sphpot
             tmpval=funcval(i)*gridatmorg(i)%value*beckeweigrid(i)

@@ -311,8 +311,7 @@ integer :: igenDbas=0,igenMagbas=0,igenP=1,iwfntmptype=1,outmedinfo=0,intmolcust
 integer :: iuserfunc=0,iDFTxcsel=84,ispheratm=1,ADCtransfer=0,SpherIVgroup=0,MCvolmethod=2,readEDF=1,ireadatmEDF=0,ishowptESP=1,imolsurparmode=1
 integer :: NICSnptlim=8000
 real*8 :: bndordthres=0.05D0,compthres=0.5D0,compthresCDA=1D0,expcutoff=-40D0,espprecutoff=0D0
-integer :: nthreads=0,ompstacksize=100000000
-integer :: ompNumThreads=0
+integer :: nthreads=2,ompstacksize=100000000
 character :: lastfile*200="",gaupath*80=""
 !About function calculation, external or internal parameters
 integer :: RDG_addminimal=1,ELF_addminimal=1,num1Dpoints=3000,atomdenscut=1,nprevorbgrid=120000,paircorrtype=3,pairfunctype=1,srcfuncmode=1
@@ -339,14 +338,15 @@ contains
   integer function rtNThreads()
     IMPLICIT NONE
     INTEGER currNThreads, TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
-    !$OMP PARALLEL
+    print *,'TRUE'
+!$OMP PARALLEL
       TID = OMP_GET_THREAD_NUM()
       !Only master thread does this
       IF (TID .EQ. 0) THEN
         currNThreads = OMP_GET_NUM_THREADS()
         PRINT *, 'OMP_NUM_THREADS = ', currNThreads
       END IF
-    !$OMP END PARALLEL
+!$OMP END PARALLEL
     IF (nthreads .NE. 0) THEN
       currNThreads = nthreads
     END IF

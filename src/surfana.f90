@@ -290,7 +290,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
         if (ihirshmode==1) then !Doesn't work well currently, because interpolation of density at long range is problematic by Lagrange method
             do iatm=1,ncenter
                 write(*,"(' Processing atom',i6,'(',a,') /',i6)") iatm,a_org(iatm)%name,ncenter_org
-                !$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS( nthreads  )
                 do k=1,nz
                     tmpz=orgz+(k-1)*dz
                     do j=1,ny
@@ -303,7 +303,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
                         end do
                     end do
                 end do
-                !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
             end do
         else if (ihirshmode==2) then
             call setpromol
@@ -311,7 +311,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
                 call dealloall
                 write(*,"(' Processing atom',i6,'(',a,') /',i6)") iatm,a_org(iatm)%name,ncenter_org
                 call readwfn(custommapname(iatm),1)
-                !$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS( nthreads  )
                 do k=1,nz
                     tmpz=orgz+(k-1)*dz
                     do j=1,ny
@@ -324,7 +324,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
                         end do
                     end do
                 end do
-                !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
             end do
             call dealloall
             write(*,"(' Reloading ',a)") trim(firstfilename)
@@ -338,7 +338,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
         cubmat=0D0
         ifinish=0
         !We calculate Becke weight for all atoms, but only summing up the value of we selected atoms to cubmat
-        !$OMP PARALLEL DO SHARED(cubmat) PRIVATE(i,j,k,tmpx,rnowx,rnowy,rnowz,smat,ii,jj,tmprarr,rmiu,chi,uij,aij,tmps,iter,Pvec) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(cubmat) PRIVATE(i,j,k,tmpx,rnowx,rnowy,rnowz,smat,ii,jj,tmprarr,rmiu,chi,uij,aij,tmps,iter,Pvec) schedule(dynamic) NUM_THREADS( nthreads  )
         do k=1,nz
             rnowz=orgz+(k-1)*dz
             do j=1,ny
@@ -375,12 +375,12 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
                     cubmat(i,j,k)=cubmat(i,j,k)+sum(Pvec(HirBecatm(:)))
                 end do
             end do
-            !$OMP CRITICAL
+!$OMP CRITICAL
             ifinish=ifinish+1
             write(*,"(' Finished:',i4,'   /',i4)") ifinish,nz
-            !$OMP end CRITICAL
+!$OMP end CRITICAL
         end do
-        !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
     end if
 end if
 
@@ -740,7 +740,7 @@ if (ireadextmapval==0) then
     ii=0
     iprog=0
     CALL CPU_TIME(time_begin)
-    !$OMP PARALLEL DO SHARED(survtx,indsurfmax,indsurfmin,iprog) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(rtNThreads())
+!$OMP PARALLEL DO SHARED(survtx,indsurfmax,indsurfmin,iprog) PRIVATE(icyc) schedule(dynamic) NUM_THREADS( nthreads  )
     do icyc=1,nsurvtx
         if (elimvtx(icyc)==1) cycle
         if (imapfunc==1) then
@@ -773,7 +773,7 @@ if (ireadextmapval==0) then
             if (imapfunc/=20.and.imapfunc/=21.and.imapfunc/=22)  write(*,"(' Finished ',f6.1,'%')") progress !Calculate d is very fast, don't show prog
         end if
     end do
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
     if (imapfunc/=20.and.imapfunc/=21.and.imapfunc/=22)  write(*,"(' Finished ',f6.1,'%')") 100D0
     CALL CPU_TIME(time_end)
     write(*,"(' Calculation took up CPU time',f12.2,' seconds')") time_end-time_begin

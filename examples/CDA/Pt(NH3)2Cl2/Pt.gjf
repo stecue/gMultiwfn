@@ -1,0 +1,14 @@
+# b3lyp/genecp nosymm pop=full IOp(3/32=2) scf=xqc
+
+b3lyp/lanl2dz+cc-pvdz opted
+
+2 1
+ Pt                 0.00000000    0.00000000    0.18690300
+
+Pt 0
+lanl2dz
+****
+
+Pt 0
+lanl2dz
+
