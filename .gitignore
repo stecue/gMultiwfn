@@ -30,6 +30,7 @@
 src/Multiwfn
 
 # Config files
+config/
 configure
 install-sh
 missing
