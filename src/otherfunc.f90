@@ -917,7 +917,8 @@ do ii=1,nprims
 end do
 
 if (itype==1) then
-!$OMP PARALLEL DO SHARED(ovlpmat) PRIVATE(iorba,iorbb,accum,ii,jj) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(ovlpmat) PRIVATE(iorba,iorbb,accum,ii,jj) schedule(dynamic) NUM_THREADS(nthreads)
     do iorba=1,numalphaMO !alpha orbitals
         write(*,"(' Finished:',i6,'    /',i6)") iorba,isplit-1
         do iorbb=isplit,nmo !beta orbitals
@@ -1096,7 +1097,8 @@ if (imethod==1) then !I found if imethod=1 is parallelized too, the speed is muc
         end do
     end do
 else if (imethod==2) then
-!$OMP PARALLEL SHARED(in) PRIVATE(i,intmp,nowx,nowy,nowz) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL SHARED(in) PRIVATE(i,intmp,nowx,nowy,nowz) NUM_THREADS(nthreads)
     intmp=0
 !$OMP DO schedule(dynamic)
     do i=1,ntot

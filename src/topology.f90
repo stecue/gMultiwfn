@@ -828,7 +828,8 @@ do while(.true.)
                 if ( distmat(iatm,jatm) <= vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) ntime=ntime+1
             end do
         end do
-!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm) schedule(dynamic) NUM_THREADS(nthreads)
         do iatm=1,ncenter
             do jatm=iatm+1,ncenter
                 if ( distmat(iatm,jatm) > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
@@ -865,7 +866,8 @@ do while(.true.)
                 end do
             end do
         end do
-!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm) schedule(dynamic) NUM_THREADS(nthreads)
         do iatm=1,ncenter
             do jatm=iatm+1,ncenter
                 if ( distmat(iatm,jatm) > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
@@ -911,7 +913,8 @@ do while(.true.)
                 end do
             end do
         end do
-!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm,latm) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm,latm) schedule(dynamic) NUM_THREADS(nthreads)
         do iatm=1,ncenter !Test how many iterations will be done; ij,jk,kl,li,lj,ik
             do jatm=iatm+1,ncenter
                 if ( distmat(iatm,jatm) > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
@@ -998,7 +1001,8 @@ do while(.true.)
                     randptx(1)=sphcenx !The first try point is set to sphere center, this is faciliate to locate CP at nuclei
                     randpty(1)=sphceny
                     randptz(1)=sphcenz
-!$OMP PARALLEL DO SHARED(itime) PRIVATE(i) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(itime) PRIVATE(i) schedule(dynamic) NUM_THREADS(nthreads)
                     do i=1,numsearchpt_tmp
                         dispt_cen=dsqrt( (randptx(i)-sphcenx)**2+(randpty(i)-sphceny)**2+(randptz(i)-sphcenz)**2 )
                         if (dispt_cen>toposphrad) cycle

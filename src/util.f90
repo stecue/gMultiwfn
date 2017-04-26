@@ -1216,7 +1216,7 @@ mat=0D0
 spcx=(xmax-xmin)/nvalx
 spcy=(ymax-ymin)/nvaly
 !If enable parallel, program often prompts memory is not enough, I don't know how to solve this
-! !$OMP PARALLEL DO SHARED(mat) PRIVATE(ix,iy,ipt,xlow,xhigh,ylow,yhigh) schedule(dynamic) NUM_THREADS( nthreads  )
+! !$OMP PARALLEL DO SHARED(mat) PRIVATE(ix,iy,ipt,xlow,xhigh,ylow,yhigh) schedule(dynamic) NUM_THREADS(nthreads)
 do ix=1,nvalx
     xlow=xmin+(ix-1)*spcx
     xhigh=xmin+ix*spcx

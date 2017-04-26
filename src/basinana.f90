@@ -645,8 +645,9 @@ nsteplimit=min( nmaxtrjgrid,nint(dsqrt(dfloat(nx*nx+ny*ny+nz*nz))*2) )
 nstepdiscorr=nint(nsteplimit/2D0)
 if (igridmethod==1) then
 1    continue
+        nthreads=getNThreads()
 !$OMP PARALLEL DO private(ix,iy,iz,ntrjgrid,inowx,inowy,inowz,trjgrid,valnow,imove,gradtmp,igradmax,gradmax,iatt,itrjgrid,idtmp) &
-!$OMP shared(gridbas,numatt,attgrid) schedule(DYNAMIC) NUM_THREADS( nthreads  )
+!$OMP shared(gridbas,numatt,attgrid) schedule(DYNAMIC) NUM_THREADS(nthreads)
     do iz=2,nz-1
         do iy=2,ny-1
             do ix=2,nx-1
@@ -734,8 +735,9 @@ cyciatt3:                do iatt=1,numatt
 !$OMP END PARALLEL DO
     
 else if (igridmethod==2.or.igridmethod==3) then
+        nthreads=getNThreads()
 !$OMP PARALLEL DO private(ix,iy,iz,corrx,corry,corrz,ntrjgrid,inowx,inowy,inowz,trjgrid,valnow,imove,gradtmp,igradmax,gradmax,iatt,&
-!$OMP itrjgrid,idtmp,icorrx,icorry,icorrz,gradx,grady,gradz,sclgrad,ineiidx) shared(gridbas,numatt,attgrid) schedule(DYNAMIC) NUM_THREADS( nthreads  )
+!$OMP itrjgrid,idtmp,icorrx,icorry,icorrz,gradx,grady,gradz,sclgrad,ineiidx) shared(gridbas,numatt,attgrid) schedule(DYNAMIC) NUM_THREADS(nthreads)
     do iz=2,nz-1
         do iy=2,ny-1
             do ix=2,nx-1
@@ -876,8 +878,9 @@ cyciatt:                do iatt=1,numatt
         write(*,"(' There are',i12,' grids at basin boundary')") count(interbasgrid .eqv. .true.)
         write(*,*) "Refining basin boundary..."
         !Below code is the adapted copy of above near-grid code
+        nthreads=getNThreads()
 !$OMP PARALLEL DO private(ix,iy,iz,corrx,corry,corrz,ntrjgrid,inowx,inowy,inowz,valnow,imove,gradtmp,igradmax,gradmax,iatt,&
-!$OMP ineiidx,idtmp,icorrx,icorry,icorrz,gradx,grady,gradz,sclgrad) shared(gridbas,attgrid) schedule(DYNAMIC) NUM_THREADS( nthreads  )
+!$OMP ineiidx,idtmp,icorrx,icorry,icorrz,gradx,grady,gradz,sclgrad) shared(gridbas,attgrid) schedule(DYNAMIC) NUM_THREADS(nthreads)
         do iz=2,nz-1
             do iy=2,ny-1
                 do ix=2,nx-1
@@ -1777,7 +1780,8 @@ write(*,*) "Integrating, please wait..."
 intval=0D0
 basinvol=0D0
 ifinish=0
-!$OMP PARALLEL private(ix,iy,iz,irealatt,rnowx,rnowy,rnowz,tmpval,intvalpriv,basinvolpriv) shared(intval,basinvol,ifinish) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL private(ix,iy,iz,irealatt,rnowx,rnowy,rnowz,tmpval,intvalpriv,basinvolpriv) shared(intval,basinvol,ifinish) NUM_THREADS(nthreads)
 intvalpriv=0D0
 basinvolpriv=0D0
 !$OMP do schedule(DYNAMIC)
@@ -1946,7 +1950,8 @@ do while(.true.)
         xyint=0D0
         yzint=0D0
         xzint=0D0
-!$OMP PARALLEL private(ix,iy,iz,rnowx,rnowy,rnowz,tmpmul,rx,ry,rz,eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,yzintp,xzintp) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL private(ix,iy,iz,rnowx,rnowy,rnowz,tmpmul,rx,ry,rz,eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,yzintp,xzintp) NUM_THREADS(nthreads)
         eleintp=0D0
         xintp=0D0
         yintp=0D0
@@ -2131,7 +2136,8 @@ call walltime(nwalltime1)
 if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
     do ibas=1,numrealatt
         write(*,"(' Generating orbital overlap matrix for basin',i6,'  of',i6,' ......')") ibas,numrealatt
-!$OMP parallel shared(BOM) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,jmo,BOMtmp,orbval) num_threads( nthreads  )
+        nthreads=getNThreads()
+!$OMP parallel shared(BOM) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,jmo,BOMtmp,orbval) num_threads(nthreads)
         BOMtmp=0D0
 !$OMP do schedule(DYNAMIC)
         do iz=2,nz-1
@@ -2165,7 +2171,8 @@ else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
     do ibas=1,numrealatt
         !Alpha part
         write(*,"(' Generating orbital overlap matrix for basin',i6,'  of',i6,' ......')") ibas,numrealatt
-!$OMP parallel shared(BOMa) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,jmo,BOMtmp,orbval) num_threads( nthreads  )
+        nthreads=getNThreads()
+!$OMP parallel shared(BOMa) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,jmo,BOMtmp,orbval) num_threads(nthreads)
         BOMtmp=0D0
 !$OMP do schedule(DYNAMIC)
         do iz=2,nz-1
@@ -2200,7 +2207,8 @@ else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
             MOinit=iendalpha+1
             MOend=iendalpha+nmatsizeb
 !             write(*,*) MOinit,MOend,nmatsizeb
-!$OMP parallel shared(BOMb) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,imotmp,jmo,jmotmp,BOMtmp,orbval) num_threads( nthreads  )
+        nthreads=getNThreads()
+!$OMP parallel shared(BOMb) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,imotmp,jmo,jmotmp,BOMtmp,orbval) num_threads(nthreads)
             BOMtmp=0D0
 !$OMP do schedule(DYNAMIC)
             do iz=2,nz-1
@@ -2496,8 +2504,9 @@ write(*,*) "Integrating, please wait..."
 intval=0D0
 basinvol=0D0
 ifinish=0
+        nthreads=getNThreads()
 !$OMP PARALLEL private(ix,iy,iz,ixref,iyref,izref,ndiv,irealatt,rnowx,rnowy,rnowz,rnowxtmp,rnowytmp,rnowztmp,orgxref,orgyref,orgzref,dxref,dyref,dzref,&
-!$OMP tmpval,tmpvalrefine,intvalpriv,basinvolpriv,nrefine) shared(intval,basinvol,ifinish) NUM_THREADS( nthreads  )
+!$OMP tmpval,tmpvalrefine,intvalpriv,basinvolpriv,nrefine) shared(intval,basinvol,ifinish) NUM_THREADS(nthreads)
 intvalpriv=0D0
 basinvolpriv=0D0
 !$OMP do schedule(DYNAMIC)
@@ -2775,8 +2784,9 @@ do iatt=1,numrealatt !Cycle each attractors
     end if
     
     !Use DFT integration algorithm to integrate the region inside trust radius
+        nthreads=getNThreads()
 !$OMP PARALLEL private(ipt,ptx,pty,ptz,rx,ry,rz,dist,tmps,iter,switchwei,intvalp,&
-!$OMP eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,yzintp,xzintp,tmpval,tmpval2,tmpval3) shared(intval,gridval) NUM_THREADS( nthreads  )
+!$OMP eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,yzintp,xzintp,tmpval,tmpval2,tmpval3) shared(intval,gridval) NUM_THREADS(nthreads)
     intvalp=0D0
     eleintp=0D0
     xintp=0D0
@@ -2940,8 +2950,9 @@ if (ispecial==2.or.ifuncint==-1) goto 10
 write(*,*)
 write(*,*) "Integrating uniform grids..."
 ifinish=0
+        nthreads=getNThreads()
 !$OMP PARALLEL private(ix,iy,iz,iatt,icp,rnowx,rnowy,rnowz,rx,ry,rz,tmpval,tmpval2,tmpval3,intvalp,basinvolp,basinvdwvolp,dist,tmps,iter,switchwei,&
-!$OMP eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,xzintp,yzintp) shared(intval,basinvol,basinvdwvol,ifinish) NUM_THREADS( nthreads  )
+!$OMP eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,xzintp,yzintp) shared(intval,basinvol,basinvdwvol,ifinish) NUM_THREADS(nthreads)
 intvalp=0D0
 basinvolp=0D0
 basinvdwvolp=0D0
@@ -3058,9 +3069,10 @@ if (itype==2.or.itype==3) then
     nrk4gradswitch=40
     hsizeinit=0.25D0
     ifinish=0
+        nthreads=getNThreads()
 !$OMP PARALLEL private(ix,iy,iz,iatt,rnowx,rnowy,rnowz,rx,ry,rz,tmpval,tmpval2,tmpval3,intvalp,basinvolp,basinvdwvolp,dist,tmps,iter,switchwei,&
 !$OMP rnowxtmp,rnowytmp,rnowztmp,orgxref,orgyref,orgzref,dxref,dyref,dzref,ixref,iyref,izref,nrefine,ndiv,&
-!$OMP k1,k2,k3,k4,dens,denshold,grad,hess,iattref,xtmp,ytmp,ztmp,irk4,hsize,ixtest,iytest,iztest,tmpdist) shared(intval,basinvol,basinvdwvol,ifinish) NUM_THREADS( nthreads  )
+!$OMP k1,k2,k3,k4,dens,denshold,grad,hess,iattref,xtmp,ytmp,ztmp,irk4,hsize,ixtest,iytest,iztest,tmpdist) shared(intval,basinvol,basinvdwvol,ifinish) NUM_THREADS(nthreads)
     intvalp=0D0
     basinvolp=0D0
     basinvdwvolp=0D0
@@ -3241,7 +3253,8 @@ if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and Fish
     ifinish=0
     write(*,*)
     write(*,*) "Calculating electron density and its gradient for actual system at each grid"
-!$OMP PARALLEL DO SHARED(rhogrid,rhograd2grid,ifinish) PRIVATE(ix,iy,iz,ptx,pty,ptz) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(rhogrid,rhograd2grid,ifinish) PRIVATE(ix,iy,iz,ptx,pty,ptz) schedule(dynamic) NUM_THREADS(nthreads)
     do iz=2,nz-1
         ptz=zarr(iz)
         do iy=2,ny-1
@@ -3264,7 +3277,8 @@ if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and Fish
         write(*,"(' Processing ',a)") trim(custommapname(att2atm(iatt)))
         call dealloall
         call readwfn(custommapname(att2atm(iatt)),1)
-!$OMP PARALLEL private(intvalp,ix,iy,iz,ptx,pty,ptz,rx,ry,rz,dist,tmps,switchwei,prodens,prodensgrad2,tmpval1,tmpval2) shared(intval) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL private(intvalp,ix,iy,iz,ptx,pty,ptz,rx,ry,rz,dist,tmps,switchwei,prodens,prodensgrad2,tmpval1,tmpval2) shared(intval) NUM_THREADS(nthreads)
         intvalp=0D0
 !$OMP do schedule(DYNAMIC)
         do iz=2,nz-1
@@ -3320,7 +3334,8 @@ else if (ifuncint==-1) then !Deformation density
         write(*,"(' Processing atom',i6,a,'...')") iatm,a_org(iatm)%name
         call dealloall
         call readwfn(custommapname(iatm),1)
-!$OMP PARALLEL DO SHARED(prorhogrid) PRIVATE(ix,iy,iz) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(prorhogrid) PRIVATE(ix,iy,iz) schedule(dynamic) NUM_THREADS(nthreads)
         do iz=2,nz-1
             do iy=2,ny-1
                 do ix=2,nx-1
@@ -3560,7 +3575,8 @@ if (allocated(cubmatvec)) then
 end if
 allocate(cubmatvec(3,nx,ny,nz))
 ifinish=0
-!$OMP PARALLEL DO SHARED(cubmatvec,ifinish) PRIVATE(ix,iy,iz,tmpx,tmpy,tmpz,wfnval,wfnderv,gradrho,imo) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(cubmatvec,ifinish) PRIVATE(ix,iy,iz,tmpx,tmpy,tmpz,wfnval,wfnderv,gradrho,imo) schedule(dynamic) NUM_THREADS(nthreads)
 do iz=1,nz
     tmpz=orgz+(iz-1)*dz
     do iy=1,ny

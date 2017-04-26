@@ -1911,11 +1911,12 @@ integer nu,imo,iprim,jprim,maxFn,maplri(narrmax),mapmsj(narrmax),mapntk(narrmax)
 integer Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi
 eleesp=0.0D0
 espexpcut=log10(espprecutoff)*3
+nthreads=getNThreads()
 !$OMP parallel do private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi, &
 !$OMP nu,imo,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alri,Amsj,Antk,Fn,&
 !$OMP sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp,&
-!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval,espprivate) shared(eleesp) schedule(dynamic) NUM_THREADS( nthreads  )
+!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval,espprivate) shared(eleesp) schedule(dynamic) NUM_THREADS(nthreads)
 do iprim=1,nprims
     espprivate=0D0
     icen=b(iprim)%center
@@ -2067,12 +2068,13 @@ do ii=0,ngridnum1-1
     end do
 end do
 
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi,ii,jj,planetype,numx,numy,numz,&
 !$OMP nu,imo,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alrivec,Amsjvec,Antkvec,Alri,Amsj,Antk,Fnmat,Fnvec,&
 !$OMP sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp,&
 !$OMP Cx,Cy,Cz,Cxold,Cyold,Czold,term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval,pleprivate) &
-!$OMP shared(planemat,ifinish) schedule(dynamic) NUM_THREADS( nthreads  )
+!$OMP shared(planemat,ifinish) schedule(dynamic) NUM_THREADS(nthreads)
 do iprim=1,nprims
     pleprivate=0D0
     icen=b(iprim)%center
@@ -2229,12 +2231,13 @@ integer Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi,ii,jj,kk
 CALL CPU_TIME ( time_begin )
 ifinish=0
 espexpcut=log10(espprecutoff)*3
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi,ii,jj,kk, &
 !$OMP nu,imo,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn, &
 !$OMP twoepsqPC,tl,tm,tn,Alrivec,Amsjvec,Antkvec,Fnmat,Fnvec, &
 !$OMP sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp,cubprivate, &
 !$OMP Cx,Cy,Cz,term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,tmpval,prefac) &
-!$OMP shared(cubmat,ifinish) schedule(dynamic) NUM_THREADS( nthreads  )
+!$OMP shared(cubmat,ifinish) schedule(dynamic) NUM_THREADS(nthreads)
 do iprim=1,nprims
     cubprivate=0D0
     icen=b(iprim)%center
@@ -2395,10 +2398,11 @@ integer,parameter :: narrmax=396
 real*8 x,y,z,GTFattmat(nprims,nprims),Alri(narrmax),Amsj(narrmax),Antk(narrmax),Fn(0:10) !Enough for h-type GTF, 5+5=10. Alri(0:10,0:5,0:5)-->11*6*6=396
 integer maxFn,maplri(narrmax),mapmsj(narrmax),mapntk(narrmax),tmpnuml,tmpnumm,tmpnumn,Aix,Aiy,Aiz,Bix,Biy,Biz,r,s,t,sumAi,sumBi
 espexpcut=log10(espprecutoff)*3
+nthreads=getNThreads()
 !$OMP parallel do private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi, &
 !$OMP nu,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alri,Amsj,Antk,Fn,sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,&
-!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval) shared(GTFattmat) schedule(dynamic) NUM_THREADS( nthreads  )
+!$OMP term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval) shared(GTFattmat) schedule(dynamic) NUM_THREADS(nthreads)
 do iprim=1,nprims
     icen=b(iprim)%center
     Aexp=b(iprim)%exp

@@ -198,7 +198,8 @@ exccoeffbackup=exccoeff
         zdipcontri=0
         fac=1
         if (wfntype==0.or.wfntype==3) fac=2
-!$OMP PARALLEL DO SHARED(xdipcontri,ydipcontri,zdipcontri) PRIVATE(iGTF,jGTF,ides,iexcitorb,imo,jmo) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(xdipcontri,ydipcontri,zdipcontri) PRIVATE(iGTF,jGTF,ides,iexcitorb,imo,jmo) schedule(dynamic) NUM_THREADS(nthreads)
         do iexcitorb=1,nexcitorb
             imo=orbleft(iexcitorb)
             jmo=orbright(iexcitorb)
@@ -600,7 +601,8 @@ exccoeffbackup=exccoeff
         orbcenx=0
         orbceny=0
         orbcenz=0
-!$OMP PARALLEL DO SHARED(orbcenx,orbceny,orbcenz) PRIVATE(iGTF,jGTF,ides,imo) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(orbcenx,orbceny,orbcenz) PRIVATE(iGTF,jGTF,ides,imo) schedule(dynamic) NUM_THREADS(nthreads)
         do imo=1,nmo
             do iGTF=1,nprims
                 do jGTF=1,nprims
@@ -897,9 +899,10 @@ write(*,*) "Calculating grid data..."
 call walltime(walltime1)
 CALL CPU_TIME(time_begin)
 ifinish=0
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(ifinish,holegrid,elegrid,transdens,holecross,elecross,magtrdens) &
 !$OMP PRIVATE(i,j,k,tmpx,tmpy,tmpz,orbval,wfnderv,imo,jmo,excwei,iexcitorb,jexcitorb,ileft,jleft,iright,jright,tmpleft,tmpright,idir,jdir,tmpval) &
-!$OMP schedule(dynamic) NUM_THREADS( nthreads  )
+!$OMP schedule(dynamic) NUM_THREADS(nthreads)
 do k=1,nz
     tmpz=orgz+(k-1)*dz
     do j=1,ny
@@ -1535,7 +1538,8 @@ write(*,*) "Stage 2: Calculating dipole moment integrals between all MOs..."
 allocate(MOdipint(3,nmo,nmo))
 !MOdipint will record dipole moment integrals between all MOs, including all occ+vir alpha and occ+vir beta ones
 iprog=0
-!$OMP PARALLEL DO SHARED(MOdipint,MOdipintb,iprog) PRIVATE(imo,jmo,iGTF,jGTF,ides,tmpvec) schedule(dynamic) NUM_THREADS( nthreads  )
+nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(MOdipint,MOdipintb,iprog) PRIVATE(imo,jmo,iGTF,jGTF,ides,tmpvec) schedule(dynamic) NUM_THREADS(nthreads)
 do imo=1,nmo
     do jmo=imo,nmo
         tmpvec=0
@@ -1609,7 +1613,8 @@ end if
 write(*,*) "Stage 3: Calculating transition dipole moment between excited states..."
 call walltime(iwalltime1)
 iprog=0
-!$OMP PARALLEL DO SHARED(tdvecmat,iprog) PRIVATE(iexc,jexc,tdvec,imo,lmo,jmo,kmo,wei) schedule(dynamic) NUM_THREADS( nthreads  )
+nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(tdvecmat,iprog) PRIVATE(iexc,jexc,tdvec,imo,lmo,jmo,kmo,wei) schedule(dynamic) NUM_THREADS(nthreads)
 do iexc=1,nstates
     do jexc=iexc,nstates
         tdvec=0

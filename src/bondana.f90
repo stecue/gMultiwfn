@@ -394,7 +394,8 @@ do while(.true.)
                 end do
             end do
         else if (nbndcen==4) then
-!$OMP PARALLEL DO private(iatm,jatm,katm,latm,cenind,iseq,accum) shared(nfound) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO private(iatm,jatm,katm,latm,cenind,iseq,accum) shared(nfound) schedule(dynamic) NUM_THREADS(nthreads)
             do iatm=1,ncenter
                 do jatm=iatm+1,ncenter
                     do katm=jatm+1,ncenter
@@ -422,7 +423,8 @@ do while(.true.)
 !$OMP end parallel do
         else if (nbndcen==5) then
              do iatm=1,ncenter
-!$OMP PARALLEL DO private(jatm,katm,latm,matm,cenind,iseq,accum) shared(nfound) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO private(jatm,katm,latm,matm,cenind,iseq,accum) shared(nfound) schedule(dynamic) NUM_THREADS(nthreads)
                 do jatm=iatm+1,ncenter
                     do katm=jatm+1,ncenter
                         do latm=katm+1,ncenter
@@ -452,7 +454,8 @@ do while(.true.)
             end do
         else if (nbndcen==6) then
             do iatm=1,ncenter
-!$OMP PARALLEL DO private(jatm,katm,latm,matm,cenind,iseq,accum) shared(nfound) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO private(jatm,katm,latm,matm,cenind,iseq,accum) shared(nfound) schedule(dynamic) NUM_THREADS(nthreads)
                 do jatm=iatm+1,ncenter
                     do katm=jatm+1,ncenter
                         do latm=katm+1,ncenter

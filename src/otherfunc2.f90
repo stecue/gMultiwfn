@@ -41,7 +41,8 @@ do ifps=1,ifpsend
     do itmp=1,nfragatmnum
         fragatm(itmp)=itmp
     end do
-!$OMP PARALLEL DO SHARED(avgdens,avggrad,avghess) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp,gradtmp,hesstmp) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(avgdens,avggrad,avghess) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp,gradtmp,hesstmp) schedule(dynamic) NUM_THREADS(nthreads)
     do k=1,nz
         tmpz=orgz+(k-1)*dz
         do j=1,ny
@@ -175,7 +176,8 @@ do while (.true.)
             call readxyz(filename,1,0)
             if (ifps<ifpsstart) cycle
             write(*,"(' Processing frame',i8,' ...')") ifps
-!$OMP PARALLEL DO SHARED(thermflu) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(thermflu) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(nthreads)
             do k=1,nz
                 tmpz=orgz+(k-1)*dz
                 do j=1,ny
@@ -786,7 +788,8 @@ do while(.true.)
         iprogstp=20
         iprogcrit=iprogstp
         write(*,*) "Calculating..."
-!$OMP PARALLEL DO SHARED(radval,radpos,ifinish,iprogcrit) PRIVATE(irad,radnow,isph,rnowx,rnowy,rnowz,tmpval) schedule(dynamic) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(radval,radpos,ifinish,iprogcrit) PRIVATE(irad,radnow,isph,rnowx,rnowy,rnowz,tmpval) schedule(dynamic) NUM_THREADS(nthreads)
         do irad=1,nradpt
             radnow=rlow+(irad-1)*radstp
             radpos(irad)=radnow
@@ -2030,7 +2033,8 @@ else if (isel==3.or.isel==7.or.isel==17) then
                             w1=tmpw(arrg(iper,2))
                             w2=tmpw(arrg(iper,3))
                             w3=tmpw(arrg(iper,4))
-!$OMP PARALLEL SHARED(gamma1,gamma2) PRIVATE(istat,jstat,kstat,t1c,t2c,p1,p2,g1t,g2t) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL SHARED(gamma1,gamma2) PRIVATE(istat,jstat,kstat,t1c,t2c,p1,p2,g1t,g2t) NUM_THREADS(nthreads)
                             g1t=0
                             g2t=0
 !$OMP DO schedule(dynamic)
@@ -2194,7 +2198,8 @@ else if (isel==4) then
                             w2=tmpw(arrd(iper,3))
                             w3=tmpw(arrd(iper,4))
                             w4=tmpw(arrd(iper,5))
-!$OMP PARALLEL SHARED(delta1,delta2,delta3) PRIVATE(istat,jstat,kstat,lstat,t1c,t2c,t3c,p1,p2,p3,p4,d1t,d2t,d3t) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL SHARED(delta1,delta2,delta3) PRIVATE(istat,jstat,kstat,lstat,t1c,t2c,t3c,p1,p2,p3,p4,d1t,d2t,d3t) NUM_THREADS(nthreads)
                             d1t=0
                             d2t=0
                             d3t=0
@@ -2422,7 +2427,8 @@ do imo=1,nmo
         
         if (itype==1.or.itype==2.or.itype==3) then !Vector integral
             vecint=0D0
-!$OMP PARALLEL SHARED(vecint) PRIVATE(iGTF,jGTF,ides,vecinttmp) NUM_THREADS( nthreads  )
+        nthreads=getNThreads()
+!$OMP PARALLEL SHARED(vecint) PRIVATE(iGTF,jGTF,ides,vecinttmp) NUM_THREADS(nthreads)
             vecinttmp=0D0
 !$OMP DO schedule(dynamic)
             do iGTF=1,nprims
