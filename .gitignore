@@ -33,7 +33,6 @@ src/Multiwfn
 gMultiwfn-*/
 gMultiwfn-*gz
 build-aux/
-config/
 configure
 install-sh
 missing
