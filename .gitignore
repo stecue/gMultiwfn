@@ -30,6 +30,7 @@
 src/Multiwfn
 
 # Config files
+build-aux/
 config/
 configure
 install-sh
