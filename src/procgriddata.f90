@@ -67,819 +67,819 @@ character gridfile2*200,gridfilenew*200,atmidxfile*200,atmidxfile2*200,c200tmp*2
 type(content) useratom(3),maxv,minv
 
 do while(.true.)
-	write(*,*)
-	write(*,*) "                  ------------- Process grid data --------------"
-	write(*,*) "-2 Visualize isosurface of present grid data"
-	write(*,*) "-1 Return to main menu"
-	write(*,*) "0 Output present grid data to Gaussian cube file"
-	write(*,*) "1 Output all data points with value and coordinate"
-	write(*,*) "2 Output data points in a XY plane by specifying Z"
-	write(*,*) "3 Output data points in a YZ plane by specifying X"
-	write(*,*) "4 Output data points in a XZ plane by specifying Y"
-	write(*,*) "5 Output average data of XY planes in a range of Z"
-	write(*,*) "6 Output average data of YZ planes in a range of X"
-	write(*,*) "7 Output average data of XZ planes in a range of Y"
-	write(*,*) "8 Output data points in a plane defined by three atom indices"
-	write(*,*) "9 Output data points in a plane defined by three points"
-	write(*,*) "10 Output data points in specified value range"
-	write(*,*) "11 Grid data calculation"
-	write(*,"(a)") " 12 Map values of a cube file to specified isosurface of present grid data"
-	write(*,*) "13 Set value of the grid points that far away from / close to some atoms"
-	write(*,*) "14 Set value of the grid points outside overlap region of two fragments"
-	write(*,*) "15 If data value is within certain range, set it to a specified value"
-	write(*,*) "16 Scale data range"
-	write(*,*) "17 Show statistic data of the points in specific spatial and value range"
-	write(*,*) "18 Calculate and plot integral curve in X/Y/Z direction"
-	read(*,*) isel
-	
-	if (isel==-2) then
-	else if (isel==-1) then
-		exit
-	else if (isel==0) then
-		write(*,*) "Input the new cube file name"
-		read(*,"(a)") gridfilenew
-		open(10,file=gridfilenew,status="replace")
-		call outcube(cubmat,nx,ny,nz,orgx,orgy,orgz,dx,dy,dz,10)
-		close(10)
-		write(*,*) "Done, new cube file has been outputted"
-	else if (isel==1) then
-		open(10,file="output.txt",status="replace")
-		write(*,*) "Outputting data, please wait..."
-		ii=0
-		do i=1,nx
-			do j=1,ny
-				do k=1,nz
-					write(10,"(3f10.5,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
-				end do
-			end do
-			progress=dfloat(i)/nx*100
-			if (progress>ii) then
-				ii=ii+10
-				write(*,"(f6.1,'%')") progress
-			end if
-		end do
-		write(*,"(f6.1,'%')") 100D0
-		write(*,*)
-		write(*,*) "The data have been saved to output.txt in current folder"
-		write(*,"(a)") " The first three columns correspond to X,Y,Z, unit is Angstrom, the last column is data value"
-		close(10)
-	else if (isel==2) then
-		open(10,file="output.txt",status="replace")
-		write(*,*) "Input Z (in Angstrom) to define a XY plane"
-		read(*,*) posZ
-		posZ=posZ/b2a
-		rmindist=abs(orgz-posZ)
-		k=1
-		do icycz=2,nz
-			disttmp=abs((orgz+(icycz-1)*dz)-posZ)
-			if (disttmp<rmindist) then 
-				rmindist=disttmp
-				k=icycz
-			end if
-		end do
-		write(*,"(a,f14.6,a)") " The X-Y plane closest to your input is Z=",(orgz+(k-1)*dz)*b2a," Angstrom"
-		do i=1,nx
-			do j=1,ny
-				write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
-			end do
-		end do
-		write(*,*) "The data have been exported to output.txt in current folder"
-		write(*,*) "The first three columns correspond to X,Y,Z, unit is Angstrom"
-		close(10)
-		
-	else if (isel==3) then
-		open(10,file="output.txt",status="replace")
-		write(*,*) "Input X (in Angstrom) to define a YZ plane"
-		read(*,*) posX
-		posX=posX/b2a
-		rmindist=abs(orgx-posX)
-		i=1
-		do icycx=2,nx
-			disttmp=abs((orgx+(icycx-1)*dx)-posX)
-			if (disttmp<rmindist) then 
-				rmindist=disttmp
-				i=icycx
-			end if
-		end do
-		write(*,"(a,f14.6,a)") " The YZ plane closest to your input is X=",(orgx+(i-1)*dx)*b2a," Angstrom"
-		do j=1,ny
-			do k=1,nz
-				write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
-			end do
-		end do
-		write(*,*) "The data have been exported to output.txt in current folder"
-		write(*,*) "The first three columns correspond to X,Y,Z, unit is Angstrom"
-		close(10)
-		
-	else if (isel==4) then
-		open(10,file="output.txt",status="replace")
-		write(*,*) "Input Y (in Angstrom) to define a XZ plane"
-		read(*,*) posY
-		posY=posY/b2a
-		rmindist=abs(orgy-posY)
-		j=1
-		do icycy=2,ny
-			disttmp=abs((orgy+(icycy-1)*dy)-posY)
-			if (disttmp<rmindist) then 
-				rmindist=disttmp
-				j=icycy
-			end if
-		end do
-		write(*,"(a,f14.6,a)") " The XZ plane closest to your input is Y=",(orgy+(j-1)*dy)*b2a," Angstrom"
-		do i=1,nx
-			do k=1,nz
-				write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
-			end do
-		end do
-		write(*,*) "The data have been exported to output.txt in current folder"
-		write(*,*) "The column 1/2/3/4 correspond to X,Y,Z,value respectively unit is Angstrom"
-		close(10)
-		
-	else if (isel==5) then
-		if (allocated(avgdata)) deallocate(avgdata)
-		allocate(avgdata(nx,ny))
-		avgdata=0D0
-		open(10,file="output.txt",status="replace")
-		write(*,*) "Input the range of Z (Angstrom) for XY planes, e.g. 3.0 12.4"
-		read(*,*) rangelow,rangehigh
-		rangelow=rangelow/b2a
-		rangehigh=rangehigh/b2a
-		nlayers=0
-		do icyck=1,nz
-			if ((orgz+(icyck-1)*dz)>rangelow.and.(orgz+(icyck-1)*dz)<rangehigh) then
-				avgdata=avgdata+cubmat(:,:,icyck)
-				nlayers=nlayers+1
-			end if
-		end do
-		avgdata=avgdata/nlayers
-		write(*,"(' There are ',i8,' layers within the range')") nlayers
-		do i=1,nx
-			do j=1,ny
-				write(10,"(2f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,avgdata(i,j)
-			end do
-		end do
-		write(*,*) "The data have been exported to output.txt in current folder"
-		write(*,*) "Column 1,2,3 correspond to X,Y,value respectively"
-		close(10)
-		
-	else if (isel==6) then
-		if (allocated(avgdata)) deallocate(avgdata)
-		allocate(avgdata(ny,nz))
-		avgdata=0D0
-		open(10,file="output.txt",status="replace")
-		write(*,*) "Input the range of X (Angstrom) for YZ planes, e.g. 3.0 12.4"
-		read(*,*) rangelow,rangehigh
-		rangelow=rangelow/b2a
-		rangehigh=rangehigh/b2a
-		nlayers=0
-		do icyci=1,nx
-			if ((orgx+(icyci-1)*dx)>rangelow.and.(orgx+(icyci-1)*dx)<rangehigh) then
-				avgdata=avgdata+cubmat(icyci,:,:)
-				nlayers=nlayers+1
-			end if
-		end do
-		avgdata=avgdata/nlayers
-		write(*,"(' There are ',i8,' layers within the range')") nlayers
-		do j=1,ny
-			do k=1,nz
-				write(10,"(2f11.6,f22.15)") (orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,avgdata(j,k)
-			end do
-		end do
-		write(*,*) "The data have been exported to output.txt in current folder"
-		write(*,*) "Column 1,2,3 correspond to Y,Z,value respectively"
-		close(10)
-				
-	else if (isel==7) then
-		if (allocated(avgdata)) deallocate(avgdata)
-		allocate(avgdata(nx,nz))
-		avgdata=0D0
-		open(10,file="output.txt",status="replace")
-		write(*,*) "Input the range of Y (Angstrom) for XZ planes, e.g. 3.0 12.4"
-		read(*,*) rangelow,rangehigh
-		rangelow=rangelow/b2a
-		rangehigh=rangehigh/b2a
-		nlayers=0
-		do icycj=1,ny
-			if ((orgy+(icycj-1)*dy)>=rangelow.and.(orgy+(icycj-1)*dy)<=rangehigh) then
-				avgdata=avgdata+cubmat(:,icycj,:)
-				nlayers=nlayers+1
-			end if
-		end do
-		avgdata=avgdata/nlayers
-		write(*,"(' There are ',i8,' layers within the range')") nlayers
-		do i=1,nx
-			do k=1,nz
-				write(10,"(2f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgz+(k-1)*dz)*b2a,avgdata(i,k)
-			end do
-		end do
-		write(*,*) "The data have been exported to output.txt in current folder"
-		write(*,*) "Column 1,2,3 correspond to X,Z,value respectively"
-		close(10)
-		
-	else if (isel==8) then
-		do while(.true.)
-			write(*,*) "Please input indices of three atoms to define a plane   e.g. 4,8,3"
-			read(*,*) iatm1,iatm2,iatm3
-			if (iatm1<=ncenter.and.iatm1>=1.and.iatm2<=ncenter.and.iatm2>=1.and.iatm3<=ncenter.and.iatm3>=1) exit
-			write(*,*) "The atom indices are invalid, input again"
-		end do
-		useratom(1)%x=a(iatm1)%x
-		useratom(1)%y=a(iatm1)%y
-		useratom(1)%z=a(iatm1)%z
-		useratom(2)%x=a(iatm2)%x
-		useratom(2)%y=a(iatm2)%y
-		useratom(2)%z=a(iatm2)%z
-		useratom(3)%x=a(iatm3)%x
-		useratom(3)%y=a(iatm3)%y
-		useratom(3)%z=a(iatm3)%z
-		write(*,"('The coordinate (Angstrom) of the three atoms you inputted:')")
-		write(*,"('Atom 1  x, y, z:',3f12.6)") useratom(1)%x*b2a,useratom(1)%y*b2a,useratom(1)%z*b2a
-		write(*,"('Atom 2  x, y, z:',3f12.6)") useratom(2)%x*b2a,useratom(2)%y*b2a,useratom(2)%z*b2a
-		write(*,"('Atom 3  x, y, z:',3f12.6)") useratom(3)%x*b2a,useratom(3)%y*b2a,useratom(3)%z*b2a
-		call doproject(useratom)
-	else if (isel==9) then
-	
-		write(*,*) "Please input three points to define a plane (in Angstrom)"
-		do ipt=1,3
-			write(*,"('Now input x,y,z of point ',i5,'  e.g. 3.0,1.2,4.5')") ipt
-			read(*,*) useratom(ipt)%x,useratom(ipt)%y,useratom(ipt)%z
-		end do
-		useratom%x=useratom%x/b2a !Convert to Bohr
-		useratom%y=useratom%y/b2a
-		useratom%z=useratom%z/b2a
-		call doproject(useratom)
-	else if (isel==10) then
-		write(*,*) "Input the value range of data points you want to output, e.g. 0.5,0.9"
-		write(*,"(a)") " Note: If the two values are identical, points with value within deviation of 3% will be outputted"
-		read(*,*) rangelow,rangehigh
-		if (rangelow==rangehigh) then
-			rangelow=rangelow-0.03D0*abs(rangelow)
-			rangehigh=rangehigh+0.03D0*abs(rangehigh)
-		end if
-		write(*,"('Points with value within ',1PE13.5, ' and ',1PE13.5,' will be outputted')") rangelow,rangehigh
-		write(*,*) "Outputting, please wait..."
+    write(*,*)
+    write(*,*) "                  ------------- Process grid data --------------"
+    write(*,*) "-2 Visualize isosurface of present grid data"
+    write(*,*) "-1 Return to main menu"
+    write(*,*) "0 Output present grid data to Gaussian cube file"
+    write(*,*) "1 Output all data points with value and coordinate"
+    write(*,*) "2 Output data points in a XY plane by specifying Z"
+    write(*,*) "3 Output data points in a YZ plane by specifying X"
+    write(*,*) "4 Output data points in a XZ plane by specifying Y"
+    write(*,*) "5 Output average data of XY planes in a range of Z"
+    write(*,*) "6 Output average data of YZ planes in a range of X"
+    write(*,*) "7 Output average data of XZ planes in a range of Y"
+    write(*,*) "8 Output data points in a plane defined by three atom indices"
+    write(*,*) "9 Output data points in a plane defined by three points"
+    write(*,*) "10 Output data points in specified value range"
+    write(*,*) "11 Grid data calculation"
+    write(*,"(a)") " 12 Map values of a cube file to specified isosurface of present grid data"
+    write(*,*) "13 Set value of the grid points that far away from / close to some atoms"
+    write(*,*) "14 Set value of the grid points outside overlap region of two fragments"
+    write(*,*) "15 If data value is within certain range, set it to a specified value"
+    write(*,*) "16 Scale data range"
+    write(*,*) "17 Show statistic data of the points in specific spatial and value range"
+    write(*,*) "18 Calculate and plot integral curve in X/Y/Z direction"
+    read(*,*) isel
+    
+    if (isel==-2) then
+    else if (isel==-1) then
+        exit
+    else if (isel==0) then
+        write(*,*) "Input the new cube file name"
+        read(*,"(a)") gridfilenew
+        open(10,file=gridfilenew,status="replace")
+        call outcube(cubmat,nx,ny,nz,orgx,orgy,orgz,dx,dy,dz,10)
+        close(10)
+        write(*,*) "Done, new cube file has been outputted"
+    else if (isel==1) then
+        open(10,file="output.txt",status="replace")
+        write(*,*) "Outputting data, please wait..."
+        ii=0
+        do i=1,nx
+            do j=1,ny
+                do k=1,nz
+                    write(10,"(3f10.5,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
+                end do
+            end do
+            progress=dfloat(i)/nx*100
+            if (progress>ii) then
+                ii=ii+10
+                write(*,"(f6.1,'%')") progress
+            end if
+        end do
+        write(*,"(f6.1,'%')") 100D0
+        write(*,*)
+        write(*,*) "The data have been saved to output.txt in current folder"
+        write(*,"(a)") " The first three columns correspond to X,Y,Z, unit is Angstrom, the last column is data value"
+        close(10)
+    else if (isel==2) then
+        open(10,file="output.txt",status="replace")
+        write(*,*) "Input Z (in Angstrom) to define a XY plane"
+        read(*,*) posZ
+        posZ=posZ/b2a
+        rmindist=abs(orgz-posZ)
+        k=1
+        do icycz=2,nz
+            disttmp=abs((orgz+(icycz-1)*dz)-posZ)
+            if (disttmp<rmindist) then 
+                rmindist=disttmp
+                k=icycz
+            end if
+        end do
+        write(*,"(a,f14.6,a)") " The X-Y plane closest to your input is Z=",(orgz+(k-1)*dz)*b2a," Angstrom"
+        do i=1,nx
+            do j=1,ny
+                write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
+            end do
+        end do
+        write(*,*) "The data have been exported to output.txt in current folder"
+        write(*,*) "The first three columns correspond to X,Y,Z, unit is Angstrom"
+        close(10)
+        
+    else if (isel==3) then
+        open(10,file="output.txt",status="replace")
+        write(*,*) "Input X (in Angstrom) to define a YZ plane"
+        read(*,*) posX
+        posX=posX/b2a
+        rmindist=abs(orgx-posX)
+        i=1
+        do icycx=2,nx
+            disttmp=abs((orgx+(icycx-1)*dx)-posX)
+            if (disttmp<rmindist) then 
+                rmindist=disttmp
+                i=icycx
+            end if
+        end do
+        write(*,"(a,f14.6,a)") " The YZ plane closest to your input is X=",(orgx+(i-1)*dx)*b2a," Angstrom"
+        do j=1,ny
+            do k=1,nz
+                write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
+            end do
+        end do
+        write(*,*) "The data have been exported to output.txt in current folder"
+        write(*,*) "The first three columns correspond to X,Y,Z, unit is Angstrom"
+        close(10)
+        
+    else if (isel==4) then
+        open(10,file="output.txt",status="replace")
+        write(*,*) "Input Y (in Angstrom) to define a XZ plane"
+        read(*,*) posY
+        posY=posY/b2a
+        rmindist=abs(orgy-posY)
+        j=1
+        do icycy=2,ny
+            disttmp=abs((orgy+(icycy-1)*dy)-posY)
+            if (disttmp<rmindist) then 
+                rmindist=disttmp
+                j=icycy
+            end if
+        end do
+        write(*,"(a,f14.6,a)") " The XZ plane closest to your input is Y=",(orgy+(j-1)*dy)*b2a," Angstrom"
+        do i=1,nx
+            do k=1,nz
+                write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
+            end do
+        end do
+        write(*,*) "The data have been exported to output.txt in current folder"
+        write(*,*) "The column 1/2/3/4 correspond to X,Y,Z,value respectively unit is Angstrom"
+        close(10)
+        
+    else if (isel==5) then
+        if (allocated(avgdata)) deallocate(avgdata)
+        allocate(avgdata(nx,ny))
+        avgdata=0D0
+        open(10,file="output.txt",status="replace")
+        write(*,*) "Input the range of Z (Angstrom) for XY planes, e.g. 3.0 12.4"
+        read(*,*) rangelow,rangehigh
+        rangelow=rangelow/b2a
+        rangehigh=rangehigh/b2a
+        nlayers=0
+        do icyck=1,nz
+            if ((orgz+(icyck-1)*dz)>rangelow.and.(orgz+(icyck-1)*dz)<rangehigh) then
+                avgdata=avgdata+cubmat(:,:,icyck)
+                nlayers=nlayers+1
+            end if
+        end do
+        avgdata=avgdata/nlayers
+        write(*,"(' There are ',i8,' layers within the range')") nlayers
+        do i=1,nx
+            do j=1,ny
+                write(10,"(2f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,avgdata(i,j)
+            end do
+        end do
+        write(*,*) "The data have been exported to output.txt in current folder"
+        write(*,*) "Column 1,2,3 correspond to X,Y,value respectively"
+        close(10)
+        
+    else if (isel==6) then
+        if (allocated(avgdata)) deallocate(avgdata)
+        allocate(avgdata(ny,nz))
+        avgdata=0D0
+        open(10,file="output.txt",status="replace")
+        write(*,*) "Input the range of X (Angstrom) for YZ planes, e.g. 3.0 12.4"
+        read(*,*) rangelow,rangehigh
+        rangelow=rangelow/b2a
+        rangehigh=rangehigh/b2a
+        nlayers=0
+        do icyci=1,nx
+            if ((orgx+(icyci-1)*dx)>rangelow.and.(orgx+(icyci-1)*dx)<rangehigh) then
+                avgdata=avgdata+cubmat(icyci,:,:)
+                nlayers=nlayers+1
+            end if
+        end do
+        avgdata=avgdata/nlayers
+        write(*,"(' There are ',i8,' layers within the range')") nlayers
+        do j=1,ny
+            do k=1,nz
+                write(10,"(2f11.6,f22.15)") (orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,avgdata(j,k)
+            end do
+        end do
+        write(*,*) "The data have been exported to output.txt in current folder"
+        write(*,*) "Column 1,2,3 correspond to Y,Z,value respectively"
+        close(10)
+                
+    else if (isel==7) then
+        if (allocated(avgdata)) deallocate(avgdata)
+        allocate(avgdata(nx,nz))
+        avgdata=0D0
+        open(10,file="output.txt",status="replace")
+        write(*,*) "Input the range of Y (Angstrom) for XZ planes, e.g. 3.0 12.4"
+        read(*,*) rangelow,rangehigh
+        rangelow=rangelow/b2a
+        rangehigh=rangehigh/b2a
+        nlayers=0
+        do icycj=1,ny
+            if ((orgy+(icycj-1)*dy)>=rangelow.and.(orgy+(icycj-1)*dy)<=rangehigh) then
+                avgdata=avgdata+cubmat(:,icycj,:)
+                nlayers=nlayers+1
+            end if
+        end do
+        avgdata=avgdata/nlayers
+        write(*,"(' There are ',i8,' layers within the range')") nlayers
+        do i=1,nx
+            do k=1,nz
+                write(10,"(2f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgz+(k-1)*dz)*b2a,avgdata(i,k)
+            end do
+        end do
+        write(*,*) "The data have been exported to output.txt in current folder"
+        write(*,*) "Column 1,2,3 correspond to X,Z,value respectively"
+        close(10)
+        
+    else if (isel==8) then
+        do while(.true.)
+            write(*,*) "Please input indices of three atoms to define a plane   e.g. 4,8,3"
+            read(*,*) iatm1,iatm2,iatm3
+            if (iatm1<=ncenter.and.iatm1>=1.and.iatm2<=ncenter.and.iatm2>=1.and.iatm3<=ncenter.and.iatm3>=1) exit
+            write(*,*) "The atom indices are invalid, input again"
+        end do
+        useratom(1)%x=a(iatm1)%x
+        useratom(1)%y=a(iatm1)%y
+        useratom(1)%z=a(iatm1)%z
+        useratom(2)%x=a(iatm2)%x
+        useratom(2)%y=a(iatm2)%y
+        useratom(2)%z=a(iatm2)%z
+        useratom(3)%x=a(iatm3)%x
+        useratom(3)%y=a(iatm3)%y
+        useratom(3)%z=a(iatm3)%z
+        write(*,"('The coordinate (Angstrom) of the three atoms you inputted:')")
+        write(*,"('Atom 1  x, y, z:',3f12.6)") useratom(1)%x*b2a,useratom(1)%y*b2a,useratom(1)%z*b2a
+        write(*,"('Atom 2  x, y, z:',3f12.6)") useratom(2)%x*b2a,useratom(2)%y*b2a,useratom(2)%z*b2a
+        write(*,"('Atom 3  x, y, z:',3f12.6)") useratom(3)%x*b2a,useratom(3)%y*b2a,useratom(3)%z*b2a
+        call doproject(useratom)
+    else if (isel==9) then
+    
+        write(*,*) "Please input three points to define a plane (in Angstrom)"
+        do ipt=1,3
+            write(*,"('Now input x,y,z of point ',i5,'  e.g. 3.0,1.2,4.5')") ipt
+            read(*,*) useratom(ipt)%x,useratom(ipt)%y,useratom(ipt)%z
+        end do
+        useratom%x=useratom%x/b2a !Convert to Bohr
+        useratom%y=useratom%y/b2a
+        useratom%z=useratom%z/b2a
+        call doproject(useratom)
+    else if (isel==10) then
+        write(*,*) "Input the value range of data points you want to output, e.g. 0.5,0.9"
+        write(*,"(a)") " Note: If the two values are identical, points with value within deviation of 3% will be outputted"
+        read(*,*) rangelow,rangehigh
+        if (rangelow==rangehigh) then
+            rangelow=rangelow-0.03D0*abs(rangelow)
+            rangehigh=rangehigh+0.03D0*abs(rangehigh)
+        end if
+        write(*,"('Points with value within ',1PE13.5, ' and ',1PE13.5,' will be outputted')") rangelow,rangehigh
+        write(*,*) "Outputting, please wait..."
 
-		open(10,file="output.txt",status="replace")
-		do i=1,nx
-			do j=1,ny
-				do k=1,nz
-					if (cubmat(i,j,k)>=rangelow.and.cubmat(i,j,k)<=rangehigh) &
-					write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
-				end do
-			end do
-		end do
-		close(10)
-		write(*,*) "The data have been exported to output.txt in current folder"
-		write(*,*) "The column 1/2/3/4 correspond to X,Y,Z,value respectively, unit is Angstrom"
-	
-	else if (isel==11) then
-		write(*,*) "               --------------- Grid data calculation ------------"
-		write(*,*) "0 Return"
-		write(*,*) "1 Add a constant                       e.g. A+0.1=C"
-		write(*,*) "2 Add a grid file                      i.e. A+B=C"
-		write(*,*) "3 Subtract a constant                  e.g. A-0.1=C"
-		write(*,*) "4 Subtract a grid file                 i.e. A-B=C"
-		write(*,*) "5 Multiplied by a constant             e.g. A*0.1=C"
-		write(*,*) "6 Multiplied by a grid file            i.e. A*B=C"
-		write(*,*) "7 Divided by a constant                e.g. A/5.2=C"
-		write(*,*) "8 Divided by a grid file               i.e. A/B=C"
-		write(*,*) "9 Exponentiation                       e.g. A^1.3=C"
-		write(*,*) "10 Square sum with a grid file         i.e. A^2+B^2=C"
-		write(*,*) "11 Square subtract with a grid file    i.e. A^2-B^2=C"
-		write(*,*) "12 Get average with a grid file        i.e. (A+B)/2=C"
-		write(*,*) "13 Get absolute value                  i.e. |A|=C"
-		write(*,*) "14 Get exponential value with base 10  i.e. 10^A=C"
-		write(*,*) "15 Get logarithm with base 10          i.e. log10(A)=C"
-		write(*,*) "16 Get natural exponential value       i.e. e^A=C"
-		write(*,*) "17 Get natural logarithm               i.e. ln(A)=C"
-		write(*,*) "18 Add a grid file multiplied by a value  i.e. A+0.4*B=C"
-		write(*,*) "19 The same as 6 but with weighting function min(|A|,|B|)/max(|A|,|B|)"
-		write(*,*) "20 Multiplied by a coordinate variable"
-		write(*,*) "21 Get minimal value with another function    i.e. min(A,B)"
-		write(*,*) "22 Get min(|A|,|B|)"
-		read(*,*) isel2
-		
-		if (isel2==0) then
-			continue
-		else if (isel2==1.or.isel2==3.or.isel2==5.or.isel2==7.or.isel2==9) then
-			write(*,*) "Input a value for the calculation, e.g. 2.3"
-			read(*,*) calconstant
-			if (isel2==1) cubmat=cubmat+calconstant
-			if (isel2==3) cubmat=cubmat-calconstant
-			if (isel2==5) cubmat=cubmat*calconstant
-			if (isel2==7) cubmat=cubmat/calconstant
-			if (isel2==9) cubmat=cubmat**calconstant
-		else if (isel2==2.or.isel2==4.or.isel2==6.or.isel2==8.or.isel2==10.or.isel2==11.or.isel2==12.or.isel2==18.or.isel2==19.or.isel2==21.or.isel2==22) then
-			do while(.true.)
-				write(*,*) "Input another .cub or .grd file name"
-				read(*,"(a)") gridfile2
-				inquire(file=gridfile2,exist=alive)
-				if (alive) exit
-				write(*,*) "File not found, input again"
-				write(*,*)
-			end do
-			inamelen=len_trim(gridfile2)
-			if (gridfile2(inamelen-2:inamelen)=="cub".or.gridfile2(inamelen-3:inamelen)=="cube") then
-				call readcubetmp(gridfile2,inconsis)
-			else if (gridfile2(inamelen-2:inamelen)=="grd") then
-				call readgrdtmp(gridfile2,inconsis)
-			end if
-			if (inconsis==1) cycle
-			if (isel2==2) cubmat=cubmat+cubmattmp
-			if (isel2==4) cubmat=cubmat-cubmattmp
-			if (isel2==6) cubmat=cubmat*cubmattmp
-			if (isel2==8) cubmat=cubmat/cubmattmp
-			if (isel2==10) cubmat=cubmat**2+cubmattmp**2
-			if (isel2==11) cubmat=cubmat**2-cubmattmp**2
-			if (isel2==12) cubmat=(cubmat+cubmattmp)/2D0
-			if (isel2==19) cubmat=cubmat*cubmattmp*min(abs(cubmat),abs(cubmattmp)) / max(abs(cubmat),abs(cubmattmp))
-			if (isel2==21) cubmat=min(cubmat,cubmattmp)
-			if (isel2==22) cubmat=min(abs(cubmat),abs(cubmattmp))
-			
-			if (isel2==18) then
-				write(*,*) "Input the value to be multiplied to the just loaded cube file"
-				read(*,*) tmpval
-				cubmat=cubmat+tmpval*cubmattmp
-			end if
-			deallocate(cubmattmp)
-		else if (isel2==13) then
-			cubmat=abs(cubmat)
-		else if (isel2==14) then
-			cubmat=10**cubmat
-		else if (isel2==15) then
-			cubmat=log10(cubmat)
-		else if (isel2==16) then
-			cubmat=exp(cubmat)
-		else if (isel2==17) then
-			cubmat=log(cubmat)
-		else if (isel2==20) then
-			write(*,*) "Multiplied by which variable? Input one of X, Y, Z"
-			read(*,*) tmpchar
-			if (tmpchar=='x'.or.tmpchar=='X') then
-				do i=1,nx
-					cubmat(i,:,:)=cubmat(i,:,:)*(orgx+(i-1)*dx)
-				end do
-			else if (tmpchar=='y'.or.tmpchar=='Y') then
-				do j=1,ny
-					cubmat(:,j,:)=cubmat(:,j,:)*(orgy+(j-1)*dy)
-				end do
-			else if (tmpchar=='z'.or.tmpchar=='Z') then
-				do k=1,nz
-					cubmat(:,:,k)=cubmat(:,:,k)*(orgz+(k-1)*dz)
-				end do
-			end if
-		end if
-		if (isel2/=0) write(*,*) "Done, grid data has been updated"
-	
-	else if (isel==12) then
-		write(*,*) "Input a value to define a isosurface of present grid data   e.g. 0.001"
-		read(*,*) value_ref
-		write(*,*) "Input allowed deviation (%)   e.g. 4"
-		read(*,*) deviation
-		rangehigh=value_ref+abs(value_ref)*0.01D0*deviation
-		rangelow=value_ref-abs(value_ref)*0.01D0*deviation
-		write(*,"('Value between ',1PE13.5, ' and ',1PE13.5,' are regarded as isosurface points')") rangelow,rangehigh
+        open(10,file="output.txt",status="replace")
+        do i=1,nx
+            do j=1,ny
+                do k=1,nz
+                    if (cubmat(i,j,k)>=rangelow.and.cubmat(i,j,k)<=rangehigh) &
+                    write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmat(i,j,k)
+                end do
+            end do
+        end do
+        close(10)
+        write(*,*) "The data have been exported to output.txt in current folder"
+        write(*,*) "The column 1/2/3/4 correspond to X,Y,Z,value respectively, unit is Angstrom"
+    
+    else if (isel==11) then
+        write(*,*) "               --------------- Grid data calculation ------------"
+        write(*,*) "0 Return"
+        write(*,*) "1 Add a constant                       e.g. A+0.1=C"
+        write(*,*) "2 Add a grid file                      i.e. A+B=C"
+        write(*,*) "3 Subtract a constant                  e.g. A-0.1=C"
+        write(*,*) "4 Subtract a grid file                 i.e. A-B=C"
+        write(*,*) "5 Multiplied by a constant             e.g. A*0.1=C"
+        write(*,*) "6 Multiplied by a grid file            i.e. A*B=C"
+        write(*,*) "7 Divided by a constant                e.g. A/5.2=C"
+        write(*,*) "8 Divided by a grid file               i.e. A/B=C"
+        write(*,*) "9 Exponentiation                       e.g. A^1.3=C"
+        write(*,*) "10 Square sum with a grid file         i.e. A^2+B^2=C"
+        write(*,*) "11 Square subtract with a grid file    i.e. A^2-B^2=C"
+        write(*,*) "12 Get average with a grid file        i.e. (A+B)/2=C"
+        write(*,*) "13 Get absolute value                  i.e. |A|=C"
+        write(*,*) "14 Get exponential value with base 10  i.e. 10^A=C"
+        write(*,*) "15 Get logarithm with base 10          i.e. log10(A)=C"
+        write(*,*) "16 Get natural exponential value       i.e. e^A=C"
+        write(*,*) "17 Get natural logarithm               i.e. ln(A)=C"
+        write(*,*) "18 Add a grid file multiplied by a value  i.e. A+0.4*B=C"
+        write(*,*) "19 The same as 6 but with weighting function min(|A|,|B|)/max(|A|,|B|)"
+        write(*,*) "20 Multiplied by a coordinate variable"
+        write(*,*) "21 Get minimal value with another function    i.e. min(A,B)"
+        write(*,*) "22 Get min(|A|,|B|)"
+        read(*,*) isel2
+        
+        if (isel2==0) then
+            continue
+        else if (isel2==1.or.isel2==3.or.isel2==5.or.isel2==7.or.isel2==9) then
+            write(*,*) "Input a value for the calculation, e.g. 2.3"
+            read(*,*) calconstant
+            if (isel2==1) cubmat=cubmat+calconstant
+            if (isel2==3) cubmat=cubmat-calconstant
+            if (isel2==5) cubmat=cubmat*calconstant
+            if (isel2==7) cubmat=cubmat/calconstant
+            if (isel2==9) cubmat=cubmat**calconstant
+        else if (isel2==2.or.isel2==4.or.isel2==6.or.isel2==8.or.isel2==10.or.isel2==11.or.isel2==12.or.isel2==18.or.isel2==19.or.isel2==21.or.isel2==22) then
+            do while(.true.)
+                write(*,*) "Input another .cub or .grd file name"
+                read(*,"(a)") gridfile2
+                inquire(file=gridfile2,exist=alive)
+                if (alive) exit
+                write(*,*) "File not found, input again"
+                write(*,*)
+            end do
+            inamelen=len_trim(gridfile2)
+            if (gridfile2(inamelen-2:inamelen)=="cub".or.gridfile2(inamelen-3:inamelen)=="cube") then
+                call readcubetmp(gridfile2,inconsis)
+            else if (gridfile2(inamelen-2:inamelen)=="grd") then
+                call readgrdtmp(gridfile2,inconsis)
+            end if
+            if (inconsis==1) cycle
+            if (isel2==2) cubmat=cubmat+cubmattmp
+            if (isel2==4) cubmat=cubmat-cubmattmp
+            if (isel2==6) cubmat=cubmat*cubmattmp
+            if (isel2==8) cubmat=cubmat/cubmattmp
+            if (isel2==10) cubmat=cubmat**2+cubmattmp**2
+            if (isel2==11) cubmat=cubmat**2-cubmattmp**2
+            if (isel2==12) cubmat=(cubmat+cubmattmp)/2D0
+            if (isel2==19) cubmat=cubmat*cubmattmp*min(abs(cubmat),abs(cubmattmp)) / max(abs(cubmat),abs(cubmattmp))
+            if (isel2==21) cubmat=min(cubmat,cubmattmp)
+            if (isel2==22) cubmat=min(abs(cubmat),abs(cubmattmp))
+            
+            if (isel2==18) then
+                write(*,*) "Input the value to be multiplied to the just loaded cube file"
+                read(*,*) tmpval
+                cubmat=cubmat+tmpval*cubmattmp
+            end if
+            deallocate(cubmattmp)
+        else if (isel2==13) then
+            cubmat=abs(cubmat)
+        else if (isel2==14) then
+            cubmat=10**cubmat
+        else if (isel2==15) then
+            cubmat=log10(cubmat)
+        else if (isel2==16) then
+            cubmat=exp(cubmat)
+        else if (isel2==17) then
+            cubmat=log(cubmat)
+        else if (isel2==20) then
+            write(*,*) "Multiplied by which variable? Input one of X, Y, Z"
+            read(*,*) tmpchar
+            if (tmpchar=='x'.or.tmpchar=='X') then
+                do i=1,nx
+                    cubmat(i,:,:)=cubmat(i,:,:)*(orgx+(i-1)*dx)
+                end do
+            else if (tmpchar=='y'.or.tmpchar=='Y') then
+                do j=1,ny
+                    cubmat(:,j,:)=cubmat(:,j,:)*(orgy+(j-1)*dy)
+                end do
+            else if (tmpchar=='z'.or.tmpchar=='Z') then
+                do k=1,nz
+                    cubmat(:,:,k)=cubmat(:,:,k)*(orgz+(k-1)*dz)
+                end do
+            end if
+        end if
+        if (isel2/=0) write(*,*) "Done, grid data has been updated"
+    
+    else if (isel==12) then
+        write(*,*) "Input a value to define a isosurface of present grid data   e.g. 0.001"
+        read(*,*) value_ref
+        write(*,*) "Input allowed deviation (%)   e.g. 4"
+        read(*,*) deviation
+        rangehigh=value_ref+abs(value_ref)*0.01D0*deviation
+        rangelow=value_ref-abs(value_ref)*0.01D0*deviation
+        write(*,"('Value between ',1PE13.5, ' and ',1PE13.5,' are regarded as isosurface points')") rangelow,rangehigh
 
-		do while(.true.)
-			write(*,*) "Map which grid file to the isosurface?  e.g. c:\t.cub"
-			read(*,"(a)") gridfile2
-			inquire(file=gridfile2,exist=alive)
-			if (alive) exit
-			write(*,*) "File not found, input again"
-			write(*,*)
-		end do
-		call readcubetmp(gridfile2,inconsis)
-		open(10,file="output.txt",status="replace")
-		do i=1,nx
-			do j=1,ny
-				do k=1,nz
-					if (cubmat(i,j,k)>=rangelow.and.cubmat(i,j,k)<=rangehigh) &
-					write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmattmp(i,j,k)
-				end do
-			end do
-		end do
-		close(10)
-		write(*,"(a)") "The mapped data on the isosurface have been exported to output.txt in current folder"
-		write(*,*) "The column 1/2/3/4 correspond to X,Y,Z,value respectively, unit is Angstrom"
-		deallocate(cubmattmp)
-		
-	else if (isel==13) then
-		write(*,*) "Input the value for scaling vdW radius  e.g. 1.3"
-		write(*,"(a)") " Note: Inputting a positive(negative) value means the grid points outside(inside) the distance cutoff will be set to a given value"
-		read(*,*) vdwscale
-		write(*,*) "Set to what value? e.g. 100"
-		read(*,*) setval
-		write(*,*) "Input the filename that recorded atom indices, e.g. C:\niconiconi\atmlist.txt"
-		do while(.true.)
-			read(*,"(a)") atmidxfile
-			inquire(file=atmidxfile,exist=alive)
-			if (alive) exit
-			write(*,*) "Cannot find the file, input again"
-		end do
-		open(10,file=atmidxfile,status="old")
-		read(10,*) numatmidx
-		allocate(atmlist(numatmidx))
-		read(10,*) atmlist
-		close(10)
+        do while(.true.)
+            write(*,*) "Map which grid file to the isosurface?  e.g. c:\t.cub"
+            read(*,"(a)") gridfile2
+            inquire(file=gridfile2,exist=alive)
+            if (alive) exit
+            write(*,*) "File not found, input again"
+            write(*,*)
+        end do
+        call readcubetmp(gridfile2,inconsis)
+        open(10,file="output.txt",status="replace")
+        do i=1,nx
+            do j=1,ny
+                do k=1,nz
+                    if (cubmat(i,j,k)>=rangelow.and.cubmat(i,j,k)<=rangehigh) &
+                    write(10,"(3f11.6,f22.15)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,cubmattmp(i,j,k)
+                end do
+            end do
+        end do
+        close(10)
+        write(*,"(a)") "The mapped data on the isosurface have been exported to output.txt in current folder"
+        write(*,*) "The column 1/2/3/4 correspond to X,Y,Z,value respectively, unit is Angstrom"
+        deallocate(cubmattmp)
+        
+    else if (isel==13) then
+        write(*,*) "Input the value for scaling vdW radius  e.g. 1.3"
+        write(*,"(a)") " Note: Inputting a positive(negative) value means the grid points outside(inside) the distance cutoff will be set to a given value"
+        read(*,*) vdwscale
+        write(*,*) "Set to what value? e.g. 100"
+        read(*,*) setval
+        write(*,*) "Input the filename that recorded atom indices, e.g. C:\niconiconi\atmlist.txt"
+        do while(.true.)
+            read(*,"(a)") atmidxfile
+            inquire(file=atmidxfile,exist=alive)
+            if (alive) exit
+            write(*,*) "Cannot find the file, input again"
+        end do
+        open(10,file=atmidxfile,status="old")
+        read(10,*) numatmidx
+        allocate(atmlist(numatmidx))
+        read(10,*) atmlist
+        close(10)
 
-		do i=1,nx
-			xnow=orgx+(i-1)*dx
-			do j=1,ny
-				ynow=orgy+(j-1)*dy
-				do k=1,nz
-					znow=orgz+(k-1)*dz
-					if (vdwscale>0) then
-						do ind=1,numatmidx
-							iatm=atmlist(ind)
-							dist2=(xnow-a(iatm)%x)**2+(ynow-a(iatm)%y)**2+(znow-a(iatm)%z)**2
-							if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) exit !If this point is near any atom in the list, it will be unchanged
-							if (ind==numatmidx) cubmat(i,j,k)=setval !Final cycle, suggests that this point is outside any atom in the list, set its value
-						end do
-					else if (vdwscale<0) then
-						do ind=1,numatmidx
-							iatm=atmlist(ind)
-							dist2=(xnow-a(iatm)%x)**2+(ynow-a(iatm)%y)**2+(znow-a(iatm)%z)**2
-							if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) then
-								cubmat(i,j,k)=setval
-								exit
-							end if
-						end do
-					end if
-				end do
-			end do
-		end do
-		if (vdwscale>0) write(*,"(a,f10.6,a,D16.8)") " Done! The value of all points ouside",abs(vdwscale)," times vdW radius of specified atoms have been set to",setval
-		if (vdwscale<0) write(*,"(a,f10.6,a,D16.8)") " Done! The value of all points inside",abs(vdwscale)," times vdW radius of specified atoms have been set to",setval
-		deallocate(atmlist)
-		
-	else if (isel==14) then
-		write(*,*) "Input the value for scaling vdW radius  e.g. 1.3"
-		read(*,*) vdwscale
-		write(*,*) "Set to what value?"
-		read(*,*) setval
-		write(*,*) "Input filename that recorded atom indices of fragment 1"
-		write(*,*) "e.g. C:\nicomaki\frag1.txt"
-		do while(.true.)
-			read(*,"(a)") atmidxfile
-			inquire(file=atmidxfile,exist=alive)
-			if (alive) exit
-			write(*,*) "Cannot find the file, input again"
-		end do
-		write(*,*) "Input filename that recorded atom indices of fragment 2"
-		write(*,*) "e.g. C:\nicomaki\frag2.txt"
-		do while(.true.)
-			read(*,"(a)") atmidxfile2
-			inquire(file=atmidxfile2,exist=alive)
-			if (alive) exit
-			write(*,*) "Cannot find the file, input again"
-		end do
+        do i=1,nx
+            xnow=orgx+(i-1)*dx
+            do j=1,ny
+                ynow=orgy+(j-1)*dy
+                do k=1,nz
+                    znow=orgz+(k-1)*dz
+                    if (vdwscale>0) then
+                        do ind=1,numatmidx
+                            iatm=atmlist(ind)
+                            dist2=(xnow-a(iatm)%x)**2+(ynow-a(iatm)%y)**2+(znow-a(iatm)%z)**2
+                            if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) exit !If this point is near any atom in the list, it will be unchanged
+                            if (ind==numatmidx) cubmat(i,j,k)=setval !Final cycle, suggests that this point is outside any atom in the list, set its value
+                        end do
+                    else if (vdwscale<0) then
+                        do ind=1,numatmidx
+                            iatm=atmlist(ind)
+                            dist2=(xnow-a(iatm)%x)**2+(ynow-a(iatm)%y)**2+(znow-a(iatm)%z)**2
+                            if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) then
+                                cubmat(i,j,k)=setval
+                                exit
+                            end if
+                        end do
+                    end if
+                end do
+            end do
+        end do
+        if (vdwscale>0) write(*,"(a,f10.6,a,D16.8)") " Done! The value of all points ouside",abs(vdwscale)," times vdW radius of specified atoms have been set to",setval
+        if (vdwscale<0) write(*,"(a,f10.6,a,D16.8)") " Done! The value of all points inside",abs(vdwscale)," times vdW radius of specified atoms have been set to",setval
+        deallocate(atmlist)
+        
+    else if (isel==14) then
+        write(*,*) "Input the value for scaling vdW radius  e.g. 1.3"
+        read(*,*) vdwscale
+        write(*,*) "Set to what value?"
+        read(*,*) setval
+        write(*,*) "Input filename that recorded atom indices of fragment 1"
+        write(*,*) "e.g. C:\nicomaki\frag1.txt"
+        do while(.true.)
+            read(*,"(a)") atmidxfile
+            inquire(file=atmidxfile,exist=alive)
+            if (alive) exit
+            write(*,*) "Cannot find the file, input again"
+        end do
+        write(*,*) "Input filename that recorded atom indices of fragment 2"
+        write(*,*) "e.g. C:\nicomaki\frag2.txt"
+        do while(.true.)
+            read(*,"(a)") atmidxfile2
+            inquire(file=atmidxfile2,exist=alive)
+            if (alive) exit
+            write(*,*) "Cannot find the file, input again"
+        end do
 
-		open(10,file=atmidxfile,status="old")
-		read(10,*) numatmidx
-		allocate(atmlist(numatmidx))
-		read(10,*) atmlist
-		close(10)
-		open(10,file=atmidxfile2,status="old")
-		read(10,*) numatmidx2
-		allocate(atmlist2(numatmidx2))
-		read(10,*) atmlist2
-		close(10)
+        open(10,file=atmidxfile,status="old")
+        read(10,*) numatmidx
+        allocate(atmlist(numatmidx))
+        read(10,*) atmlist
+        close(10)
+        open(10,file=atmidxfile2,status="old")
+        read(10,*) numatmidx2
+        allocate(atmlist2(numatmidx2))
+        read(10,*) atmlist2
+        close(10)
 
-		do i=1,nx
-			do j=1,ny
-				do k=1,nz
-					iwithoutfrag1=0
-					do ind=1,numatmidx
-						iatm=atmlist(ind)
-						dist2=((orgx+(i-1)*dx)-a(iatm)%x)**2+((orgy+(j-1)*dy)-a(iatm)%y)**2+((orgz+(k-1)*dz)-a(iatm)%z)**2
-						if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) exit
-						if (ind==numatmidx) iwithoutfrag1=1
-					end do
-					if (iwithoutfrag1==1) then !This point is without fragment 1, hence mustn't be within overlap of frag.1 and 2, so set its value now
-						cubmat(i,j,k)=setval
-					else !This point is within fragment 1, check if it is also within fragment 2, if yes then lzeave it unchanged, else set its value
-						do ind=1,numatmidx2
-							iatm=atmlist2(ind)
-							dist2=((orgx+(i-1)*dx)-a(iatm)%x)**2+((orgy+(j-1)*dy)-a(iatm)%y)**2+((orgz+(k-1)*dz)-a(iatm)%z)**2
-							if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) exit
-							if (ind==numatmidx2) cubmat(i,j,k)=setval !Final cycle, suggest this point is simutaneously without fragment 1 and 2
-						end do				
-					end if
-				end do
-			end do
-		end do
-		write(*,"(a,D16.8)") "Done. The value of all points outside overlap region of fragment 1 and 2 have been set to",setval
-		deallocate(atmlist,atmlist2)
-		
-	else if (isel==15) then
-		write(*,*) "Input lower limit and upper limit  e.g. 3.9,4.2"
-		read(*,*) flow,fhigh
-		write(*,"('If the value >= ',D15.8,' and <=',D15.8,', set it to what value?')") flow,fhigh
-		read(*,*) calconstant
-		where (cubmat>=flow.and.cubmat<=fhigh) cubmat=calconstant
-		
-	else if (isel==16) then !Scale certain range of original data to specified range
-		write(*,*) "Input lower and upper limit of original data range, e.g. 0,1.5"
-		write(*,"(a)") " Note: If input 0,0 then minimum and maximum value of present grid data will be used"
-		read(*,*) orglow,orgup
-		if (orglow==0D0.and.orgup==0D0) then
-			orglow=minval(cubmat)
-			orgup=maxval(cubmat)
-		end if
-		write(*,*) "Input lower and upper limit of new data range, e.g. 0,255"
-		read(*,*) rnewlow,rnewup
-		where (cubmat>orgup) cubmat=orgup
-		where (cubmat<orglow) cubmat=orglow
-		cubmat=cubmat-orglow
-		ratiofac=(rnewup-rnewlow)/(orgup-orglow)
-		cubmat=cubmat*ratiofac
-		cubmat=cubmat+rnewlow
-		write(*,*) "Done!"
-		
-	else if (isel==17) then
-		write(*,"(a)") " To obtain statistic data for all points, input 1. To obtain statistic data for points in specific geometry and data range, input 2"
-		read(*,*) iselrange
-		if (iselrange==1) then
-			rlowx=orgx
-			rhighx=endx
-			rlowy=orgy
-			rhighy=endy
-			rlowz=orgz
-			rhighz=endz
-			rlowv=minval(cubmat)
-			rhighv=maxval(cubmat)
-		else if (iselrange==2) then
-			write(*,"(a)") " Input the lower and upper limits of X coordinate (in Angstrom), e.g. -40,33.5. If you don't want to set constraint, input ""a"""
-			read(*,"(a)") c200tmp
-			if (index(c200tmp,'a')/=0) then
-				rlowx=orgx
-				rhighx=endx
-			else
-				read(c200tmp,*) rlowx,rhighx
-				rlowx=rlowx/b2a
-				rhighx=rhighx/b2a
-			end if
-			write(*,"(a)") " Input the lower and upper limits of Y coordinate (in Angstrom), e.g. -40,33.5. If you don't want to set constraint, input ""a"""
-			read(*,"(a)") c200tmp
-			if (index(c200tmp,'a')/=0) then
-				rlowy=orgy
-				rhighy=endy
-			else
-				read(c200tmp,*) rlowy,rhighy
-				rlowy=rlowy/b2a
-				rhighy=rhighy/b2a
-			end if
-			write(*,"(a)") " Input the lower and upper limits of Z coordinate (in Angstrom), e.g. -40,33.5. If you don't want to set constraint, input ""a"""
-			read(*,"(a)") c200tmp
-			if (index(c200tmp,'a')/=0) then
-				rlowz=orgz
-				rhighz=endz
-			else
-				read(c200tmp,*) rlowz,rhighz
-				rlowz=rlowz/b2a
-				rhighz=rhighz/b2a
-			end if
-			write(*,"(a)") " Input the lower and upper limits of value, e.g. -2,3.25.  If you don't want to set constraint, input ""a"""
-			read(*,"(a)") c200tmp
-			if (index(c200tmp,'a')/=0) then
-				rlowv=minval(cubmat)
-				rhighv=maxval(cubmat)
-			else
-				read(c200tmp,*) rlowv,rhighv
-			end if
-		end if
-		
-		write(*,*) "The geometry and value range for statistics"
-		write(*,"(' Lower and upper limit of X:',2f14.8,' Bohr')") rlowx,rhighx
-		write(*,"(' Lower and upper limit of Y:',2f14.8,' Bohr')") rlowy,rhighy
-		write(*,"(' Lower and upper limit of Z:',2f14.8,' Bohr')") rlowz,rhighz
-		write(*,"(' Lower and upper limit of value:',2E20.10)") rlowv,rhighv
-		write(*,*)
-		maxv%value=cubmat(1,1,1)
-		maxv%x=orgx
-		maxv%y=orgy
-		maxv%z=orgz
-		minv%value=cubmat(1,1,1)
-		minv%x=orgx
-		minv%y=orgy
-		minv%z=orgz
-		sumuppos=0.0D0
-		sumupneg=0.0D0
-		cenxpos=0D0
-		cenypos=0D0
-		cenzpos=0D0
-		cenxneg=0D0
-		cenyneg=0D0
-		cenzneg=0D0
-		igoodpointpos=0
-		igoodpointneg=0
-		sumupsqrtot=0
-		do i=1,nx
-			if ((orgx+(i-1)*dx)<rlowx.or.(orgx+(i-1)*dx)>rhighx) cycle
-			do j=1,ny
-				if ((orgy+(j-1)*dy)<rlowy.or.(orgy+(j-1)*dy)>rhighy) cycle
-				do k=1,nz
-					if ((orgz+(k-1)*dz)<rlowz.or.(orgz+(k-1)*dz)>rhighz) cycle
-					valtmp=cubmat(i,j,k)
-					if (valtmp<rlowv.or.valtmp>rhighv) cycle
-					if (valtmp>0) then
-						sumuppos=sumuppos+valtmp
-						cenxpos=cenxpos+(orgx+(i-1)*dx)*valtmp
-						cenypos=cenypos+(orgy+(j-1)*dy)*valtmp
-						cenzpos=cenzpos+(orgz+(k-1)*dz)*valtmp
-						igoodpointpos=igoodpointpos+1
-					else if (valtmp<0) then
-						sumupneg=sumupneg+valtmp
-						cenxneg=cenxneg+(orgx+(i-1)*dx)*valtmp
-						cenyneg=cenyneg+(orgy+(j-1)*dy)*valtmp
-						cenzneg=cenzneg+(orgz+(k-1)*dz)*valtmp
-						igoodpointneg=igoodpointneg+1
-					end if
-					if (valtmp>maxv%value) then
-						maxv%value=cubmat(i,j,k)
-						maxv%x=orgx+(i-1)*dx
-						maxv%y=orgy+(j-1)*dy
-						maxv%z=orgz+(k-1)*dz
-					end if
-					if (valtmp<minv%value) then
-						minv%value=cubmat(i,j,k)
-						minv%x=orgx+(i-1)*dx
-						minv%y=orgy+(j-1)*dy
-						minv%z=orgz+(k-1)*dz
-					end if
-					sumupsqrtot=sumupsqrtot+valtmp**2
-				end do
-			end do
-		end do
-		sumuptot=sumuppos+sumupneg
-		cenxtot=(cenxpos+cenxneg)/sumuptot
-		cenytot=(cenypos+cenyneg)/sumuptot
-		cenztot=(cenzpos+cenzneg)/sumuptot
-		cenxpos=cenxpos/sumuppos
-		cenypos=cenypos/sumuppos
-		cenzpos=cenzpos/sumuppos
-		cenxneg=cenxneg/sumupneg
-		cenyneg=cenyneg/sumupneg
-		cenzneg=cenzneg/sumupneg
-		numpt=nx*ny*nz
-		fminivol=dx*dy*dz
-		avgtot=sumuptot/numpt
-		stddev=0
-		!calculate standard deviation
-		do i=1,nx
-			if ((orgx+(i-1)*dx)<rlowx.or.(orgx+(i-1)*dx)>rhighx) cycle
-			do j=1,ny
-				if ((orgy+(j-1)*dy)<rlowy.or.(orgy+(j-1)*dy)>rhighy) cycle
-				do k=1,nz
-					if ((orgz+(k-1)*dz)<rlowz.or.(orgz+(k-1)*dz)>rhighz) cycle
-					if (valtmp<rlowv.or.valtmp>rhighv) cycle
-					stddev=stddev+(cubmat(i,j,k)-avgtot)**2
-				end do
-			end do
-		end do
-		stddev=dsqrt(stddev/numpt)
-		write(*,"(' The minimum value:',D16.8,' at',3f12.6,' Bohr')") minv%value,minv%x,minv%y,minv%z
-		write(*,"(' The maximum value:',D16.8,' at',3f12.6,' Bohr')") maxv%value,maxv%x,maxv%y,maxv%z
-		write(*,"(' Differential element:',f15.10,' Bohr^3')") fminivol
-		write(*,"(' Average value:',D16.8)") avgtot
-		write(*,"(' Root mean square (RMS):',D16.8)") dsqrt(sumupsqrtot/numpt)
-		write(*,"(' Standard deviation:',D16.8)") stddev
-		write(*,*)
-		write(*,"(' Volume of positive value space:',f30.10,' Bohr^3')") igoodpointpos*fminivol
-		write(*,"(' Volume of negative value space:',f30.10,' Bohr^3')") igoodpointneg*fminivol
-		write(*,"(' Volume of all space:           ',f30.10,' Bohr^3')") (igoodpointpos+igoodpointneg)*fminivol
-		write(*,*)
-		write(*,"(' Summing up positive values:',f30.10)") sumuppos
-		write(*,"(' Summing up negative values:',f30.10)") sumupneg
-		write(*,"(' Summing up all values:     ',f30.10)") sumuptot
-		write(*,*)
-		write(*,"(' Integral of positive data:',f30.10)") sumuppos*fminivol
-		write(*,"(' Integral of negative data:',f30.10)") sumupneg*fminivol
-		write(*,"(' Integral of all data:     ',f30.10)") sumuptot*fminivol
-		write(*,*)
-		write(*,"(' X,Y,Z of barycenter (in Bohr)')")
-		write(*,"(' Positive part:',3f20.8)") cenxpos,cenypos,cenzpos
-		write(*,"(' Negative part:',3f20.8)") cenxneg,cenyneg,cenzneg
-		!If positive and negative cancel each other exactly, namely sumuptot is about zero, total barycenter will be infinitely large
-		if (abs(sumuptot)>0.001D0) write(*,"(' Total:        ',3f20.8)") cenxtot,cenytot,cenztot
-		
-	else if (isel==18) then !Integral curve
-		write(*,*) "Integrating in which direction? Input ""X"" or ""Y"" or ""Z"""
-		read(*,*) c200tmp
-		if (index(c200tmp,'X')/=0.or.index(c200tmp,'x')/=0) idir=1
-		if (index(c200tmp,'Y')/=0.or.index(c200tmp,'y')/=0) idir=2
-		if (index(c200tmp,'Z')/=0.or.index(c200tmp,'z')/=0) idir=3
-		write(*,*) "Input lower and upper limit (in Angstrom), e.g. -30,51.5"
-		write(*,*) "Input ""a"" can choose the entire range"
-		read(*,"(a)") c200tmp
-		if (index(c200tmp,"a")==0) then
-			read(c200tmp,*) rlow,rhigh
-			rlow=rlow/b2a
-			rhigh=rhigh/b2a
-		end if
-		write(*,*) "Calculating data..."
-		tmpintval=0
-		if (idir==1) then
-			allocate(intcurve(nx),locintcurve(nx),intcurvepos(nx))
-			intcurve=0
-			locintcurve=0
-			ncurpt=nx
-			if (index(c200tmp,"a")/=0) then
-				rlow=orgx
-				rhigh=endx
-			end if
-			do ix=1,nx
-				intcurvepos(ix)=(orgx+(ix-1)*dx)
-				if (intcurvepos(ix)<rlow.or.intcurvepos(ix)>rhigh) cycle
-				locintcurve(ix)=sum(cubmat(ix,:,:))*dy*dz
-				tmpintval=tmpintval+locintcurve(ix)*dx
-				intcurve(ix)=tmpintval
-			end do
-		else if (idir==2) then
-			allocate(intcurve(ny),locintcurve(ny),intcurvepos(ny))
-			intcurve=0
-			locintcurve=0
-			ncurpt=ny
-			if (index(c200tmp,"a")/=0) then
-				rlow=orgy
-				rhigh=endy
-			end if
-			do iy=1,ny
-				intcurvepos(iy)=(orgy+(iy-1)*dy)
-				if (intcurvepos(iy)<rlow.or.intcurvepos(iy)>rhigh) cycle
-				locintcurve(iy)=sum(cubmat(:,iy,:))*dx*dz
-				tmpintval=tmpintval+locintcurve(iy)*dy
-				intcurve(iy)=tmpintval
-			end do
-		else if (idir==3) then
-			allocate(intcurve(nz),locintcurve(nz),intcurvepos(nz))
-			intcurve=0
-			locintcurve=0
-			ncurpt=nz
-			if (index(c200tmp,"a")/=0) then
-				rlow=orgz
-				rhigh=endz
-			end if
-			do iz=1,nz
-				intcurvepos(iz)=(orgz+(iz-1)*dz)
-				if (intcurvepos(iz)<rlow.or.intcurvepos(iz)>rhigh) cycle
-				locintcurve(iz)=sum(cubmat(:,:,iz))*dx*dy
-				tmpintval=tmpintval+locintcurve(iz)*dz
-				intcurve(iz)=tmpintval
-			end do
-		end if
-		do while(.true.)
-			write(*,*)
-			if (ilenunit1D==1) write(*,*) "-1 Change length unit of the graph to Angstrom"
-			if (ilenunit1D==2) write(*,*) "-1 Change length unit of the graph to Bohr"
-			write(*,*) "0 Return"
-			write(*,*) "1 Plot graph of integral curve"
-			write(*,*) "2 Plot graph of local integral curve"
-			write(*,*) "3 Save graph of integral curve to current folder"
-			write(*,*) "4 Save graph of local integral curve to current folder"
-			write(*,*) "5 Export data of integral curve to intcurve.txt in current folder"
-			write(*,*) "6 Export data of local integral curve to locintcurve.txt in current folder"
-			read(*,*) isel2
-			if (isel2==-1) then
-				if (ilenunit1D==1) then
-					ilenunit1D=2
-				else if (ilenunit1D==2) then
-					ilenunit1D=1
-				end if
-			else if (isel2==0) then
-				exit
-			else if (isel2==1.or.isel2==3) then
-				disminmax=maxval(intcurve)-minval(intcurve)
-				ylow=minval(intcurve)-0.1D0*disminmax
-				yhigh=maxval(intcurve)+0.1D0*disminmax
-				stplabx=(rhigh-rlow)/10
-				stplaby=(yhigh-ylow)/10
-			else if (isel2==2.or.isel2==4) then
-				disminmax=maxval(locintcurve)-minval(locintcurve)
-				ylow=minval(locintcurve)-0.1D0*disminmax
-				yhigh=maxval(locintcurve)+0.1D0*disminmax
-				stplabx=(rhigh-rlow)/10
-				stplaby=(yhigh-ylow)/10
-			else if (isel2==5) then
-				open(10,file="intcurve.txt",status="replace")
-				do ipt=1,ncurpt
-					if (intcurvepos(ipt)<rlow.or.intcurvepos(ipt)>rhigh) cycle
-					write(10,"(2f14.8,f20.10)") intcurvepos(ipt),intcurvepos(ipt)*b2a,intcurve(ipt)
-				end do
-				close(10)
-				write(*,"(a)") " Done! The 1,2,3 columns correspond to the coordinate (in Bohr and in Angstrom) in the direction you selected and the integral, respectively"
-			else if (isel2==6) then
-				open(10,file="locintcurve.txt",status="replace")
-				do ipt=1,ncurpt
-					if (intcurvepos(ipt)<rlow.or.intcurvepos(ipt)>rhigh) cycle
-					write(10,"(2f14.8,f20.10)") intcurvepos(ipt),intcurvepos(ipt)*b2a,locintcurve(ipt)
-				end do
-				close(10)
-				write(*,"(a)") " Done! The 1,2,3 columns correspond to the coordinate (in Bohr and in Angstrom) in the direction you selected and the local integral, respectively"				
-			end if
-		end do
-		deallocate(intcurve,locintcurve,intcurvepos)
-	end if
+        do i=1,nx
+            do j=1,ny
+                do k=1,nz
+                    iwithoutfrag1=0
+                    do ind=1,numatmidx
+                        iatm=atmlist(ind)
+                        dist2=((orgx+(i-1)*dx)-a(iatm)%x)**2+((orgy+(j-1)*dy)-a(iatm)%y)**2+((orgz+(k-1)*dz)-a(iatm)%z)**2
+                        if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) exit
+                        if (ind==numatmidx) iwithoutfrag1=1
+                    end do
+                    if (iwithoutfrag1==1) then !This point is without fragment 1, hence mustn't be within overlap of frag.1 and 2, so set its value now
+                        cubmat(i,j,k)=setval
+                    else !This point is within fragment 1, check if it is also within fragment 2, if yes then lzeave it unchanged, else set its value
+                        do ind=1,numatmidx2
+                            iatm=atmlist2(ind)
+                            dist2=((orgx+(i-1)*dx)-a(iatm)%x)**2+((orgy+(j-1)*dy)-a(iatm)%y)**2+((orgz+(k-1)*dz)-a(iatm)%z)**2
+                            if (dist2< (vdwscale*vdwr(a(iatm)%index))**2 ) exit
+                            if (ind==numatmidx2) cubmat(i,j,k)=setval !Final cycle, suggest this point is simutaneously without fragment 1 and 2
+                        end do                
+                    end if
+                end do
+            end do
+        end do
+        write(*,"(a,D16.8)") "Done. The value of all points outside overlap region of fragment 1 and 2 have been set to",setval
+        deallocate(atmlist,atmlist2)
+        
+    else if (isel==15) then
+        write(*,*) "Input lower limit and upper limit  e.g. 3.9,4.2"
+        read(*,*) flow,fhigh
+        write(*,"('If the value >= ',D15.8,' and <=',D15.8,', set it to what value?')") flow,fhigh
+        read(*,*) calconstant
+        where (cubmat>=flow.and.cubmat<=fhigh) cubmat=calconstant
+        
+    else if (isel==16) then !Scale certain range of original data to specified range
+        write(*,*) "Input lower and upper limit of original data range, e.g. 0,1.5"
+        write(*,"(a)") " Note: If input 0,0 then minimum and maximum value of present grid data will be used"
+        read(*,*) orglow,orgup
+        if (orglow==0D0.and.orgup==0D0) then
+            orglow=minval(cubmat)
+            orgup=maxval(cubmat)
+        end if
+        write(*,*) "Input lower and upper limit of new data range, e.g. 0,255"
+        read(*,*) rnewlow,rnewup
+        where (cubmat>orgup) cubmat=orgup
+        where (cubmat<orglow) cubmat=orglow
+        cubmat=cubmat-orglow
+        ratiofac=(rnewup-rnewlow)/(orgup-orglow)
+        cubmat=cubmat*ratiofac
+        cubmat=cubmat+rnewlow
+        write(*,*) "Done!"
+        
+    else if (isel==17) then
+        write(*,"(a)") " To obtain statistic data for all points, input 1. To obtain statistic data for points in specific geometry and data range, input 2"
+        read(*,*) iselrange
+        if (iselrange==1) then
+            rlowx=orgx
+            rhighx=endx
+            rlowy=orgy
+            rhighy=endy
+            rlowz=orgz
+            rhighz=endz
+            rlowv=minval(cubmat)
+            rhighv=maxval(cubmat)
+        else if (iselrange==2) then
+            write(*,"(a)") " Input the lower and upper limits of X coordinate (in Angstrom), e.g. -40,33.5. If you don't want to set constraint, input ""a"""
+            read(*,"(a)") c200tmp
+            if (index(c200tmp,'a')/=0) then
+                rlowx=orgx
+                rhighx=endx
+            else
+                read(c200tmp,*) rlowx,rhighx
+                rlowx=rlowx/b2a
+                rhighx=rhighx/b2a
+            end if
+            write(*,"(a)") " Input the lower and upper limits of Y coordinate (in Angstrom), e.g. -40,33.5. If you don't want to set constraint, input ""a"""
+            read(*,"(a)") c200tmp
+            if (index(c200tmp,'a')/=0) then
+                rlowy=orgy
+                rhighy=endy
+            else
+                read(c200tmp,*) rlowy,rhighy
+                rlowy=rlowy/b2a
+                rhighy=rhighy/b2a
+            end if
+            write(*,"(a)") " Input the lower and upper limits of Z coordinate (in Angstrom), e.g. -40,33.5. If you don't want to set constraint, input ""a"""
+            read(*,"(a)") c200tmp
+            if (index(c200tmp,'a')/=0) then
+                rlowz=orgz
+                rhighz=endz
+            else
+                read(c200tmp,*) rlowz,rhighz
+                rlowz=rlowz/b2a
+                rhighz=rhighz/b2a
+            end if
+            write(*,"(a)") " Input the lower and upper limits of value, e.g. -2,3.25.  If you don't want to set constraint, input ""a"""
+            read(*,"(a)") c200tmp
+            if (index(c200tmp,'a')/=0) then
+                rlowv=minval(cubmat)
+                rhighv=maxval(cubmat)
+            else
+                read(c200tmp,*) rlowv,rhighv
+            end if
+        end if
+        
+        write(*,*) "The geometry and value range for statistics"
+        write(*,"(' Lower and upper limit of X:',2f14.8,' Bohr')") rlowx,rhighx
+        write(*,"(' Lower and upper limit of Y:',2f14.8,' Bohr')") rlowy,rhighy
+        write(*,"(' Lower and upper limit of Z:',2f14.8,' Bohr')") rlowz,rhighz
+        write(*,"(' Lower and upper limit of value:',2E20.10)") rlowv,rhighv
+        write(*,*)
+        maxv%value=cubmat(1,1,1)
+        maxv%x=orgx
+        maxv%y=orgy
+        maxv%z=orgz
+        minv%value=cubmat(1,1,1)
+        minv%x=orgx
+        minv%y=orgy
+        minv%z=orgz
+        sumuppos=0.0D0
+        sumupneg=0.0D0
+        cenxpos=0D0
+        cenypos=0D0
+        cenzpos=0D0
+        cenxneg=0D0
+        cenyneg=0D0
+        cenzneg=0D0
+        igoodpointpos=0
+        igoodpointneg=0
+        sumupsqrtot=0
+        do i=1,nx
+            if ((orgx+(i-1)*dx)<rlowx.or.(orgx+(i-1)*dx)>rhighx) cycle
+            do j=1,ny
+                if ((orgy+(j-1)*dy)<rlowy.or.(orgy+(j-1)*dy)>rhighy) cycle
+                do k=1,nz
+                    if ((orgz+(k-1)*dz)<rlowz.or.(orgz+(k-1)*dz)>rhighz) cycle
+                    valtmp=cubmat(i,j,k)
+                    if (valtmp<rlowv.or.valtmp>rhighv) cycle
+                    if (valtmp>0) then
+                        sumuppos=sumuppos+valtmp
+                        cenxpos=cenxpos+(orgx+(i-1)*dx)*valtmp
+                        cenypos=cenypos+(orgy+(j-1)*dy)*valtmp
+                        cenzpos=cenzpos+(orgz+(k-1)*dz)*valtmp
+                        igoodpointpos=igoodpointpos+1
+                    else if (valtmp<0) then
+                        sumupneg=sumupneg+valtmp
+                        cenxneg=cenxneg+(orgx+(i-1)*dx)*valtmp
+                        cenyneg=cenyneg+(orgy+(j-1)*dy)*valtmp
+                        cenzneg=cenzneg+(orgz+(k-1)*dz)*valtmp
+                        igoodpointneg=igoodpointneg+1
+                    end if
+                    if (valtmp>maxv%value) then
+                        maxv%value=cubmat(i,j,k)
+                        maxv%x=orgx+(i-1)*dx
+                        maxv%y=orgy+(j-1)*dy
+                        maxv%z=orgz+(k-1)*dz
+                    end if
+                    if (valtmp<minv%value) then
+                        minv%value=cubmat(i,j,k)
+                        minv%x=orgx+(i-1)*dx
+                        minv%y=orgy+(j-1)*dy
+                        minv%z=orgz+(k-1)*dz
+                    end if
+                    sumupsqrtot=sumupsqrtot+valtmp**2
+                end do
+            end do
+        end do
+        sumuptot=sumuppos+sumupneg
+        cenxtot=(cenxpos+cenxneg)/sumuptot
+        cenytot=(cenypos+cenyneg)/sumuptot
+        cenztot=(cenzpos+cenzneg)/sumuptot
+        cenxpos=cenxpos/sumuppos
+        cenypos=cenypos/sumuppos
+        cenzpos=cenzpos/sumuppos
+        cenxneg=cenxneg/sumupneg
+        cenyneg=cenyneg/sumupneg
+        cenzneg=cenzneg/sumupneg
+        numpt=nx*ny*nz
+        fminivol=dx*dy*dz
+        avgtot=sumuptot/numpt
+        stddev=0
+        !calculate standard deviation
+        do i=1,nx
+            if ((orgx+(i-1)*dx)<rlowx.or.(orgx+(i-1)*dx)>rhighx) cycle
+            do j=1,ny
+                if ((orgy+(j-1)*dy)<rlowy.or.(orgy+(j-1)*dy)>rhighy) cycle
+                do k=1,nz
+                    if ((orgz+(k-1)*dz)<rlowz.or.(orgz+(k-1)*dz)>rhighz) cycle
+                    if (valtmp<rlowv.or.valtmp>rhighv) cycle
+                    stddev=stddev+(cubmat(i,j,k)-avgtot)**2
+                end do
+            end do
+        end do
+        stddev=dsqrt(stddev/numpt)
+        write(*,"(' The minimum value:',D16.8,' at',3f12.6,' Bohr')") minv%value,minv%x,minv%y,minv%z
+        write(*,"(' The maximum value:',D16.8,' at',3f12.6,' Bohr')") maxv%value,maxv%x,maxv%y,maxv%z
+        write(*,"(' Differential element:',f15.10,' Bohr^3')") fminivol
+        write(*,"(' Average value:',D16.8)") avgtot
+        write(*,"(' Root mean square (RMS):',D16.8)") dsqrt(sumupsqrtot/numpt)
+        write(*,"(' Standard deviation:',D16.8)") stddev
+        write(*,*)
+        write(*,"(' Volume of positive value space:',f30.10,' Bohr^3')") igoodpointpos*fminivol
+        write(*,"(' Volume of negative value space:',f30.10,' Bohr^3')") igoodpointneg*fminivol
+        write(*,"(' Volume of all space:           ',f30.10,' Bohr^3')") (igoodpointpos+igoodpointneg)*fminivol
+        write(*,*)
+        write(*,"(' Summing up positive values:',f30.10)") sumuppos
+        write(*,"(' Summing up negative values:',f30.10)") sumupneg
+        write(*,"(' Summing up all values:     ',f30.10)") sumuptot
+        write(*,*)
+        write(*,"(' Integral of positive data:',f30.10)") sumuppos*fminivol
+        write(*,"(' Integral of negative data:',f30.10)") sumupneg*fminivol
+        write(*,"(' Integral of all data:     ',f30.10)") sumuptot*fminivol
+        write(*,*)
+        write(*,"(' X,Y,Z of barycenter (in Bohr)')")
+        write(*,"(' Positive part:',3f20.8)") cenxpos,cenypos,cenzpos
+        write(*,"(' Negative part:',3f20.8)") cenxneg,cenyneg,cenzneg
+        !If positive and negative cancel each other exactly, namely sumuptot is about zero, total barycenter will be infinitely large
+        if (abs(sumuptot)>0.001D0) write(*,"(' Total:        ',3f20.8)") cenxtot,cenytot,cenztot
+        
+    else if (isel==18) then !Integral curve
+        write(*,*) "Integrating in which direction? Input ""X"" or ""Y"" or ""Z"""
+        read(*,*) c200tmp
+        if (index(c200tmp,'X')/=0.or.index(c200tmp,'x')/=0) idir=1
+        if (index(c200tmp,'Y')/=0.or.index(c200tmp,'y')/=0) idir=2
+        if (index(c200tmp,'Z')/=0.or.index(c200tmp,'z')/=0) idir=3
+        write(*,*) "Input lower and upper limit (in Angstrom), e.g. -30,51.5"
+        write(*,*) "Input ""a"" can choose the entire range"
+        read(*,"(a)") c200tmp
+        if (index(c200tmp,"a")==0) then
+            read(c200tmp,*) rlow,rhigh
+            rlow=rlow/b2a
+            rhigh=rhigh/b2a
+        end if
+        write(*,*) "Calculating data..."
+        tmpintval=0
+        if (idir==1) then
+            allocate(intcurve(nx),locintcurve(nx),intcurvepos(nx))
+            intcurve=0
+            locintcurve=0
+            ncurpt=nx
+            if (index(c200tmp,"a")/=0) then
+                rlow=orgx
+                rhigh=endx
+            end if
+            do ix=1,nx
+                intcurvepos(ix)=(orgx+(ix-1)*dx)
+                if (intcurvepos(ix)<rlow.or.intcurvepos(ix)>rhigh) cycle
+                locintcurve(ix)=sum(cubmat(ix,:,:))*dy*dz
+                tmpintval=tmpintval+locintcurve(ix)*dx
+                intcurve(ix)=tmpintval
+            end do
+        else if (idir==2) then
+            allocate(intcurve(ny),locintcurve(ny),intcurvepos(ny))
+            intcurve=0
+            locintcurve=0
+            ncurpt=ny
+            if (index(c200tmp,"a")/=0) then
+                rlow=orgy
+                rhigh=endy
+            end if
+            do iy=1,ny
+                intcurvepos(iy)=(orgy+(iy-1)*dy)
+                if (intcurvepos(iy)<rlow.or.intcurvepos(iy)>rhigh) cycle
+                locintcurve(iy)=sum(cubmat(:,iy,:))*dx*dz
+                tmpintval=tmpintval+locintcurve(iy)*dy
+                intcurve(iy)=tmpintval
+            end do
+        else if (idir==3) then
+            allocate(intcurve(nz),locintcurve(nz),intcurvepos(nz))
+            intcurve=0
+            locintcurve=0
+            ncurpt=nz
+            if (index(c200tmp,"a")/=0) then
+                rlow=orgz
+                rhigh=endz
+            end if
+            do iz=1,nz
+                intcurvepos(iz)=(orgz+(iz-1)*dz)
+                if (intcurvepos(iz)<rlow.or.intcurvepos(iz)>rhigh) cycle
+                locintcurve(iz)=sum(cubmat(:,:,iz))*dx*dy
+                tmpintval=tmpintval+locintcurve(iz)*dz
+                intcurve(iz)=tmpintval
+            end do
+        end if
+        do while(.true.)
+            write(*,*)
+            if (ilenunit1D==1) write(*,*) "-1 Change length unit of the graph to Angstrom"
+            if (ilenunit1D==2) write(*,*) "-1 Change length unit of the graph to Bohr"
+            write(*,*) "0 Return"
+            write(*,*) "1 Plot graph of integral curve"
+            write(*,*) "2 Plot graph of local integral curve"
+            write(*,*) "3 Save graph of integral curve to current folder"
+            write(*,*) "4 Save graph of local integral curve to current folder"
+            write(*,*) "5 Export data of integral curve to intcurve.txt in current folder"
+            write(*,*) "6 Export data of local integral curve to locintcurve.txt in current folder"
+            read(*,*) isel2
+            if (isel2==-1) then
+                if (ilenunit1D==1) then
+                    ilenunit1D=2
+                else if (ilenunit1D==2) then
+                    ilenunit1D=1
+                end if
+            else if (isel2==0) then
+                exit
+            else if (isel2==1.or.isel2==3) then
+                disminmax=maxval(intcurve)-minval(intcurve)
+                ylow=minval(intcurve)-0.1D0*disminmax
+                yhigh=maxval(intcurve)+0.1D0*disminmax
+                stplabx=(rhigh-rlow)/10
+                stplaby=(yhigh-ylow)/10
+            else if (isel2==2.or.isel2==4) then
+                disminmax=maxval(locintcurve)-minval(locintcurve)
+                ylow=minval(locintcurve)-0.1D0*disminmax
+                yhigh=maxval(locintcurve)+0.1D0*disminmax
+                stplabx=(rhigh-rlow)/10
+                stplaby=(yhigh-ylow)/10
+            else if (isel2==5) then
+                open(10,file="intcurve.txt",status="replace")
+                do ipt=1,ncurpt
+                    if (intcurvepos(ipt)<rlow.or.intcurvepos(ipt)>rhigh) cycle
+                    write(10,"(2f14.8,f20.10)") intcurvepos(ipt),intcurvepos(ipt)*b2a,intcurve(ipt)
+                end do
+                close(10)
+                write(*,"(a)") " Done! The 1,2,3 columns correspond to the coordinate (in Bohr and in Angstrom) in the direction you selected and the integral, respectively"
+            else if (isel2==6) then
+                open(10,file="locintcurve.txt",status="replace")
+                do ipt=1,ncurpt
+                    if (intcurvepos(ipt)<rlow.or.intcurvepos(ipt)>rhigh) cycle
+                    write(10,"(2f14.8,f20.10)") intcurvepos(ipt),intcurvepos(ipt)*b2a,locintcurve(ipt)
+                end do
+                close(10)
+                write(*,"(a)") " Done! The 1,2,3 columns correspond to the coordinate (in Bohr and in Angstrom) in the direction you selected and the local integral, respectively"                
+            end if
+        end do
+        deallocate(intcurve,locintcurve,intcurvepos)
+    end if
 end do
 end subroutine
 
@@ -904,14 +904,14 @@ ang=2*180*acos(cosang)/(2D0*pi)
 write(*,"(' The angle between your defined plane and XY plane is ',f6.2,' degrees')") ang
 
 if (userplane%a==0.and.userplane%b==0) then
-	write(*,"('Warning: You defined plane is parallel to XY plane, use function 2 instead! Now exit...')")
-	return
+    write(*,"('Warning: You defined plane is parallel to XY plane, use function 2 instead! Now exit...')")
+    return
 else if (userplane%b==0.and.userplane%c==0) then
-	write(*,"('Warning: You defined plane is parallel to YZ plane, use function 3 instead! Now exit...')")
-	return
+    write(*,"('Warning: You defined plane is parallel to YZ plane, use function 3 instead! Now exit...')")
+    return
 else if (userplane%a==0.and.userplane%c==0) then
-	write(*,"('Warning: You defined plane is parallel to XZ plane, use function 4 instead! Now exit...')")
-	return
+    write(*,"('Warning: You defined plane is parallel to XZ plane, use function 4 instead! Now exit...')")
+    return
 end if
 
 distoler=dsqrt(dx**2+dy**2+dz**2)/4D0  !default tolerance distance between grid to userplane
@@ -924,19 +924,19 @@ if (temp/=0) distoler=temp
 allocate(planedata(nx*ny*nz))
 npt=0
 do i=1,nx
-	do j=1,ny
-		do k=1,nz
-			cubmatpt%value=cubmat(i,j,k)
-			cubmatpt%x=orgx+(i-1)*dx
-			cubmatpt%y=orgy+(j-1)*dy
-			cubmatpt%z=orgz+(k-1)*dz
-			pttemp=protoplane_pos(cubmatpt,userplane,vec3)  !project original data a(i,j,k) to userplane
-			if (dist2p(pttemp,cubmatpt)<distoler) then
-				npt=npt+1
-				planedata(npt)=pttemp
-			end if
-		end do
-	end do
+    do j=1,ny
+        do k=1,nz
+            cubmatpt%value=cubmat(i,j,k)
+            cubmatpt%x=orgx+(i-1)*dx
+            cubmatpt%y=orgy+(j-1)*dy
+            cubmatpt%z=orgz+(k-1)*dz
+            pttemp=protoplane_pos(cubmatpt,userplane,vec3)  !project original data a(i,j,k) to userplane
+            if (dist2p(pttemp,cubmatpt)<distoler) then
+                npt=npt+1
+                planedata(npt)=pttemp
+            end if
+        end do
+    end do
 end do
 write(*,"(i10,' points are presented in the plane you defined')") npt
 
@@ -944,68 +944,68 @@ write(*,*) "If project data to XY plane? 1=yes 2=no"
 read(*,*) itest
 
 if (itest==1) then
-	point1%x=1
-	point1%y=(-userplane%d-userplane%a*point1%x)/userplane%b  !find arbitrary two points(x=1 and x=2) in userplane and XY plane(Z=0) crossing
-	point1%z=0
-	point2%x=2
-	point2%y=(-userplane%d-userplane%a*point2%x)/userplane%b
-	point2%z=0
-	vec1=vecfrom2p(point1,point2)  !crossing vector of XY plane and userplane
-	detvalue=det2_2(vec1%x, vec1%y, userplane%a, userplane%b)
-	scalex=abs(vec3%x)/dsqrt(vec3%x**2+vec3%y**2)  !The ratio of x component to norm of vec3. scalex/y have direction, namely positive or negative sign
-	scaley=abs(vec3%y)/dsqrt(vec3%x**2+vec3%y**2)
-	
-	if (ang>80) then
-		flipmethod=1
-	else
-		flipmethod=0
-	end if
+    point1%x=1
+    point1%y=(-userplane%d-userplane%a*point1%x)/userplane%b  !find arbitrary two points(x=1 and x=2) in userplane and XY plane(Z=0) crossing
+    point1%z=0
+    point2%x=2
+    point2%y=(-userplane%d-userplane%a*point2%x)/userplane%b
+    point2%z=0
+    vec1=vecfrom2p(point1,point2)  !crossing vector of XY plane and userplane
+    detvalue=det2_2(vec1%x, vec1%y, userplane%a, userplane%b)
+    scalex=abs(vec3%x)/dsqrt(vec3%x**2+vec3%y**2)  !The ratio of x component to norm of vec3. scalex/y have direction, namely positive or negative sign
+    scaley=abs(vec3%y)/dsqrt(vec3%x**2+vec3%y**2)
+    
+    if (ang>80) then
+        flipmethod=1
+    else
+        flipmethod=0
+    end if
 
-	do i=1,npt
+    do i=1,npt
 !Use Cramer law to find a point (point1) in crossing vector (namely vec1) of userplane and XY plane
 !point1 fulfill two condition (of course, its z=0, since it is laying on XY plane):
 !(1) The vector of point1 to planedata(n) is vertical to crossing vector (2)the point is in userplane. so we can use cramer law to solve linear equation to get point1
-		point1%x=det2_2(vec1%x*planedata(i)%x+vec1%y*planedata(i)%y, vec1%y, -userplane%d, userplane%b)/detvalue
-		point1%y=det2_2(vec1%x, vec1%x*planedata(i)%x+vec1%y*planedata(i)%y, userplane%a, -userplane%d)/detvalue
-		temp2=dist2p(planedata(i),point1) - dist2p(planedata(i),point1)*cosang !temp2 is distance between point1 and original grid point i
+        point1%x=det2_2(vec1%x*planedata(i)%x+vec1%y*planedata(i)%y, vec1%y, -userplane%d, userplane%b)/detvalue
+        point1%y=det2_2(vec1%x, vec1%x*planedata(i)%x+vec1%y*planedata(i)%y, userplane%a, -userplane%d)/detvalue
+        temp2=dist2p(planedata(i),point1) - dist2p(planedata(i),point1)*cosang !temp2 is distance between point1 and original grid point i
 
-		if (flipmethod==0) then
-			if (planedata(i)%x>point1%x) then       ! used to determine adding direction
-				planedata(i)%x=planedata(i)%x+scalex*temp2
-			else
-				planedata(i)%x=planedata(i)%x-scalex*temp2
-			end if
-			if (planedata(i)%y>point1%y) then
-				planedata(i)%y=planedata(i)%y+scaley*temp2
-			else
-				planedata(i)%y=planedata(i)%y-scaley*temp2
-			end if
-		else !Angle near 90 degree
-			if (userplane%a*userplane%b>0) then
-				if (planedata(i)%z>0) then
-					planedata(i)%x=point1%x+dist2p(planedata(i),point1)*scalex
-					planedata(i)%y=point1%y+dist2p(planedata(i),point1)*scaley
-				else
-					planedata(i)%x=point1%x-dist2p(planedata(i),point1)*scalex
-					planedata(i)%y=point1%y-dist2p(planedata(i),point1)*scaley
-				end if
-			else
-				if (planedata(i)%z>0) then
-					planedata(i)%x=point1%x-dist2p(planedata(i),point1)*scalex
-					planedata(i)%y=point1%y+dist2p(planedata(i),point1)*scaley
-				else
-					planedata(i)%x=point1%x+dist2p(planedata(i),point1)*scalex
-					planedata(i)%y=point1%y-dist2p(planedata(i),point1)*scaley
-				end if
-			end if
-		end if
-		planedata(i)%z=0
-	end do
+        if (flipmethod==0) then
+            if (planedata(i)%x>point1%x) then       ! used to determine adding direction
+                planedata(i)%x=planedata(i)%x+scalex*temp2
+            else
+                planedata(i)%x=planedata(i)%x-scalex*temp2
+            end if
+            if (planedata(i)%y>point1%y) then
+                planedata(i)%y=planedata(i)%y+scaley*temp2
+            else
+                planedata(i)%y=planedata(i)%y-scaley*temp2
+            end if
+        else !Angle near 90 degree
+            if (userplane%a*userplane%b>0) then
+                if (planedata(i)%z>0) then
+                    planedata(i)%x=point1%x+dist2p(planedata(i),point1)*scalex
+                    planedata(i)%y=point1%y+dist2p(planedata(i),point1)*scaley
+                else
+                    planedata(i)%x=point1%x-dist2p(planedata(i),point1)*scalex
+                    planedata(i)%y=point1%y-dist2p(planedata(i),point1)*scaley
+                end if
+            else
+                if (planedata(i)%z>0) then
+                    planedata(i)%x=point1%x-dist2p(planedata(i),point1)*scalex
+                    planedata(i)%y=point1%y+dist2p(planedata(i),point1)*scaley
+                else
+                    planedata(i)%x=point1%x+dist2p(planedata(i),point1)*scalex
+                    planedata(i)%y=point1%y-dist2p(planedata(i),point1)*scaley
+                end if
+            end if
+        end if
+        planedata(i)%z=0
+    end do
 end if
 
 open(10,file="output.txt",status="replace")
 do i=1,npt
-	write(10,"(3f11.6,f22.15)") planedata(i)%x*b2a,planedata(i)%y*b2a,planedata(i)%z*b2a,planedata(i)%value
+    write(10,"(3f11.6,f22.15)") planedata(i)%x*b2a,planedata(i)%y*b2a,planedata(i)%z*b2a,planedata(i)%value
 end do
 close(10)
 write(*,*) "Completed!"

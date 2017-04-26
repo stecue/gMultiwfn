@@ -1,4 +1,5 @@
 module deftype
+implicit none
 type atomtype
 character*2 name !name of atom
 integer index !The index in periodic table, if ECP was used, charge will smaller than this value
@@ -19,6 +20,8 @@ end module
 !============ Store globally shared information
 module defvar
 use deftype
+implicit none
+integer :: ido
 real*8,parameter :: pi=3.141592653589793D0,b2a=0.529177249D0 !1 Bohr = 0.529177249 Angstrom
 real*8,parameter :: au2kcal=627.51D0,au2KJ=2625.5D0,au2eV=27.2113838D0
 real*8,parameter :: masse=9.10938215D-31,chge=1.602176487D0,lightc=2.99792458D8,au2debye=2.5417462D0 !masse/chge: Mass/charge of an electron
@@ -55,7 +58,7 @@ character*2 :: ind2name(0:nelesupp)=(/ "Bq","H ","He", &   !X(number O) is ghost
 "Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu", & !55~71
 "Hf","Ta","W ","Re","Os","Ir","Pt","Au","Hg","Tl","Pb","Bi","Po","At","Rn", & !72~86
 "Fr","Ra","Ac","Th","Pa","U ","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr", & !87~103
-"Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Ut","Fl","Up","Lv","Us","Uo","Un","Ux",("??",i=121,nelesupp) /) !104~all  Such as Uuo/Uup is replaced by Uo/Up
+"Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Ut","Fl","Up","Lv","Us","Uo","Un","Ux",("??",ido=121,nelesupp) /) !104~all  Such as Uuo/Uup is replaced by Uo/Up
 character*2 :: ind2name_up(0:nelesupp)=(/ "BQ","H ","HE", & !Same as ind2name, but all characters are upper case, to cater to .pdb file
 "LI","BE","B ","C ","N ","O ","F ","NE", & !3~10
 "NA","MG","AL","SI","P ","S ","CL","AR", & !11~18
@@ -64,22 +67,22 @@ character*2 :: ind2name_up(0:nelesupp)=(/ "BQ","H ","HE", & !Same as ind2name, b
 "CS","BA","LA","CE","PR","ND","PM","SM","EU","GD","TB","DY","HO","ER","TM","YB","LU", & !55~71
 "HF","TA","W ","RE","OS","IR","PT","AU","HG","TL","PB","BI","PO","AT","RN", & !72~86
 "FR","RA","AC","TH","PA","U ","NP","PU","AM","CM","BK","CF","ES","FM","MD","NO","LR", & !87~103
-"RF","DB","SG","BH","HS","MT","DS","RG","CN","UT","FL","UP","LV","US","UO","UN","UX",("??",i=121,nelesupp) /) !104~all
+"RF","DB","SG","BH","HS","MT","DS","RG","CN","UT","FL","UP","LV","US","UO","UN","UX",("??",ido=121,nelesupp) /) !104~all
 !Bondi vdW radius, from J.Phys.Chem.,1964,68(3),441-451, unit is Angstrom, will be convert to Bohr when multiwfn start
 real*8 :: vdwr(0:nelesupp)=(/ 0.4D0,1.2D0,1.4D0,& !Ghost,H,He
 1.82D0,1.77D0,1.74D0,1.7D0,1.55D0,1.52D0,1.47D0,1.54D0,& !Li~Ne
 2.27D0,1.73D0,1.73D0,2.1D0,1.8D0,1.8D0,1.75D0,1.88D0,& !Na~Ar
-(2.0D0,i=19,27),1.63D0,1.4D0,1.39D0,1.87D0,2.0D0,1.85D0,1.9D0,1.85D0,2.02D0,& ! Ni~Kr(28~36)
-(2.0D0,i=37,45),1.63D0,1.72D0,1.58D0,1.93D0,2.17D0,2.0D0,2.06D0,1.98D0,2.16D0,& !Pd~Xe(46~54)
-(2.0D0,i=55,77),1.72D0,1.66D0,1.55D0,1.96D0,2.02D0,(2.0D0,i=83,nelesupp) /) !Pt~Pb(78~82)
+(2.0D0,ido=19,27),1.63D0,1.4D0,1.39D0,1.87D0,2.0D0,1.85D0,1.9D0,1.85D0,2.02D0,& ! Ni~Kr(28~36)
+(2.0D0,ido=37,45),1.63D0,1.72D0,1.58D0,1.93D0,2.17D0,2.0D0,2.06D0,1.98D0,2.16D0,& !Pd~Xe(46~54)
+(2.0D0,ido=55,77),1.72D0,1.66D0,1.55D0,1.96D0,2.02D0,(2.0D0,ido=83,nelesupp) /) !Pt~Pb(78~82)
 !##No use currently!## Modified Bondi vdW radii, but for all main group (except for H,He), use IVA radius in corresponding row. Specifically used to molecular surface decomposition
 real*8 :: vdwr_tianlu(0:nelesupp)=(/ 0.4D0,1.7D0,1.7D0,& !Ghost,H,Ne   H and Ne are augmented to carbon radius
-(1.7D0,i=3,10),& !Li~Ne
-(2.1D0,i=11,18),& !Na~Ar
-1.87D0,1.87D0,  (2.0D0,i=21,27),1.63D0,1.40D0,1.39D0,  (1.87D0,i=31,36),& !K ,Ca,  Ni~Zn(21~30),  Ga~Kr(31,37)
-1.93D0,1.93D0,  (2.0D0,i=39,45),1.63D0,1.72D0,1.58D0,  (1.93D0,i=49,54),& !Rb,Sr,  Y ~Cd(39~48),  In~Xe(49~54)
-1.96D0,1.96D0,  (2.0D0,i=57,77),1.72D0,1.66D0,1.55D0,  (1.96D0,i=81,86),& !Cs,Ba,  La~Hg(57~80),  Tl~Rn(81~86)
-(2.0D0,i=87,nelesupp) /) !Rn~Mt(87~109,~all)
+(1.7D0,ido=3,10),& !Li~Ne
+(2.1D0,ido=11,18),& !Na~Ar
+1.87D0,1.87D0,  (2.0D0,ido=21,27),1.63D0,1.40D0,1.39D0,  (1.87D0,ido=31,36),& !K ,Ca,  Ni~Zn(21~30),  Ga~Kr(31,37)
+1.93D0,1.93D0,  (2.0D0,ido=39,45),1.63D0,1.72D0,1.58D0,  (1.93D0,ido=49,54),& !Rb,Sr,  Y ~Cd(39~48),  In~Xe(49~54)
+1.96D0,1.96D0,  (2.0D0,ido=57,77),1.72D0,1.66D0,1.55D0,  (1.96D0,ido=81,86),& !Cs,Ba,  La~Hg(57~80),  Tl~Rn(81~86)
+(2.0D0,ido=87,nelesupp) /) !Rn~Mt(87~109,~all)
 
 !Covalent radius, from "Dalton Trans., 2008, 2832-2838", unit is Angstrom, will be convert to Bohr when multiwfn start
 real*8 :: covr(0:nelesupp)=(/ 0.1D0,0.31D0,0.28D0,& !Ghost,H,Ne(1~2)
@@ -92,7 +95,7 @@ real*8 :: covr(0:nelesupp)=(/ 0.1D0,0.31D0,0.28D0,& !Ghost,H,Ne(1~2)
 2.44D0,2.15D0,2.07D0,2.04D0,2.03D0,2.01D0,1.99D0,1.98D0,1.98D0,1.96D0,1.94D0,& !Cs~Tb(55~65)
 1.92D0,1.92D0,1.89D0,1.90D0,1.87D0,1.87D0,1.75D0,1.70D0,1.62D0,1.51D0,1.44D0,1.41D0,& !Dy~Ir(66~77)
 1.36D0,1.36D0,1.32D0,1.45D0,1.46D0,1.48D0,1.40D0,1.50D0,1.50D0,2.60D0,2.21D0,& !Pt~Ra(78~88)
-2.15D0,2.06D0,2.00D0,1.96D0,1.90D0,1.87D0,1.80D0,1.69D0,(1.5D0,i=97,nelesupp) /) !Ac~Cm(89~96),~all
+2.15D0,2.06D0,2.00D0,1.96D0,1.90D0,1.87D0,1.80D0,1.69D0,(1.5D0,ido=97,nelesupp) /) !Ac~Cm(89~96),~all
 !(Covalent) radius proposed by Suresh, from J. Phys. Chem. A 2001, 105, 5940-5944. For missing values (including all noble gases and very heavy elements), the ones in covr array are used
 !Unit is Angstrom, will be convert to Bohr when multiwfn start
 real*8 :: covr_Suresh(0:nelesupp)=(/ 0.1D0,0.327D0,0.28D0,& !Ghost,H,Ne(1~2)
@@ -105,7 +108,7 @@ real*8 :: covr_Suresh(0:nelesupp)=(/ 0.1D0,0.327D0,0.28D0,& !Ghost,H,Ne(1~2)
 2.442D0,2.149D0,1.653D0,2.04D0,2.03D0,2.01D0,1.99D0,1.98D0,1.98D0,1.96D0,1.94D0,& !Cs~Tb(55~65)
 1.92D0,1.92D0,1.89D0,1.90D0,1.87D0,1.87D0,1.364D0,1.346D0,1.256D0,1.258D0,1.222D0,1.227D0,& !Dy~Ir(66~77)
 1.227D0,1.273D0,1.465D0,1.531D0,1.434D0,1.496D0,1.40D0,1.50D0,1.50D0,2.60D0,2.21D0,& !Pt~Ra(78~88)
-2.15D0,2.06D0,2.00D0,1.96D0,1.90D0,1.87D0,1.80D0,1.69D0,(1.5D0,i=97,nelesupp) /) !Ac~Cm(89~96),~all
+2.15D0,2.06D0,2.00D0,1.96D0,1.90D0,1.87D0,1.80D0,1.69D0,(1.5D0,ido=97,nelesupp) /) !Ac~Cm(89~96),~all
 !Covalent radius, from Pyykko "Chem. Eur. J.,15,186 (2009)", unit is in Angstrom, will be convert to Bohr when multiwfn start
 real*8 :: covr_pyy(0:nelesupp)=(/ 0.1D0,0.32D0,0.46D0,& !Ghost,H,Ne(1~2)
 1.33D0,1.02D0,0.85D0,0.75D0,0.71D0,0.63D0,0.64D0,0.67D0,& !Li~Ne(3~10)
@@ -118,18 +121,18 @@ real*8 :: covr_pyy(0:nelesupp)=(/ 0.1D0,0.32D0,0.46D0,& !Ghost,H,Ne(1~2)
 1.67D0,1.66D0,1.65D0,1.64D0,1.70D0,1.62D0,1.52D0,1.46D0,1.37D0,1.31D0,1.29D0,1.22D0,& !Dy~Ir(66~77)
 1.23D0,1.24D0,1.34D0,1.44D0,1.44D0,1.51D0,1.45D0,1.47D0,1.42D0,2.23D0,2.01D0,& !Pt~Ra(78~88)
 1.86D0,1.75D0,1.69D0,1.70D0,1.71D0,1.72D0,1.66D0,1.66D0,1.68D0,1.68D0,1.65D0,1.67D0,1.73D0,1.76D0,1.61D0,& !Ac~Lr(89~103)
-1.57D0,1.49D0,1.43D0,1.41D0,1.34D0,1.29D0,1.28D0,1.21D0,1.22D0,1.36D0,1.43D0,1.62D0,1.75D0,1.65D0,1.57D0,(1.5D0,i=119,nelesupp)  /) !Rf~118(104~118),~all
+1.57D0,1.49D0,1.43D0,1.41D0,1.34D0,1.29D0,1.28D0,1.21D0,1.22D0,1.36D0,1.43D0,1.62D0,1.75D0,1.65D0,1.57D0,(1.5D0,ido=119,nelesupp)  /) !Rf~118(104~118),~all
 real*8 :: covr_tianlu(0:nelesupp)=(/ 0.1D0,0.31D0,0.28D0,& !H,Ne(1~2) !Based on CSD radii, but for all main group (except for H,He), use IVA radius in corresponding row
-(0.76D0,i=3,10),& !Li~Ne(3~10)
-(1.11D0,i=11,18),1.2D0,1.2D0,& !Na~Ar(11~18),K,Ca
+(0.76D0,ido=3,10),& !Li~Ne(3~10)
+(1.11D0,ido=11,18),1.2D0,1.2D0,& !Na~Ar(11~18),K,Ca
 1.70D0,1.60D0,1.53D0,1.39D0,1.39D0,1.32D0,1.26D0,1.24D0,1.32D0,1.22D0,& !Sc~Zn(21~30)  here MnD0,FeD0,Co is low-spinD0, high spin is 1.61D0,1.52D0,1.50
-(1.2D0,i=31,36),1.42D0,1.42D0,& !Ga~Kr(31~36),Rb,Sr
+(1.2D0,ido=31,36),1.42D0,1.42D0,& !Ga~Kr(31~36),Rb,Sr
 1.90D0,1.75D0,1.64D0,1.54D0,1.47D0,1.46D0,1.42D0,1.39D0,1.45D0,1.44D0,& !Y~Cd(39~48)
-(1.39D0,i=49,54),1.46D0,1.46D0,& !In~Xe(49~54),Cs,Ba
+(1.39D0,ido=49,54),1.46D0,1.46D0,& !In~Xe(49~54),Cs,Ba
 2.07D0,2.04D0,2.03D0,2.01D0,1.99D0,1.98D0,1.98D0,1.96D0,1.94D0,1.92D0,1.92D0,1.89D0,1.90D0,1.87D0,1.87D0,& !La~Lu(57~71)
 1.75D0,1.70D0,1.62D0,1.51D0,1.44D0,1.41D0,1.36D0,1.36D0,1.32D0,& !Hf~Hg(72~80)
-(1.46D0,i=81,86),1.46D0,1.46D0,&!Tl~Rn(81~86),Fr(still 1.46),Ra(still 1.46)
-2.15D0,2.06D0,2.00D0,1.96D0,1.90D0,1.87D0,1.80D0,1.69D0,(1.5D0,i=97,nelesupp) /) !Ac~Cm(89~96),~all
+(1.46D0,ido=81,86),1.46D0,1.46D0,&!Tl~Rn(81~86),Fr(still 1.46),Ra(still 1.46)
+2.15D0,2.06D0,2.00D0,1.96D0,1.90D0,1.87D0,1.80D0,1.69D0,(1.5D0,ido=97,nelesupp) /) !Ac~Cm(89~96),~all
 !Radii proposed in Chem. Phys. Lett., 480 (2009) 127-131, the unit is Bohr!
 real*8 :: radii_Hugo(0:nelesupp)=(/ 0.10D0,1.00D0,0.74D0,& !Ghost,H,Ne(1~2)
 1.59D0,1.21D0,1.28D0,1.10D0,0.97D0,1.00D0,0.88D0,0.79D0,& !Li~Ne(3~10)
@@ -138,7 +141,7 @@ real*8 :: radii_Hugo(0:nelesupp)=(/ 0.10D0,1.00D0,0.74D0,& !Ghost,H,Ne(1~2)
 1.80D0,1.55D0,1.48D0,1.43D0,1.42D0,1.38D0,1.37D0,1.36D0,1.35D0,1.28D0,1.34D0,1.23D0,1.53D0,1.36D0,1.26D0,1.23D0,1.14D0,1.06D0,1.87D0,1.62D0,& !Rb~Xe,Cs,Ba
 1.56D0,1.57D0,1.58D0,1.57D0,1.56D0,1.55D0,1.55D0,1.49D0,1.52D0,1.51D0,1.50D0,1.49D0,1.48D0,1.47D0,1.58D0,& !La~Lu
 1.41D0,1.34D0,1.31D0,1.32D0,1.27D0,1.23D0,1.23D0,1.21D0,1.14D0,1.49D0,1.35D0,1.37D0,1.27D0,1.21D0,1.12D0,1.83D0,1.16D0,& !Hf~Rn,Fr,Ra
-1.62D0,1.47D0,1.52D0,1.48D0,1.47D0,1.50D0,1.51D0,1.51D0,1.48D0,1.47D0,1.46D0,1.45D0,1.44D0,1.43D0,1.67D0,1.51D0,(1.5D0,i=105,nelesupp) /) !Ac~Rf,~all
+1.62D0,1.47D0,1.52D0,1.48D0,1.47D0,1.50D0,1.51D0,1.51D0,1.48D0,1.47D0,1.46D0,1.45D0,1.44D0,1.43D0,1.67D0,1.51D0,(1.5D0,ido=105,nelesupp) /) !Ac~Rf,~all
 
 real*8 :: YWTatomcoeff(18,3)=reshape((/ & !Coef. of fitting B3LYP/6-31G* density by Weitao Yang group for the first three rows, see supporting info. of JACS,132,6498
 0.2815D0,2.437D0,11.84D0,31.34D0,67.82D0,120.2D0,190.9D0,289.5D0,406.3D0,561.3D0,760.8D0,1016.0D0,1319.0D0,1658.0D0,2042.0D0,2501.0D0,3024.0D0,3625.0D0, &
@@ -160,7 +163,7 @@ real*8 :: atmwei(0:nelesupp)=(/ 0D0,1.00794D0,4.0026D0,6.941D0,9.01218D0,10.811D
 204.3833D0,207.2D0,208.9804D0,209D0,210D0,222D0,223D0,226D0,227D0,232.03806D0,& !71~90
 231.03588D0,238.02891D0,237D0,244D0,243D0,247D0,247D0,251D0,252D0,257D0,258D0,259D0,262D0,265D0,268D0,271D0,272D0,270D0,276D0,& !91~109
 281D0,282D0,285D0,285D0,289D0,289D0,293D0,294D0,294D0,& !110~118
-(0D0,i=119,nelesupp) /) !119~all
+(0D0,ido=119,nelesupp) /) !119~all
  
 !Series of Lebedev-Laikov routines
 integer :: Lebelist(32)=(/ 6,14,26,38,50,74,86,110,146,170,194,230,266,302,350,434,590,770,974,1202,1454,1730,2030,2354,2702,3074,3470,3890,4334,4802,5294,5810 /)
@@ -382,14 +385,14 @@ end module
 module surfvertex
 use defvar
 type triangtype
-	integer idx(3) !Consists of which three surface vertices
-	real*8 area
-	real*8 value !mapped function value at geometry center
+    integer idx(3) !Consists of which three surface vertices
+    real*8 area
+    real*8 value !mapped function value at geometry center
 end type
 type surfcor2vtxtype
 !if k=surfcor2vtxtype(i,q)%athcor means the two corner with surface corner index of i and k, interpolated to the surface vertex with index of %itpvtx. this information is stored in slot q
-	integer athcor !another corner
-	integer itpvtx !interpolated to which surface vertex index
+    integer athcor !another corner
+    integer itpvtx !interpolated to which surface vertex index
 end type
 type(surfcor2vtxtype),allocatable :: surfcor2vtx(:,:)
 integer,allocatable :: surcor2vtxpos(:) !Will add new interpolation relationship to which slot of surfcor2vtx

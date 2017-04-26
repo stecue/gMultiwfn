@@ -66,8 +66,8 @@
        else if (npt==5810) then
             call LD5810(potx,poty,potz,potw,isphnum)
        else
-	      write(*,*) "Input error!"
-	      read (*,*)
+          write(*,*) "Input error!"
+          read (*,*)
        end if
        end subroutine
 

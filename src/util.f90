@@ -2,12 +2,12 @@ module util
 implicit real*8(a-h,o-z)
 
 interface sort
-	module procedure sortr8
-	module procedure sorti4
+    module procedure sortr8
+    module procedure sorti4
 end interface
 interface invarr
-	module procedure invarrr8
-	module procedure invarri4
+    module procedure invarrr8
+    module procedure invarri4
 end interface
 !!------------------- Root and weight of hermite polynomial
 real*8 Rhm(10,10),Whm(10,10)
@@ -304,9 +304,9 @@ integer istart,iend
 real*8 array(:)
 len=iend-istart+1
 do i=0,int(len/2D0)-1
-	tmp=array(istart+i)
-	array(istart+i)=array(iend-i)
-	array(iend-i)=tmp
+    tmp=array(istart+i)
+    array(istart+i)=array(iend-i)
+    array(iend-i)=tmp
 end do
 end subroutine
 !Integer 4 version
@@ -314,9 +314,9 @@ subroutine invarri4(array,istart,iend)
 integer istart,iend,array(:)
 len=iend-istart+1
 do i=0,int(len/2D0)-1
-	tmp=array(istart+i)
-	array(istart+i)=array(iend-i)
-	array(iend-i)=tmp
+    tmp=array(istart+i)
+    array(istart+i)=array(iend-i)
+    array(iend-i)=tmp
 end do
 end subroutine
 
@@ -330,28 +330,28 @@ real*8 array(:),temp
 N=size(array)
 mode=1
 if (present(inmode)) then
-	if (inmode=="abs") mode=2
+    if (inmode=="abs") mode=2
 end if
 if (mode==1) then
-	do i=1,N
-		do j=i+1,N
-			if (array(i)>array(j)) then
-				temp=array(i)
-				array(i)=array(j)
-				array(j)=temp
-			end if
-		end do
-	end do
+    do i=1,N
+        do j=i+1,N
+            if (array(i)>array(j)) then
+                temp=array(i)
+                array(i)=array(j)
+                array(j)=temp
+            end if
+        end do
+    end do
 else if (mode==2) then
-	do i=1,N
-		do j=i+1,N
-			if (abs(array(i))>abs(array(j))) then
-				temp=array(i)
-				array(i)=array(j)
-				array(j)=temp
-			end if
-		end do
-	end do
+    do i=1,N
+        do j=i+1,N
+            if (abs(array(i))>abs(array(j))) then
+                temp=array(i)
+                array(i)=array(j)
+                array(j)=temp
+            end if
+        end do
+    end do
 end if
 end subroutine
 !Integer 4 version
@@ -362,28 +362,28 @@ integer array(:),temp
 N=size(array)
 mode=1
 if (present(inmode)) then
-	if (inmode=="abs") mode=2
+    if (inmode=="abs") mode=2
 end if
 if (mode==1) then
-	do i=1,N
-		do j=i+1,N
-			if (array(i)>array(j)) then
-				temp=array(i)
-				array(i)=array(j)
-				array(j)=temp
-			end if
-		end do
-	end do
+    do i=1,N
+        do j=i+1,N
+            if (array(i)>array(j)) then
+                temp=array(i)
+                array(i)=array(j)
+                array(j)=temp
+            end if
+        end do
+    end do
 else if (mode==2) then
-	do i=1,N
-		do j=i+1,N
-			if (abs(array(i))>abs(array(j))) then
-				temp=array(i)
-				array(i)=array(j)
-				array(j)=temp
-			end if
-		end do
-	end do
+    do i=1,N
+        do j=i+1,N
+            if (abs(array(i))>abs(array(j))) then
+                temp=array(i)
+                array(i)=array(j)
+                array(j)=temp
+            end if
+        end do
+    end do
 end if
 end subroutine
 
@@ -427,17 +427,17 @@ integer nrow,ncol,arr(nrow,ncol),seq(ncol)
 seq=(/ (i,i=1,ncol) /)
 arr(1,:)=seq !The first array will be 1,2,3,4...
 do icyc=2,nrow
-	do i=ncol-1,1,-1
-		if (seq(i)<seq(i+1)) exit
-	end do
-	do j=ncol,1,-1
-		if (seq(j)>seq(i)) exit
-	end do
-	itmp=seq(i)
-	seq(i)=seq(j)
-	seq(j)=itmp
-	call invarr(seq,i+1,ncol)
-	arr(icyc,:)=seq
+    do i=ncol-1,1,-1
+        if (seq(i)<seq(i+1)) exit
+    end do
+    do j=ncol,1,-1
+        if (seq(j)>seq(i)) exit
+    end do
+    itmp=seq(i)
+    seq(i)=seq(j)
+    seq(j)=itmp
+    call invarr(seq,i+1,ncol)
+    arr(icyc,:)=seq
 end do
 end subroutine
 
@@ -464,26 +464,26 @@ if (present(array)) array=0
 icommaold=0
 nelement=0
 do ipos=1,len(inpstr)
-	if (inpstr(ipos:ipos)==','.or.ipos==len(inpstr)) then
-		icommanew=ipos
-		if (ipos==len(inpstr)) icommanew=ipos+1
-		read(inpstr(icommaold+1:icommanew-1),*) c80tmp
-		if (index(c80tmp,'-')==0) then
-			nelement=nelement+1
-			if (present(array)) read(c80tmp,*) array(nelement)
-		else
-			do iheng=1,len_trim(c80tmp)
-				if (c80tmp(iheng:iheng)=='-') exit
-			end do
-			read(c80tmp(1:iheng-1),*) ilow
-			read(c80tmp(iheng+1:),*) ihigh
-			do itmp=ilow,ihigh
-				nelement=nelement+1
-				if (present(array)) array(nelement)=itmp
-			end do
-		end if
-		icommaold=icommanew
-	end if
+    if (inpstr(ipos:ipos)==','.or.ipos==len(inpstr)) then
+        icommanew=ipos
+        if (ipos==len(inpstr)) icommanew=ipos+1
+        read(inpstr(icommaold+1:icommanew-1),*) c80tmp
+        if (index(c80tmp,'-')==0) then
+            nelement=nelement+1
+            if (present(array)) read(c80tmp,*) array(nelement)
+        else
+            do iheng=1,len_trim(c80tmp)
+                if (c80tmp(iheng:iheng)=='-') exit
+            end do
+            read(c80tmp(1:iheng-1),*) ilow
+            read(c80tmp(iheng+1:),*) ihigh
+            do itmp=ilow,ihigh
+                nelement=nelement+1
+                if (present(array)) array(nelement)=itmp
+            end do
+        end if
+        icommaold=icommanew
+    end if
 end do
 end subroutine
 
@@ -491,17 +491,17 @@ end subroutine
 subroutine path2filename(pathnamein,filenameout)
 character(len=*) pathnamein,filenameout
 do i=len_trim(pathnamein),1,-1
-	if (pathnamein(i:i)=='.') then
-		iend=i-1
-		exit
-	end if
+    if (pathnamein(i:i)=='.') then
+        iend=i-1
+        exit
+    end if
 end do
 istart=1
 do i=iend,1,-1
-	if (pathnamein(i:i)=='/'.or.pathnamein(i:i)=='\') then
-		istart=i+1
-		exit
-	end if
+    if (pathnamein(i:i)=='/'.or.pathnamein(i:i)=='\') then
+        istart=i+1
+        exit
+    end if
 end do
 filenameout=' '
 filenameout(1:iend-istart+1)=pathnamein(istart:iend)
@@ -527,7 +527,7 @@ end subroutine
 subroutine struc2lc(str)
 character(len=*) str
 do i=1,len_trim(str)
-	call uc2lc(str(i:i))
+    call uc2lc(str(i:i))
 end do
 end subroutine
 
@@ -535,7 +535,7 @@ end subroutine
 subroutine strlc2uc(str)
 character(len=*) str
 do i=1,len_trim(str)
-	call lc2uc(str(i:i))
+    call lc2uc(str(i:i))
 end do
 end subroutine
 
@@ -560,21 +560,21 @@ allocate(temp(a))
 allocate(s(a))
 allocate(divided(a))
 do i=1,a
-	s(i)=maxval(abs(mat(i,1:a)))
+    s(i)=maxval(abs(mat(i,1:a)))
 end do
 do i=1,a-1
-	divided(i:a)=mat(i:a,i)/s(i:a)
-	t=maxloc(abs(divided(i:a)),dim=1)
-	temp(:)=mat(i,:)
-	mat(i,:)=mat(i+t-1,:)
-	mat(i+t-1,:)=temp(:)
-	st=s(i)
-	s(i)=s(i+t-1)
-	s(i+t-1)=st
-	do j=i+1,a
-		m=mat(j,i)/mat(i,i)
-		mat(j,i:a)=mat(j,i:a)-mat(i,i:a)*m
-	end do
+    divided(i:a)=mat(i:a,i)/s(i:a)
+    t=maxloc(abs(divided(i:a)),dim=1)
+    temp(:)=mat(i,:)
+    mat(i,:)=mat(i+t-1,:)
+    mat(i+t-1,:)=temp(:)
+    st=s(i)
+    s(i)=s(i+t-1)
+    s(i+t-1)=st
+    do j=i+1,a
+        m=mat(j,i)/mat(i,i)
+        mat(j,i:a)=mat(j,i:a)-mat(i,i:a)*m
+    end do
 end do
 deallocate(temp,s,divided)
 end subroutine
@@ -588,34 +588,34 @@ detmat=1D0
 NOTlowertri=0
 NOTuppertri=0
 outter1: do i=1,isizemat !Check if already is lower-trigonal matrix
-	do j=i+1,isizemat
-		if (mat(i,j)>1D-12) then
-			NOTlowertri=1 !There are at least one big value at upper trigonal part, hence not lower trigonal matrix
-			exit outter1
-		end if
-	end do
+    do j=i+1,isizemat
+        if (mat(i,j)>1D-12) then
+            NOTlowertri=1 !There are at least one big value at upper trigonal part, hence not lower trigonal matrix
+            exit outter1
+        end if
+    end do
 end do outter1
 outter2: do i=1,isizemat !Check if already is upper-trigonal matrix
-	do j=1,i-1
-		if (mat(i,j)>1D-12) then
-			NOTuppertri=1 !There are at least one big value at lower trigonal part, hence not upper trigonal matrix
-			exit outter2
-		end if
-	end do
+    do j=1,i-1
+        if (mat(i,j)>1D-12) then
+            NOTuppertri=1 !There are at least one big value at lower trigonal part, hence not upper trigonal matrix
+            exit outter2
+        end if
+    end do
 end do outter2
 
 if (NOTlowertri==0.or.NOTuppertri==0) then !Is lower or upper trigonal matrix, don't need to convert to trigonal matrix
-	do i=1,isizemat
-		detmat=detmat*mat(i,i)
-	end do
+    do i=1,isizemat
+        detmat=detmat*mat(i,i)
+    end do
 else !Not upper or lower trigonal matrix
-	allocate(mattmp(isizemat,isizemat))
-	mattmp=mat
-	call ratio_upper(mattmp)
-	detmat=1D0
-	do i=1,isizemat
-		detmat=detmat*mattmp(i,i)
-	end do
+    allocate(mattmp(isizemat,isizemat))
+    mattmp=mat
+    call ratio_upper(mattmp)
+    detmat=1D0
+    do i=1,isizemat
+        detmat=detmat*mattmp(i,i)
+    end do
 end if
 end function
 
@@ -624,7 +624,7 @@ real*8 function mattrace(mat)
 real*8 mat(:,:)
 mattrace=0
 do i=1,size(mat,1)
-	mattrace=mattrace+mat(i,i)
+    mattrace=mattrace+mat(i,i)
 end do
 end function
 
@@ -645,35 +645,35 @@ if (present(inmaxcyc)) maxcyc=inmaxcyc
 if (present(inthres)) thres=inthres
 S=0
 do i=1,n
-	S(i,i)=1.0D0
+    S(i,i)=1.0D0
 end do
 do k=1,maxcyc+1
-	R=0
-	do i=1,n
-		R(i,i)=1.0D0
-	end do
-	i=1
-	j=2
-	do ii=1,n
-		do jj=ii+1,n
-			if (abs(mat(ii,jj))>abs(mat(i,j))) then
-				i=ii
-				j=jj
-			end if
-		end do
-	end do
-	if (abs(mat(i,j))<thres) exit
-	if (k==maxcyc+1) write(*,*) "Matrix diagonalization exceed max cycle before converge"
-	phi=atan(2*mat(i,j)/(mat(i,i)-mat(j,j)))/2.0D0
-	R(i,i)=cos(phi)
-	R(j,j)=R(i,i)
-	R(i,j)=-sin(phi)
-	R(j,i)=-R(i,j)
-	mat=matmul(matmul(transpose(R),mat),R)
-	S=matmul(S,R)
+    R=0
+    do i=1,n
+        R(i,i)=1.0D0
+    end do
+    i=1
+    j=2
+    do ii=1,n
+        do jj=ii+1,n
+            if (abs(mat(ii,jj))>abs(mat(i,j))) then
+                i=ii
+                j=jj
+            end if
+        end do
+    end do
+    if (abs(mat(i,j))<thres) exit
+    if (k==maxcyc+1) write(*,*) "Matrix diagonalization exceed max cycle before converge"
+    phi=atan(2*mat(i,j)/(mat(i,i)-mat(j,j)))/2.0D0
+    R(i,i)=cos(phi)
+    R(j,j)=R(i,i)
+    R(i,j)=-sin(phi)
+    R(j,i)=-R(i,j)
+    mat=matmul(matmul(transpose(R),mat),R)
+    S=matmul(S,R)
 end do
 do i=1,n
-	eigval(i)=mat(i,i)
+    eigval(i)=mat(i,i)
 end do
 end subroutine
 
@@ -715,8 +715,8 @@ implicit real*8 (a-h,o-z)
 real*8 mat(nsize,nsize),mat2arr(nsize*(nsize+1)/2)
 j=1
 do i=1,nsize
-	mat2arr(j:j+i-1)=mat(i,1:i)
-	j=j+i
+    mat2arr(j:j+i-1)=mat(i,1:i)
+    j=j+i
 end do
 end function
 
@@ -931,13 +931,13 @@ real*8 mat(:,:)
 nsize=size(mat,1)
 identmaterr=0D0
 do i=1,nsize
-	do j=1,nsize
-		if (i==j) then
-			identmaterr=identmaterr+abs(abs(mat(i,j))-1D0)
-		else
-			identmaterr=identmaterr+abs(mat(i,j))
-		end if
-	end do
+    do j=1,nsize
+        if (i==j) then
+            identmaterr=identmaterr+abs(abs(mat(i,j))-1D0)
+        else
+            identmaterr=identmaterr+abs(mat(i,j))
+        end if
+    end do
 end do
 end function
 
@@ -970,15 +970,15 @@ subroutine findvalincub(cubfile,value,i,j,k)
 real*8 cubfile(:,:,:),value
 integer i,j,k
 do ii=1,size(cubfile,1)
-	do jj=1,size(cubfile,2)
-		do kk=1,size(cubfile,3)
-			if (cubfile(ii,jj,kk)==value) then
-				i=ii
-				j=jj
-				k=kk
-			end if
-		end do
-	end do
+    do jj=1,size(cubfile,2)
+        do kk=1,size(cubfile,3)
+            if (cubfile(ii,jj,kk)==value) then
+                i=ii
+                j=jj
+                k=kk
+            end if
+        end do
+    end do
 end do
 end subroutine
 
@@ -1010,33 +1010,33 @@ if (present(inncol)) ncol=inncol
 if (present(label).and.label/='') write(ides,*) "************ ",label," ************"
 nt=ceiling(i2/float(ncol))
 do i=1,nt !How many frame
-	ns=(i-1)*5+1 !This frame start from where
-	if (i/=nt) ne=(i-1)*ncol+ncol !This frame end to where
-	if (i==nt) ne=i2
-	!Write basis number in separate line
-	write(ides,"(6x)",advance='no')
-	do j=ns,ne
-		if (present(titlechar)) then
-			write(ides,'('//titlechar//')',advance='no') j
-		else
-			write(ides,"(i8,6x)",advance='no') j
-		end if
-	end do
-	write(ides,*)
-	!Write content in each regular line
-	do k=1,i1
-		if (k<ns.and.semi==1) cycle !The lines have been outputted are skipped
-		write(ides,"(i6)",advance='no') k
-		do j=ns,ne
-			if (semi==1.and.k<j) cycle !Upper trigonal element were passed
-			if (present(form)) then
-				write(ides,'('//form//')',advance='no') mat(k,j)			
-			else
-				write(ides,"(D14.6)",advance='no') mat(k,j)
-			end if
-		end do
-		write(ides,*) !Change to next line
-	end do
+    ns=(i-1)*5+1 !This frame start from where
+    if (i/=nt) ne=(i-1)*ncol+ncol !This frame end to where
+    if (i==nt) ne=i2
+    !Write basis number in separate line
+    write(ides,"(6x)",advance='no')
+    do j=ns,ne
+        if (present(titlechar)) then
+            write(ides,'('//titlechar//')',advance='no') j
+        else
+            write(ides,"(i8,6x)",advance='no') j
+        end if
+    end do
+    write(ides,*)
+    !Write content in each regular line
+    do k=1,i1
+        if (k<ns.and.semi==1) cycle !The lines have been outputted are skipped
+        write(ides,"(i6)",advance='no') k
+        do j=ns,ne
+            if (semi==1.and.k<j) cycle !Upper trigonal element were passed
+            if (present(form)) then
+                write(ides,'('//form//')',advance='no') mat(k,j)            
+            else
+                write(ides,"(D14.6)",advance='no') mat(k,j)
+            end if
+        end do
+        write(ides,*) !Change to next line
+    end do
 end do
 end subroutine
 
@@ -1075,34 +1075,34 @@ i2=size(mat,2)
 nt=ceiling(i2/float(ncol))
 mat=0D0
 do i=1,nt !Number of frames
-	ns=(i-1)*ncol+1
-	if (i/=nt) ne=(i-1)*ncol+ncol
-	if (i==nt) ne=i2
-	do ii=1,nspace
-		read(fileid,*) !!!!!!!!!!!! Skip number line when reading each new frame
-	end do
-	do k=1,i1 !Scan rows in each frame
-! 		read(fileid,"(a)") c80tmp
-! 		write(15,"(a)") c80tmp
-! 		backspace(fileid)
-		
-		if (k<ns.and.present(semi).and.semi==1) cycle
-		do iii=1,skipcol !Skip marker columns in each row
-			read(fileid,"(1x)",advance='no')
-		end do
-		do j=ns,ne !Scan elements in each row
-			if (present(semi).and.semi==1.and.k<j) cycle
-			read(fileid,form,advance='no') mat(k,j)
-! 			write(*,*) i,k,j,mat(k,j)
-		end do
-		read(fileid,*)
-	end do
+    ns=(i-1)*ncol+1
+    if (i/=nt) ne=(i-1)*ncol+ncol
+    if (i==nt) ne=i2
+    do ii=1,nspace
+        read(fileid,*) !!!!!!!!!!!! Skip number line when reading each new frame
+    end do
+    do k=1,i1 !Scan rows in each frame
+!         read(fileid,"(a)") c80tmp
+!         write(15,"(a)") c80tmp
+!         backspace(fileid)
+        
+        if (k<ns.and.present(semi).and.semi==1) cycle
+        do iii=1,skipcol !Skip marker columns in each row
+            read(fileid,"(1x)",advance='no')
+        end do
+        do j=ns,ne !Scan elements in each row
+            if (present(semi).and.semi==1.and.k<j) cycle
+            read(fileid,form,advance='no') mat(k,j)
+!             write(*,*) i,k,j,mat(k,j)
+        end do
+        read(fileid,*)
+    end do
 end do
 if (present(semi).and.semi==1) then !When read is lower trigonal matrix, we assume it is a symmetric matrix
-	mat=mat+transpose(mat)
-	do i=1,i1
-		mat(i,i)=mat(i,i)/2D0
-	end do
+    mat=mat+transpose(mat)
+    do i=1,i1
+        mat(i,i)=mat(i,i)/2D0
+    end do
 end if
 end subroutine
 
@@ -1113,13 +1113,13 @@ integer fileid,ierror,imode
 character*80 c80
 totlinenum=0
 do while(.true.)
-	read(fileid,"(a)",iostat=ierror) c80
-	if (imode==1) then
-		if (ierror/=0.or.c80==" ") exit
-	else if (imode==2) then
-		if (ierror/=0) exit
-	end if
-	totlinenum=totlinenum+1
+    read(fileid,"(a)",iostat=ierror) c80
+    if (imode==1) then
+        if (ierror/=0.or.c80==" ") exit
+    else if (imode==2) then
+        if (ierror/=0) exit
+    end if
+    totlinenum=totlinenum+1
 end do
 rewind(fileid)
 end function
@@ -1135,13 +1135,13 @@ character*200 c200
 CHARACTER(LEN=*) label
 if ((.not.present(irewind)).or.(present(irewind).and.irewind==1)) rewind(fileid)
 do while(.true.)
-	read(fileid,"(a)",iostat=ierror) c200
-	if (index(c200,label)/=0) then
-		backspace(fileid)
-		if (present(ifound)) ifound=1 !Found result
-		return
-	end if
-	if (ierror/=0) exit
+    read(fileid,"(a)",iostat=ierror) c200
+    if (index(c200,label)/=0) then
+        backspace(fileid)
+        if (present(ifound)) ifound=1 !Found result
+        return
+    end if
+    if (ierror/=0) exit
 end do
 if (present(ifound)) ifound=0
 end subroutine
@@ -1151,7 +1151,7 @@ end subroutine
 subroutine skiplines(id,nskip)
 integer id,nskip
 do i=1,nskip
-	read(id,*)
+    read(id,*)
 end do
 end subroutine
 
@@ -1162,7 +1162,7 @@ integer i
 ft=i
 if (i==0) ft=1
 do j=i-1,1,-1
-	ft=ft*j
+    ft=ft*j
 end do
 end function
 
@@ -1182,22 +1182,22 @@ forall (i=1:ncomb) idxarr(i)=i !Used to record index
 ioutput=1
 ncount=0
 do while(ipos>0)
-	if (ioutput==1) then
-		ncount=ncount+1
-		outarray(ncount,:)=array(idxarr(:))
-	end if
-	ioutput=0
-	idxarr(ipos)=idxarr(ipos)+1
-	if (idxarr(ipos)>ntot) then
-		ipos=ipos-1 !Go back to last position
-		cycle
-	end if
-	if (ipos<ncomb) then
-		ipos=ipos+1
-		idxarr(ipos)=idxarr(ipos-1)
-		cycle
-	end if
-	if (ipos==ncomb) ioutput=1
+    if (ioutput==1) then
+        ncount=ncount+1
+        outarray(ncount,:)=array(idxarr(:))
+    end if
+    ioutput=0
+    idxarr(ipos)=idxarr(ipos)+1
+    if (idxarr(ipos)>ntot) then
+        ipos=ipos-1 !Go back to last position
+        cycle
+    end if
+    if (ipos<ncomb) then
+        ipos=ipos+1
+        idxarr(ipos)=idxarr(ipos-1)
+        cycle
+    end if
+    if (ipos==ncomb) ioutput=1
 end do
 end subroutine
 
@@ -1218,17 +1218,17 @@ spcy=(ymax-ymin)/nvaly
 !If enable parallel, program often prompts memory is not enough, I don't know how to solve this
 ! !$OMP PARALLEL DO SHARED(mat) PRIVATE(ix,iy,ipt,xlow,xhigh,ylow,yhigh) schedule(dynamic) NUM_THREADS(rtNThreads())
 do ix=1,nvalx
-	xlow=xmin+(ix-1)*spcx
-	xhigh=xmin+ix*spcx
-	do iy=1,nvaly
-		ylow=ymin+(iy-1)*spcy
-		yhigh=ymin+iy*spcy
-		do ipt=1,nlen
-			if (xarr(ipt)>xlow.and.xarr(ipt)<=xhigh.and.yarr(ipt)>ylow.and.yarr(ipt)<=yhigh) then
-				mat(ix,iy)=mat(ix,iy)+1D0
-			end if
-		end do
-	end do
+    xlow=xmin+(ix-1)*spcx
+    xhigh=xmin+ix*spcx
+    do iy=1,nvaly
+        ylow=ymin+(iy-1)*spcy
+        yhigh=ymin+iy*spcy
+        do ipt=1,nlen
+            if (xarr(ipt)>xlow.and.xarr(ipt)<=xhigh.and.yarr(ipt)>ylow.and.yarr(ipt)<=yhigh) then
+                mat(ix,iy)=mat(ix,iy)+1D0
+            end if
+        end do
+    end do
 end do
 ! !$OMP END PARALLEL DO
 end subroutine
@@ -1253,76 +1253,76 @@ implicit real*8(a-h,o-z)
 integer npt,itype
 real*8 ptpos(npt),ptval(npt),r,val,der1,der2
 if (r<=ptpos(1)) then !Out of boundary
-	val=ptval(1)
-	der1=(ptval(2)-ptval(1))/(ptpos(2)-ptpos(1))
-	der2=0D0
-	return
+    val=ptval(1)
+    der1=(ptval(2)-ptval(1))/(ptpos(2)-ptpos(1))
+    der2=0D0
+    return
 else if (r>=ptpos(npt)) then
-	val=0D0 !Because this function is mainly used to interpolate radial atomic density, at long distance the value must be zero
-	der1=0D0
-	der2=0D0
-! 	val=ptval(npt)
-! 	der1=(ptval(npt)-ptval(npt-1))/(ptpos(npt)-ptpos(npt-1))
- 	return
+    val=0D0 !Because this function is mainly used to interpolate radial atomic density, at long distance the value must be zero
+    der1=0D0
+    der2=0D0
+!     val=ptval(npt)
+!     der1=(ptval(npt)-ptval(npt-1))/(ptpos(npt)-ptpos(npt-1))
+     return
 end if
 do i=1,npt !Determine which four data points will be used to interpolation
-	if (ptpos(i)>r) exit
+    if (ptpos(i)>r) exit
 end do
 ! if (i==npt+1) i=npt !i==npt+1 means i exceeded the last point
 iend=i+1
 istart=i-2
 if (istart<1) then
-	istart=istart+1
-	iend=iend+1
+    istart=istart+1
+    iend=iend+1
 else if (iend>npt) then
-	iend=iend-1
-	istart=istart-1
+    iend=iend-1
+    istart=istart-1
 end if
 !Calculate interpolated value
 val=0D0
 do m=istart,iend
-	poly=1D0
-	do j=istart,iend
-		if (j==m) cycle
-		poly=poly* (r-ptpos(j))/(ptpos(m)-ptpos(j))
-	end do
-	val=val+ptval(m)*poly
+    poly=1D0
+    do j=istart,iend
+        if (j==m) cycle
+        poly=poly* (r-ptpos(j))/(ptpos(m)-ptpos(j))
+    end do
+    val=val+ptval(m)*poly
 end do
 !Calculate interpolated 1st-derv.
 if (itype<2) return
 der1=0D0
 do m=istart,iend
-	suml=0D0
-	do l=istart,iend
-		if (l==m) cycle
-		poly=1D0
-		do j=istart,iend
-			if (j==m.or.j==l) cycle
-			poly=poly* (r-ptpos(j))/(ptpos(m)-ptpos(j))
-		end do
-		suml=suml+poly/(ptpos(m)-ptpos(l))
-	end do
-	der1=der1+ptval(m)*suml
+    suml=0D0
+    do l=istart,iend
+        if (l==m) cycle
+        poly=1D0
+        do j=istart,iend
+            if (j==m.or.j==l) cycle
+            poly=poly* (r-ptpos(j))/(ptpos(m)-ptpos(j))
+        end do
+        suml=suml+poly/(ptpos(m)-ptpos(l))
+    end do
+    der1=der1+ptval(m)*suml
 end do
 !Calculate interpolated 2nd-derv.
 if (itype<3) return
 der2=0D0
 do m=istart,iend
-	suml=0D0
-	do l=istart,iend
-		if (l==m) cycle
-		sumn=0D0
-		do n=istart,iend
-			if (n==l.or.n==m) cycle
-			poly=1D0
-			do j=istart,iend
-				if (j==l.or.j==m.or.j==n) cycle
-				poly=poly* (r-ptpos(j))/(ptpos(m)-ptpos(j))
-			end do
-			sumn=sumn+poly/(ptpos(m)-ptpos(n))
-		end do
-		suml=suml+sumn/(ptpos(m)-ptpos(l))
-	end do
-	der2=der2+ptval(m)*suml
+    suml=0D0
+    do l=istart,iend
+        if (l==m) cycle
+        sumn=0D0
+        do n=istart,iend
+            if (n==l.or.n==m) cycle
+            poly=1D0
+            do j=istart,iend
+                if (j==l.or.j==m.or.j==n) cycle
+                poly=poly* (r-ptpos(j))/(ptpos(m)-ptpos(j))
+            end do
+            sumn=sumn+poly/(ptpos(m)-ptpos(n))
+        end do
+        suml=suml+sumn/(ptpos(m)-ptpos(l))
+    end do
+    der2=der2+ptval(m)*suml
 end do
 end subroutine
