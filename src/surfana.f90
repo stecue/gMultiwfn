@@ -689,7 +689,7 @@ end if
 ! write(*,"('Average deviation from specified isovalue:',f20.16)") valtotdev
 ! write(*,"('RMSD from specified isovalue:',f20.16)") valRMSD
 ! write(*,"('Maximum deviation from specified isovalue:',f20.16)") valmaxdev
-! pause
+! read (*,*)
 
 !Calculate isosurface area and geometry center of each facet
 surfareaall=0D0

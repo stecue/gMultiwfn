@@ -1603,7 +1603,7 @@ write(*,"(' Number of points in X,Y,Z is',3i5,'   Total',i10)") nx,ny,nz,nx*ny*n
 ! 	read(c80tmp,*) tmpval
 ! 	write(*,*) i," z ",tmpval
 ! end do
-! pause
+! read (*,*)
 end subroutine
 
 

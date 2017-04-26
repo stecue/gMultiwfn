@@ -67,7 +67,7 @@
             call LD5810(potx,poty,potz,potw,isphnum)
        else
 	      write(*,*) "Input error!"
-	      pause
+	      read (*,*)
        end if
        end subroutine
 
