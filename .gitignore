@@ -30,7 +30,6 @@
 src/Multiwfn
 
 # Config files
-configure
 autom4te.cache/
 **/Makefile.in
 **/Makefile
