@@ -489,7 +489,7 @@ write(*,*) "Generating isosurface by Marching Tetrahedra algorithm, please wait.
 do ix=1,numcubx
     do iy=1,numcuby
         do iz=1,numcubz
-            if (ifbndcub(ix,iy,iz)==.true.) then !Numbering of cube corner is identical to figure 3 of WFA original paper
+            if (ifbndcub(ix,iy,iz) .eqv. .true.) then !Numbering of cube corner is identical to figure 3 of WFA original paper
                 call marchtetra(ix,iy,iz)
 !                 call marchcube(ix,iy,iz)
             end if

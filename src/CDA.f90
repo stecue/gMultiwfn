@@ -1184,7 +1184,7 @@ do iorb=1,nmo1
         ilastplotted=0
         cycle
     end if
-    if ((idrawMObar==2.or.idrawMObar==3).and.FO1involveconn(iorb)==.false.) cycle
+    if ((idrawMObar==2.or.idrawMObar==3).and.FO1involveconn(iorb) .eqv. .false.) cycle
     if (ilabelorbidx==1) then
         write(c80tmp,*) iorb
         if (iorb>=2) then !When near degenerate, several labels will superposition, so slightly shift text by degenmovex to avoid this circumstance
@@ -1206,7 +1206,7 @@ do iorb=1,nmo2
         ilastplotted=0
         cycle
     end if
-    if ((idrawMObar==2.or.idrawMObar==3).and.FO2involveconn(iorb)==.false.) cycle
+    if ((idrawMObar==2.or.idrawMObar==3).and.FO2involveconn(iorb) .eqv. .false.) cycle
     if (ilabelorbidx==1) then
         write(c80tmp,*) iorb
         if (iorb>=2) then !When near degenerate, several labels will superposition, so slightly shift text by degenmovex to avoid this circumstance

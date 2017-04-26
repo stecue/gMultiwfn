@@ -2232,7 +2232,9 @@ read(10,*)
 read(10,*) a%charge
 call loclabel(10,"<Nuclear Cartesian Coordinates>")
 read(10,*)
-read(10,*) ((a(i)%x,a(i)%y,a(i)%z),i=1,ncenter)
+do i=1,ncenter
+    read(10,*) a(i)%x,a(i)%y,a(i)%z
+end do
 call loclabel(10,"<Number of Electrons>")
 read(10,*)
 read(10,*) nelec

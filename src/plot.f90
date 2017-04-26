@@ -159,7 +159,7 @@ if (numatt>0.and.ishowatt==1) then
                         tmpx=orgx+(ix-1)*dx
                         tmpy=orgy+(iy-1)*dy
                         tmpz=orgz+(iz-1)*dz
-                        if (interbasgrid(ix,iy,iz)==.true.) CALL SPHE3D(tmpx,tmpy,tmpz,tmpsphrad,4,4)
+                        if (interbasgrid(ix,iy,iz) .eqv. .true.) CALL SPHE3D(tmpx,tmpy,tmpz,tmpsphrad,4,4)
                         if (idrawinternalbasin==1) then
                             if (ix==2.or.ix==nx-1.or.iy==2.or.iy==ny-1.or.iz==2.or.iz==nz-1) CALL QUAD3D(tmpx,tmpy,tmpz,dx,dy,dz)
                         end if

@@ -581,7 +581,8 @@ real*8 molrho(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),beckew
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 real*8 atmdipx(ncenter),atmdipy(ncenter),atmdipz(ncenter),charge(ncenter)
 real*8 :: covr_becke(0:nelesupp) !covalent radii used for Becke population
-character selectyn,chgfilename*80
+character selectyn,chgfilename*800
+character radfilename*800
 integer :: nbeckeiter=3
 
 if (chgtype==5) then !Select atomic radii for Becke population

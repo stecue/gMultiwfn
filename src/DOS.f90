@@ -26,7 +26,8 @@ integer,allocatable :: selorbarr(:)
 character clegend*960 !(10+2) lines * 80 character per line
 character unitstr*5,c200tmp*200,c80tmp*80
 character :: TDOSstring*80="TDOS",OPDOSstring*80="OPDOS"
-character :: PDOSstring(nfragmax)*80=(/"PDOS frag.1","PDOS frag.2","PDOS frag.3","PDOS frag.4","PDOS frag.5","PDOS frag.6","PDOS frag.7","PDOS frag.8","PDOS frag.9","PDOS frag.10"/)
+character(len=80), dimension(nfragmax) :: PDOSstring = [character(len=80):: "PDOS frag.1","PDOS frag.2","PDOS frag.3","PDOS frag.4", &
+                 "PDOS frag.5","PDOS frag.6","PDOS frag.7","PDOS frag.8","PDOS frag.9","PDOS frag.10"]
 integer :: ishowPDOSline(nfragmax),ishowPDOScurve(nfragmax)
 integer :: iclrPDOS(nfragmax)=(/ 1,3,10,14,12,9,13,11,6,7 /)
 defFWHM=0.05D0 !Default FWHM

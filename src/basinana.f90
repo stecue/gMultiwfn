@@ -163,7 +163,7 @@ do while(.true.)
                 elsewhere
                     cubmattmp=1
                 end where
-                if (selectyn=='n') where (interbasgrid==0) cubmattmp=0
+                if (selectyn=='n') where (interbasgrid .eqv. .false.) cubmattmp=0
             else
                 write(*,*) "Outputting basin.cub..."
                 write(basinfilename,"('basin.cub')")
@@ -467,7 +467,7 @@ do while(.true.)
         write(*,"(' The number of unassigned grids:',i12)") numunassign
         numgotobound=count(gridbas(2:nx-1,2:ny-1,2:nz-1)==-1)
         write(*,"(' The number of grids travelled to box boundary:',i12)") numgotobound
-        where (grdposneg==.false.) cubmat=-cubmat !Recover original grid data
+        where (grdposneg .eqv. .false.) cubmat=-cubmat !Recover original grid data
         deallocate(grdposneg)
         
         do iatt=1,numatt !Eliminate the attractors with very low value
@@ -500,7 +500,7 @@ do while(.true.)
         call clusdegenatt(0) !Cluster degenerate attractors as "real attractors" and calculate average coordinate and value for the real attractors
 
         call detectinterbasgrd(6) !Detect interbasin grids
-        numinterbas=count(interbasgrid==.true.)
+        numinterbas=count(interbasgrid .eqv. .true.)
         write(*,"(' The number of interbasin grids:',i12)") numinterbas    
         
     else if (isel==2) then
@@ -651,7 +651,7 @@ if (igridmethod==1) then
         do iy=2,ny-1
             do ix=2,nx-1
                 if (gridbas(ix,iy,iz)/=0) cycle
-!                 if (interbasgrid(ix,iy,iz)==.false.) cycle
+!                 if (interbasgrid(ix,iy,iz) .eqv. .false.) cycle
                 ntrjgrid=0
                 inowx=ix
                 inowy=iy
@@ -699,7 +699,7 @@ cyciatt3:                do iatt=1,numatt
                             attgrid(numatt,1)=inowx
                             attgrid(numatt,2)=inowy
                             attgrid(numatt,3)=inowz
-                            if (grdposneg(inowx,inowy,inowz)==.true.) then
+                            if (grdposneg(inowx,inowy,inowz) .eqv. .true.) then
                                 write(*,"(i8,3f14.8,f20.8)") numatt,(orgx+(inowx-1)*dx)*b2a,(orgy+(inowy-1)*dy)*b2a,(orgz+(inowz-1)*dz)*b2a,cubmat(inowx,inowy,inowz)
                             else !This grid should has negative value
                                 write(*,"(i8,3f14.8,f20.8)") numatt,(orgx+(inowx-1)*dx)*b2a,(orgy+(inowy-1)*dy)*b2a,(orgz+(inowz-1)*dz)*b2a,-cubmat(inowx,inowy,inowz)
@@ -800,7 +800,7 @@ cyciatt:                do iatt=1,numatt
                             attgrid(numatt,1)=inowx
                             attgrid(numatt,2)=inowy
                             attgrid(numatt,3)=inowz
-                            if (grdposneg(inowx,inowy,inowz)==.true.) then
+                            if (grdposneg(inowx,inowy,inowz) .eqv. .true.) then
                                 write(*,"(i8,3f14.8,f20.8)") numatt,(orgx+(inowx-1)*dx)*b2a,(orgy+(inowy-1)*dy)*b2a,(orgz+(inowz-1)*dz)*b2a,cubmat(inowx,inowy,inowz)
                             else !This grid should has negative value
                                 write(*,"(i8,3f14.8,f20.8)") numatt,(orgx+(inowx-1)*dx)*b2a,(orgy+(inowy-1)*dy)*b2a,(orgz+(inowz-1)*dz)*b2a,-cubmat(inowx,inowy,inowz)
@@ -873,7 +873,7 @@ cyciatt:                do iatt=1,numatt
 !         do itime=1,3 !Refine one time in general is sufficient
         write(*,*) "Detecting boundary grids..."
         call detectinterbasgrd(6) !It seems that using 26 directions to determine boundary grids doesn't bring evident benefit
-        write(*,"(' There are',i12,' grids at basin boundary')") count(interbasgrid==.true.)
+        write(*,"(' There are',i12,' grids at basin boundary')") count(interbasgrid .eqv. .true.)
         write(*,*) "Refining basin boundary..."
         !Below code is the adapted copy of above near-grid code
         !$OMP PARALLEL DO private(ix,iy,iz,corrx,corry,corrz,ntrjgrid,inowx,inowy,inowz,valnow,imove,gradtmp,igradmax,gradmax,iatt,&
@@ -881,7 +881,7 @@ cyciatt:                do iatt=1,numatt
         do iz=2,nz-1
             do iy=2,ny-1
                 do ix=2,nx-1
-                    if (interbasgrid(ix,iy,iz)==.false.) cycle
+                    if (interbasgrid(ix,iy,iz) .eqv. .false.) cycle
                     if (gridbas(ix,iy,iz)<=0) cycle !Ignored the ones unassigned or gone to box boundary
                     ntrjgrid=0
                     inowx=ix
@@ -1832,7 +1832,7 @@ use defvar
 use basinintmod
 implicit real*8(a-h,o-z)
 inquire(file="basin.cub",exist=alive)
-if (alive==.false.) then
+if (alive .eqv. .false.) then
     write(*,*) "Error: basin.cub is not existed in current folder!"
     return
 else
@@ -2962,7 +2962,7 @@ do iz=2,nz-1
         rnowy=yarr(iy)
         do ix=2,nx-1
             rnowx=xarr(ix)
-            if ((itype==2.or.itype==3).and.interbasgrid(ix,iy,iz)==.true.) cycle !If refine boundary grid at next stage, we don't calculate them at present stage
+            if ((itype==2.or.itype==3).and.interbasgrid(ix,iy,iz) .eqv. .true.) cycle !If refine boundary grid at next stage, we don't calculate them at present stage
 !             if (iz==nint(nz/2D0)) write(1,"('C',3f14.8)") rnowx*b2a,rnowy*b2a,rnowz*b2a !Examine grid distribution
             iatt=gridbas(ix,iy,iz)
 !             do icp=1,numcp
@@ -3071,7 +3071,7 @@ if (itype==2.or.itype==3) then
             rnowy=yarr(iy)
             do ix=2,nx-1
                 rnowx=xarr(ix)
-                if (interbasgrid(ix,iy,iz)==.false.) cycle
+                if (interbasgrid(ix,iy,iz) .eqv. .false.) cycle
 !                 if (cubmat(ix,iy,iz)>0.001D0) then
 !                     nrefine=2 !3 is the best
 !                 else if (cubmat(ix,iy,iz)>0.001D0) then !0.0001 is the best
@@ -3231,7 +3231,7 @@ if (itype==2.or.itype==3) then
     !$OMP END PARALLEL
     call detectinterbasgrd(6)
     write(*,*) "Basin boundary has been updated"
-    numinterbas=count(interbasgrid==.true.)
+    numinterbas=count(interbasgrid .eqv. .true.)
     write(*,"(' The number of interbasin grids:',i12)") numinterbas    
 end if
 

@@ -28,7 +28,7 @@ write(*,*) "Multiwfn official forum (in Chinese): http://bbs.keinsci.com"
 write(*,*) "Bug reporting, question and suggestion, please contact: Sobereva@sina.com"
 
 !!!!!!!!
-if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOSX version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
+!if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOSX version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
 !!!!!!!!
 
 call date_and_time(nowdate,nowtime)
@@ -66,9 +66,9 @@ if (trim(filename)=="") then !Haven't defined filename variable
     end do
     !Write current opened file to "lastfile" in settings.ini
     inquire(file="settings.ini",exist=alive)
-    if (alive==.true.) then
+    if (alive .eqv. .true.) then
         settingpath="settings.ini"
-    else if (alive==.false.) then
+    else if (alive .eqv. .false.) then
         call getenv("Multiwfnpath",c200tmp)
         if (isys==1) then
             settingpath=trim(c200tmp)//"\settings.ini"
@@ -2659,7 +2659,7 @@ do while(.true.)
         do while(.true.)
             read(*,"(a)") extctrsetting
             inquire(file=extctrsetting,exist=alive)
-            if (alive==.true.) exit
+            if (alive .eqv. .true.) exit
             write(*,*) "File not found, input again"
         end do
         open(10,file=extctrsetting,access="sequential",status="old")

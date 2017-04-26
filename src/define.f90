@@ -49,6 +49,7 @@ integer :: ncustommap=0,imodwfn=0 !if 1, means original occupation number or orb
 integer :: iorbsel=1 !Which orbital is selected, and its value will be calculated by fmo and calchessmat_mo
 integer :: iorbsel2=0 !Which orbital will be plotted together with iorbsel in plane map
 
+character*10 :: colorname(14)=[character(len=10)::"Red","Green","Blue","White","Black","Gray","Cyan","Yellow","Orange","Magenta","Crimson","Dark green","Purple","Brown"] !Color name of useclrind routine
 !The name for superheavy atoms are consistent with Stuttgart PP website: http://www.tc.uni-koeln.de/PP/clickpse.en.html
 character*2 :: ind2name(0:nelesupp)=(/ "Bq","H ","He", &   !X(number O) is ghost atom
 "Li","Be","B ","C ","N ","O ","F ","Ne", & !3~10

@@ -9,7 +9,8 @@ use util
 use function
 implicit real*8 (a-h,o-z)
 integer :: itype,idomag=0
-integer,allocatable :: skippair(:),excdir(:) !excdir=1 means ->, =2 means <-
+integer,allocatable :: excdir(:) !excdir=1 means ->, =2 means <-
+logical,allocatable :: skippair(:)
 integer,allocatable :: orbleft(:),orbright(:) !denote the actual MO (have already considered alpha/beta problem) at the left/right side in the excitation data
 real*8,allocatable :: exccoeff(:),exccoeffbackup(:) !Coefficient of an orbital pair transition. exccoeffbackup is used to backup, because users can modify the coefficients
 real*8,allocatable :: holegrid(:,:,:),elegrid(:,:,:),holeeleovlp(:,:,:),transdens(:,:,:),holecross(:,:,:),elecross(:,:,:),Cele(:,:,:),Chole(:,:,:),magtrdens(:,:,:,:)
@@ -947,14 +948,14 @@ do k=1,nz
                 ! Currently only take below cases into account:
                 ! Cross term of hole (do <i|j>):     i->l,j->l substract i<-l,j<-l
                 ! Cross term of electron (do <l|m>): i->l,i->m substract i<-l,i<-m
-                if (skippair(iexcitorb)==.true.) cycle
+                if (skippair(iexcitorb) .eqv. .true.) cycle
                 ileft=orbleft(iexcitorb)
                 iright=orbright(iexcitorb)
                 tmpleft=exccoeff(iexcitorb)*orbval(ileft) !Use temporary variable to save the time for locating element
                 tmpright=exccoeff(iexcitorb)*orbval(iright)
                 idir=excdir(iexcitorb)
                 do jexcitorb=1,nexcitorb
-                    if (skippair(jexcitorb)==.true.) cycle
+                    if (skippair(jexcitorb) .eqv. .true.) cycle
                     jleft=orbleft(jexcitorb)
                     jright=orbright(jexcitorb)
                     jdir=excdir(jexcitorb)
@@ -1900,7 +1901,7 @@ end do
 open(10,file=tdmatfilename,status="old")
 call loclabel(10,"Gaussian",igauout)
 rewind(10)
-if (igauout) then !Gaussian output file
+if (igauout==1) then !Gaussian output file
     call loclabel(10,"Alpha Density Matrix:",ifound)
     if (ifound==1) then !Open-shell
         write(*,*) "Use which type of transition density matrix?"
