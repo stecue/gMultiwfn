@@ -32,6 +32,7 @@ src/Multiwfn
 # Config files
 gMultiwfn-*/
 gMultiwfn-*gz
+build/
 build-aux/
 configure
 install-sh
