@@ -14,7 +14,7 @@ The source tarball can be found [here](http://sobereva.com/multiwfn).
 `gMultiwfn` uses the standard GNU autotools. Make sure you have lapack/blas and their development files (usually named as `lapack-devel` and `blas-devel` (or `lapack-dev` and `blas-dev`) in your distro's repository) installed before trying to build `gMultiwfn`.
 Install a binary package
 
-## Switch to a faster lapack/blas implimentation
+## Switch to a faster lapack/blas implementation
 `LD_PRELOAD=/path/to/libopenblas.so`
 
 ## (Must Read) Differences between Multiwfn and gMultiwfn
