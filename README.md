@@ -13,4 +13,4 @@ The source tarball can be found [here](http://sobereva.com/multiwfn). RPM builds
 ## Switch to a faster lapack/blas implimentation
 `LD_PRELOAD=/path/to/libopenblas.so`
 
-## *(Must Read)* Differences between Multiwfn and gMultiwfn
+## (Must Read) Differences between Multiwfn and gMultiwfn
