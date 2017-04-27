@@ -198,7 +198,7 @@ exccoeffbackup=exccoeff
         zdipcontri=0
         fac=1
         if (wfntype==0.or.wfntype==3) fac=2
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(xdipcontri,ydipcontri,zdipcontri) PRIVATE(iGTF,jGTF,ides,iexcitorb,imo,jmo) schedule(dynamic) NUM_THREADS(nthreads)
         do iexcitorb=1,nexcitorb
             imo=orbleft(iexcitorb)
@@ -601,7 +601,7 @@ exccoeffbackup=exccoeff
         orbcenx=0
         orbceny=0
         orbcenz=0
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(orbcenx,orbceny,orbcenz) PRIVATE(iGTF,jGTF,ides,imo) schedule(dynamic) NUM_THREADS(nthreads)
         do imo=1,nmo
             do iGTF=1,nprims

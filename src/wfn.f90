@@ -13,17 +13,10 @@ real*8,allocatable :: d1add(:,:),d1min(:,:),d2add(:,:),d2min(:,:),d1addtmp(:,:),
 real*8,allocatable :: planemat_cust(:,:) !For storing temporary data of doing custom map
 real*8,allocatable :: planemat_bk(:,:) !Used to backup plane data
 ! real*8,allocatable :: tmpmat(:,:)
-integer :: OMP_GET_MAX_THREADS
 
 call getarg(1,filename)
 call getarg(2,cmdarg2)
 11 call loadsetting
-write(*,*) 'Welcome to use gMultiwfn'
-!OMP PARALLEL NUM_THREADS(2)
-write (*,*) OMP_GET_MAX_THREADS()
-!OMP END PARALLEL
-write (*,*) 'Testing parallel...'
-write(*,*) getNThreads()
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS X)"
@@ -38,9 +31,10 @@ write(*,*) "Bug reporting, question and suggestion, please contact: Sobereva@sin
 !if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOSX version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
 !!!!!!!!
 
+nthreads=getNThreads()
 call date_and_time(nowdate,nowtime)
 write(*,"(' ( The number of threads:',i3,'   Current date: ',a,'-',a,'-',a,'   Time: ',a,':',a,':',a,' )')") &
- getNThreads()  ,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)
+nthreads,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)
 write(*,*)
 
 ! call system("echo %GAUSS_EXEDIR%")
@@ -1124,7 +1118,7 @@ else if (infuncsel1==4) then
         call genentroplane(3)
         ncustommap=0
     else
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(nthreads)
         do i=1,ngridnum1
             do j=1,ngridnum2
@@ -1578,7 +1572,7 @@ else if (infuncsel1==4) then
                 if (idrawplanevdwctr==0) then
                     idrawplanevdwctr=1
                     write(*,*) "Please wait..."
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(ipt,jpt,rnowx,rnowy,rnowz) shared(planemattmp) schedule(dynamic) NUM_THREADS(nthreads)
                     do ipt=0,ngridnum1-1
                         do jpt=0,ngridnum2-1
@@ -1707,7 +1701,7 @@ else if (infuncsel1==4) then
                             write(*,"(' Found',i8,' (3,-1) CPs in the plane')") nple3n1path
                             allocate(ple3n1path(3,n3n1plept,2,nple3n1path))
                             write(*,*) "Generating interbasin paths from (3,-1) CPs, Please wait..."
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(numcp) PRIVATE(icp) schedule(dynamic) NUM_THREADS(nthreads)
                             do icp=1,numcp
                                 if (cp2ple3n1path(icp)/=0) call gen3n1plepath(ifunctopo,icp,cp2ple3n1path(icp))
@@ -1862,7 +1856,7 @@ else if (infuncsel1==5) then
         CALL CPU_TIME(time_begin)
         if (ipromol==1) goto 509 !Calculate promolecular property, so skip the first time calculation (namely for the whole system)
     508 continue
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(extpt) PRIVATE(iextpt) schedule(dynamic) NUM_THREADS(nthreads)
         do iextpt=1,numextpt !Calculate function value
             extpt(iextpt,4)=calcfuncall(infuncsel2,extpt(iextpt,1),extpt(iextpt,2),extpt(iextpt,3))

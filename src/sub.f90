@@ -825,7 +825,7 @@ end do
 
 call walltime(walltime1)
 CALL CPU_TIME(time_begin)
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads)
 do k=1,nz
     tmpz=zarr(k)
@@ -1341,7 +1341,7 @@ use defvar
 implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFSmat(nsize)
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFSmat) PRIVATE(ides,iGTF,jGTF) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1357,7 +1357,7 @@ subroutine genSbas
 use defvar
 implicit real*8 (a-h,o-z)
 Sbas=0D0
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Sbas) PRIVATE(i,ii,j,jj) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
     do j=i,nbasis
@@ -1480,7 +1480,7 @@ use defvar
 implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFdipmat(3,nsize)
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFdipmat) PRIVATE(ides,iGTF,jGTF,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1499,7 +1499,7 @@ subroutine genDbas
 use defvar
 implicit real*8 (a-h,o-z)
 Dbas=0D0
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Dbas) PRIVATE(i,ii,j,jj,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
     do j=i,nbasis
@@ -1566,7 +1566,7 @@ implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFdipmat(3,nsize)
 GTFdipmat=0D0
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFdipmat) PRIVATE(ides,iGTF,jGTF,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF+1,nprims !For iGTF=jGTF, the value must exactly zero, so don't calculate
@@ -1586,7 +1586,7 @@ subroutine genMagbas
 use defvar
 implicit real*8 (a-h,o-z)
 Magbas=0D0
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Magbas) PRIVATE(i,ii,j,jj,xcomp,ycomp,zcomp) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
     do j=i+1,nbasis
@@ -1643,7 +1643,7 @@ use defvar
 implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFVelmat(3,nsize)
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFVelmat) PRIVATE(ides,iGTF,jGTF,xtmp,ytmp,ztmp) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1663,7 +1663,7 @@ subroutine genVelbas
 use defvar
 implicit real*8 (a-h,o-z)
 Velbas=0D0
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Velbas) PRIVATE(i,ii,j,jj,xcomp,ycomp,zcomp) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
     do j=i+1,nbasis
@@ -1724,7 +1724,7 @@ use defvar
 implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFTmat(nsize)
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFTmat) PRIVATE(ides,iGTF,jGTF) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1740,7 +1740,7 @@ subroutine genTbas
 use defvar
 implicit real*8 (a-h,o-z)
 Tbas=0D0
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Tbas) PRIVATE(i,ii,j,jj) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
     do j=i,nbasis
@@ -2204,7 +2204,7 @@ do iatm=1,ncenter_org !Calc free atomic density of each atom, get promolecular d
         call dealloall
         call readwfn(custommapname(iatm),1)
     end if
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz,tmpval) shared(planemat) schedule(dynamic) NUM_THREADS(nthreads)
     do i=1,ngridnum1 !First calculate promolecular density and store it to planemat
         do j=1,ngridnum2
@@ -2253,7 +2253,7 @@ allocate(planemat(ngridnum1,ngridnum2))
 planeprodens=0D0
 planemat=0D0
 !Calculate molecular density in the plane and store it to planedens
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planedens) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,ngridnum1
     do j=1,ngridnum2
@@ -2267,7 +2267,7 @@ end do
 do jatm=1,ncenter_org !Calculate promolecular density in the plane and store it to planeprodens
     call dealloall
     call readwfn(custommapname(jatm),1)
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planeprodens) schedule(dynamic) NUM_THREADS(nthreads)
     do i=1,ngridnum1
         do j=1,ngridnum2
@@ -2283,7 +2283,7 @@ end do
 do jatm=1,ncenter_org !Cycle each atom, calculate its contribution in the plane
     call dealloall
     call readwfn(custommapname(jatm),1)
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz,rho0A,rhoA,tmpval) shared(planemat) schedule(dynamic) NUM_THREADS(nthreads)
     do i=1,ngridnum1
         do j=1,ngridnum2
@@ -2325,7 +2325,7 @@ do iatm=1,ncenter_org
         call dealloall
         call readwfn(custommapname(iatm),1)
     end if
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmat,cubmattmp,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmpval) schedule(dynamic) NUM_THREADS(nthreads)
     do k=1,nz !First calculate promolecular density and store it to cubmat
         tmpz=orgz+(k-1)*dz
@@ -2383,7 +2383,7 @@ ifinish=0
 iprogstp=20
 iprogcrit=iprogstp
 write(*,*) "Calculating..."
-        nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(sphavgval,radpos,ifinish,iprogcrit) PRIVATE(irad,radx,radr,isph,rnowx,rnowy,rnowz,tmpval) schedule(dynamic) NUM_THREADS(nthreads)
 do irad=1,nradpt
     radx=cos(irad*pi/(nradpt+1))
@@ -2740,7 +2740,7 @@ if (index(c200tmp,"none")==0.and.alive) then
 end if
 !Below are parameters about system
 call loclabel(20,'nthreads=')
-read(20,*) c80tmp,nthreads
+read(20,*) c80tmp,iniNThreads
 call loclabel(20,'ompstacksize=')
 read(20,*) c80tmp,ompstacksize
 call loclabel(20,'gaupath=')

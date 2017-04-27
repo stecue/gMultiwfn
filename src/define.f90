@@ -338,21 +338,21 @@ integer :: ifirstMultiwfn=1 !If 1, means we re-load file via main function -11 a
 contains
   integer function getNThreads()
     IMPLICIT NONE
-    INTEGER currNThreads, TID, OMP_GET_MAX_THREADS, OMP_GET_THREAD_NUM
-    print *,'TRUE'
-!!$OMP PARALLEL
-!      TID = OMP_GET_THREAD_NUM()
-!      !Only master thread does this
-!      IF (TID .EQ. 0) THEN
-!        currNThreads = OMP_GET_MAX_THREADS()
+    INTEGER currNThreads, TID, OMP_GET_THREAD_NUM, OMP_GET_MAX_THREADS
+!$OMP PARALLEL PRIVATE(TID) SHARED(currNThreads)
+      TID = OMP_GET_THREAD_NUM()
+      !Only master thread does this
+!      PRINT *, 'Hello from thread ', TID
+      IF (TID .EQ. 0) THEN
+        currNThreads = OMP_GET_MAX_THREADS()
 !        PRINT *, 'OMP_NUM_THREADS = ', currNThreads
-!      END IF
-!!$OMP END PARALLEL
-!    IF (iniNThreads .NE. 0) THEN
-!      currNThreads = iniNThreads
-!    END IF
-!    getNThreads = currNThreads
+      END IF
+!$OMP END PARALLEL
+    IF (iniNThreads .NE. 0) THEN
+     currNThreads = iniNThreads
+    END IF
 !    PRINT *, 'Number of threads = ', getNThreads
+    getNThreads = currNThreads
   END FUNCTION
 end module
 
