@@ -2,7 +2,7 @@
 *The (unofficial) gfortran port of Multiwfn*
 
 ## About
-gMultiwfn is an unofficial and (maybe) enhanced gfortran port of the popular wavefunction analyzing software [Multiwfn](http://sobereva.com/multiwfn) developed by Tian Lu. This gfortran port is maintained by Xing Yin (stecue@gmail.com). Email Xing or [open an issue on the github](https://github.com/stecue/gMultiwfn/issues) (__*strongly preferred!*__) on the github if you find a bug or need a new additional feature.
+gMultiwfn is an unofficial and (maybe) enhanced gfortran port of the popular wavefunction analyzing software [Multiwfn](http://sobereva.com/multiwfn) developed by Tian Lu. This gfortran port is maintained by Xing Yin (stecue@gmail.com). Email Xing or [open an issue on the github](https://github.com/stecue/gMultiwfn/issues) (__*strongly preferred!*__) on the github if you find a bug or need a new additional feature. You can also discuss related topics in the [official Chinese forum](http://bbs.keinsci.com/forum-112-1.html) for `Multiwfn`.
 
 ## Installation
 RPM builds for openSUSE, Fedora and CentOS will be released soon. Please follow the following steps to install from the source for now.
@@ -43,10 +43,11 @@ make -j8 && make install
 `gMultiwfn` is dynamically linked to `lapack` and `blas` by default. The reference implementations of `lapack` and `blas` are usually the slowest and in a lot of cases they can be safely replaced by optimized implementations such as `OpenBLAS` and `ATLAS` using the steps descripted below. Note that installing OpenBLAS or ATLAS is beyond the scope of this document and please refer to your distro's manual on that information.
 
 ### Use `update-alternatives` to make a system-wide change
-Use `man` or refer to your disto's manual on the usage. You may need root user's privilege to use it.
+Use `man` or refer to your disto's manual on the usage. You may need root user's privilege to run this command.
 
 ### Use `LD_PRELOAD` to change just for `gMultiwfn`
-`LD_PRELOAD` is the enviroment variable to force the dynamic linker in Linux to use a certain version of shared libraries (.so files).
-`LD_PRELOAD=/path/to/libopenblas.so Multiwfn` and add the following line to your bash initialization file (usually `~/.bashrc`). `alias gMultiwfn=LD_PRELOAD=/path/to/libopenblas.so Multiwfn`
+`LD_PRELOAD` is the enviroment variable to force the dynamic linker in Linux to use a certain version of shared libraries (.so files). It provides a quick solution to try a new libarary without being asked for root user privilege. Assuming `OpenBLAS` is installed to `/path/to/libopenblas.so`, `LD_PRELOAD=/path/to/libopenblas.so Multiwfn` will start `Multiwfn` with the optimized OpenBLAS. To avoid typing the extra letters every time, simply add `alias gMultiwfn='LD_PRELOAD=/path/to/libopenblas.so Multiwfn'` to your bash initialization file (usually `~/.bashrc`). `gMultiwfn` will be equivalent to `LD_PRELOAD=/path/to/libopenblas.so Multiwfn'` for all *new* termnal windows.
 
 ## (Must Read) Differences between Multiwfn and gMultiwfn
+1. `gMultiwfn` does not contain the GUI which is base on the closed-source DISLIN library.
+2. `gMultiwfn` supports the `OMP_NUM_THREADS` enviroment variable. The number of threads to be use is controlled by both of the `nthreads` parameter and `OMP_NUM_THREADS`. If `nthreads == 0` (which is the default option without a `settings.ini` file), `OMP_NUM_THREADS` determines the number of threads to use, otherwise `nthreads` from the `settings.ini` file or your interative input (the hidden option `1000` at the main menu) determines the number.
