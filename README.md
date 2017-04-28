@@ -24,12 +24,12 @@ The source tarball can be found [here](https://github.com/stecue/gMultiwfn/relea
 ```
 tar -xvzf gMultiwfn-3.3.9-0.tar.gz
 ```
-The recommended way to build `gMultiwfn` is to use a separate source and build directory.
 3. Make a separate build direcotry under the original "root" source directory:
 ```
 cd gMultiwfn-3.3.9-0
 mkdir build
 ```
+4. Run the `configure` script to configure the installation path. 
 
 ## Switch to a faster lapack/blas implementation
 `gMultiwfn` is dynamically linked to `lapack` and `blas` by default. The reference implementations of `lapack` and `blas` are usually the slowest and in a lot of cases they can be safely replaced by optimized implementations such as `OpenBLAS` and `ATLAS` using the steps descripted below. Note that installing OpenBLAS or ATLAS is beyond the scope of this document and please refer to your distro's manual on that information. It is also widely believed that the Intel MKL is the fastest LAPACK/BLAS implenmentation on Intel CPUs and you can switch to it for gMultiwfn in a similar way if it is available on your system.
