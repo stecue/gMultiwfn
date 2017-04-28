@@ -1,5 +1,5 @@
 # About *gMultiwfn*
-gMultiwfn is an unofficial and (maybe) enhanced gfortran port of the popular wavefunction analyzing software [Multiwfn](http://sobereva.com/multiwfn) developed by Tian Lu. This gfortran port is maintained by Xing Yin (stecue@gmail.com). Email Xing or [open an issue on the github](https://github.com/stecue/gMultiwfn/issues) (__*strongly preferred!*__) on the github if you find a bug or need a new additional feature. You can also discuss related topics in the [official Chinese forum](http://bbs.keinsci.com/forum-112-1.html) for `Multiwfn`.
+gMultiwfn is an unofficial and (maybe) enhanced gfortran port of the popular wavefunction analyzing software *[Multiwfn](http://sobereva.com/multiwfn)* developed by Tian Lu. This gfortran port is maintained by Xing Yin (stecue@gmail.com). Email Xing or [open an issue on the github](https://github.com/stecue/gMultiwfn/issues) (__*strongly preferred!*__) on the github if you find a bug or need a new additional feature. You can also discuss related topics in the [official Chinese forum](http://bbs.keinsci.com/forum-112-1.html) for `Multiwfn`.
 
 # Binary Packages
 RPM builds for openSUSE, Fedora and CentOS will be released soon. Please follow the following steps to install from the source for now.
@@ -45,7 +45,7 @@ Use `man` or refer to your disto's manual on the usage. You may need root user's
 ## Use `LD_PRELOAD` to change just for `gMultiwfn`
 `LD_PRELOAD` is the enviroment variable to force the dynamic linker in Linux to use a certain version of shared libraries (.so files). It provides a quick solution to try a new libarary without being asked for root user privilege. Assuming `OpenBLAS` is installed to `/path/to/libopenblas.so`, `LD_PRELOAD=/path/to/libopenblas.so Multiwfn` will start `Multiwfn` with the optimized OpenBLAS. To avoid typing the extra letters every time, simply add `alias gMultiwfn='LD_PRELOAD=/path/to/libopenblas.so Multiwfn'` to your bash initialization file (usually `~/.bashrc`). `gMultiwfn` will be equivalent to `LD_PRELOAD=/path/to/libopenblas.so Multiwfn'` for all *new* termnal windows.
 
-# (Must Read) Differences between Multiwfn and gMultiwfn
+# (Must Read) Differences between *Multiwfn* and *gMultiwfn*
 1. `gMultiwfn` does not contain the GUI which is base on the closed-source DISLIN library.
 2. `gMultiwfn` supports the `OMP_NUM_THREADS` enviroment variable and the traditional `nthreads` parameter from `settings.ini` or the interactive input (the hidden option `1000` at the main menu). `nthreads` has the higher priority. Only when `nthreads` is set to `0` (which is the default setting without a `settings.ini` file), `OMP_NUM_THREADS` determines the number of threads to use. For example, to use 8 threads without `settings.ini`, just run
 ```
