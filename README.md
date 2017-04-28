@@ -29,7 +29,7 @@ tar -xvzf gMultiwfn-3.3.9-0.tar.gz
 cd gMultiwfn-3.3.9-0
 mkdir build
 ```
-4. Run the `configure` script to configure the installation path and generate the make files. The binary (`Multiwfn`) will always be installed to a `bin` directory but you can specify the where the `bin` direcory is located.  $HOME/bin, type:
+4. Run the `configure` script to configure the installation path and generate the make files. The binary (`Multiwfn`) will always be installed to a `bin` directory but you can specify the where the `bin` direcory is located. For `$HOME/bin`, type:
 ```
 ../configure --prefix=$HOME
 ```
@@ -43,6 +43,8 @@ make -j8 && make install
 `gMultiwfn` is dynamically linked to `lapack` and `blas` by default. The reference implementations of `lapack` and `blas` are usually the slowest and in a lot of cases they can be safely replaced by optimized implementations such as `OpenBLAS` and `ATLAS` using the steps descripted below. Note that installing OpenBLAS or ATLAS is beyond the scope of this document and please refer to your distro's manual on that information.
 
 ### Use `update-alternatives` to make a system-wide change
+Use `man` or refer to your disto's manual on the usage. You may need root user's privilege to use it.
+
 ### Use `LD_PRELOAD` to change just for `gMultiwfn`
 `LD_PRELOAD` is the enviroment variable to force the dynamic linker in Linux to use a certain version of shared libraries (.so files).
 `LD_PRELOAD=/path/to/libopenblas.so Multiwfn` and add the following line to your bash initialization file (usually `~/.bashrc`). `alias gMultiwfn=LD_PRELOAD=/path/to/libopenblas.so Multiwfn`
