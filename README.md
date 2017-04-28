@@ -32,7 +32,7 @@ mkdir build
 4. Run the `configure` script to configure the installation path. 
 
 ## Switch to a faster lapack/blas implementation
-`gMultiwfn` is dynamically linked to `lapack` and `blas` by default. The reference implementations of `lapack` and `blas` are usually the slowest and in a lot of cases they can be safely replaced by optimized implementations such as `OpenBLAS` and `ATLAS` using the steps descripted below. Note that installing OpenBLAS or ATLAS is beyond the scope of this document and please refer to your distro's manual on that information. It is also widely believed that the Intel MKL is the fastest LAPACK/BLAS implenmentation on Intel CPUs and you can switch to it for gMultiwfn in a similar way if it is available on your system.
+`gMultiwfn` is dynamically linked to `lapack` and `blas` by default. The reference implementations of `lapack` and `blas` are usually the slowest and in a lot of cases they can be safely replaced by optimized implementations such as `OpenBLAS` and `ATLAS` using the steps descripted below. Note that installing OpenBLAS or ATLAS is beyond the scope of this document and please refer to your distro's manual on that information.
 
 ### Use `update-alternatives` to make a system-wide change
 ### Use `LD_PRELOAD` to change just for `gMultiwfn`
