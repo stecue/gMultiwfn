@@ -29,7 +29,15 @@ tar -xvzf gMultiwfn-3.3.9-0.tar.gz
 cd gMultiwfn-3.3.9-0
 mkdir build
 ```
-4. Run the `configure` script to configure the installation path. 
+4. Run the `configure` script to configure the installation path and generate the make files. The binary (`Multiwfn`) will always be installed to a `bin` directory but you can specify the where the `bin` direcory is located.  $HOME/bin, type:
+```
+../configure --prefix=$HOME
+```
+5. make and install. You can specify the number of processes to be used by `make`. For example, to fully utilize the power of a 4-core/8-thread CPU, type:
+```
+make -j8 && make install
+```
+6. Now `Multiwfn` should be found at $HOME/bin. Add `$HOME/bin` to your `PATH` environment variable if not added before. Type `Multiwfn` to see if the building is successful.
 
 ## Switch to a faster lapack/blas implementation
 `gMultiwfn` is dynamically linked to `lapack` and `blas` by default. The reference implementations of `lapack` and `blas` are usually the slowest and in a lot of cases they can be safely replaced by optimized implementations such as `OpenBLAS` and `ATLAS` using the steps descripted below. Note that installing OpenBLAS or ATLAS is beyond the scope of this document and please refer to your distro's manual on that information.
