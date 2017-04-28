@@ -36,7 +36,7 @@ make -j8 && make install
 ```
 6. Now `Multiwfn` should be found at `$HOME/bin`. Add `$HOME/bin` to your `PATH` environment variable if not added before. Type `Multiwfn` to see if the building is successful.
 
-# Switch to a faster lapack/blas implementation
+# Switch to a faster LAPACK/BLAS implementation
 `gMultiwfn` is dynamically linked to `lapack` and `blas` by default. The reference implementations of `lapack` and `blas` are usually the slowest and in a lot of cases they can be safely replaced by optimized implementations such as `OpenBLAS` and `ATLAS` using the steps descripted below. Note that installing OpenBLAS or ATLAS is beyond the scope of this document and please refer to your distro's manual on that information.
 
 ## Use `update-alternatives` to make a system-wide change
