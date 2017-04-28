@@ -4,21 +4,21 @@
 ## About
 gMultiwfn is an unofficial and (maybe) enhanced gfortran port of the popular wavefunction analyzing software [Multiwfn](http://sobereva.com/multiwfn) developed by Tian Lu. This gfortran port is maintained by Xing Yin (stecue@gmail.com). Email Xing or [open an issue on the github](https://github.com/stecue/gMultiwfn/issues) (__*strongly preferred!*__) on the github if you find a bug or need a new additional feature. You can also discuss related topics in the [official Chinese forum](http://bbs.keinsci.com/forum-112-1.html) for `Multiwfn`.
 
-## Installation
+## Binary Packages
 RPM builds for openSUSE, Fedora and CentOS will be released soon. Please follow the following steps to install from the source for now.
+
+## Compile from source
+`gMultiwfn` uses the standard [GNU Build System](https://en.wikipedia.org/wiki/GNU_Build_System). If you are familiar with `./configure` and `make && make install`, building gMultiwfn is very easy. The following steps sevre as a general guideline and you can make changes accordingly if you are an expert on GNU autotools or have special needs.
 
 ### Download the package
 The source tarball can be found [here](https://github.com/stecue/gMultiwfn/releases). 
 
-### Compile from source
-`gMultiwfn` uses the standard [GNU Build System](https://en.wikipedia.org/wiki/GNU_Build_System). If you are familiar with `./configure` and `make && make install`, building gMultiwfn is very easy. The following steps sevre as a general guideline and you can make changes accordingly if you are an expert on GNU autotools or have special needs.
-
-#### Requirements
+### Requirements
 * You can use either Intel Fortran Compiler (`ifort`) or `gfortran`.
 * If you choose `ifort`, make sure Intel Math Kernel Library (Intel MKL) is installed. If not sure, you can just try to continue building first because MKL is usually bundled and installed with `ifort` by default.
 * If you choose `gfortran`, make sure you have lapack/blas and their development files (usually named as `lapack-devel` and `blas-devel` *or* `lapack-dev` and `blas-dev` in your distro's repository) installed. The optimized LAPACK/BLAS implementations (see below) will not be searched and used by the `configure` script during building.
 
-#### Basic build procedure
+### Basic build procedure
 1. Open a terminal and go to the directory where the tarball is downloaded, or move the tarball to your current directory.
 2. Unzip and extract files from the source tarball. If the name of the tarball is `gMultiwfn-3.3.9-1.tar.gz`, the command would be:
 ```
@@ -50,4 +50,8 @@ Use `man` or refer to your disto's manual on the usage. You may need root user's
 
 ## (Must Read) Differences between Multiwfn and gMultiwfn
 1. `gMultiwfn` does not contain the GUI which is base on the closed-source DISLIN library.
-2. `gMultiwfn` supports the `OMP_NUM_THREADS` enviroment variable. The number of threads to be use is controlled by both of the `nthreads` parameter and `OMP_NUM_THREADS`. If `nthreads == 0` (which is the default option without a `settings.ini` file), `OMP_NUM_THREADS` determines the number of threads to use, otherwise `nthreads` from the `settings.ini` file or your interative input (the hidden option `1000` at the main menu) determines the number.
+2. `gMultiwfn` supports the `OMP_NUM_THREADS` enviroment variable and the traditional `nthreads` parameter from `settings.ini` or the interactive input (the hidden option `1000` at the main menu). `nthreads` has the higher priority. Only when `nthreads` is set to `0` (which is the default setting without a `settings.ini` file), `OMP_NUM_THREADS` determines the number of threads to use. For example, to use 8 threads without `settings.ini`, just run
+```
+OMP_NUM_THREADS=8 gMultiwfn
+```
+3. Depending on the version of OpenBLAS, you may need to use the serial version or the OpenMP version of OpenBLAS with `OMP_NUM_THREADS`. See discussions [here](https://groups.google.com/forum/#!topic/openblas-users/W6ehBvPsKTw) and [here](https://github.com/xianyi/OpenBLAS/issues/208).
