@@ -15,7 +15,7 @@ The source tarball can be found [here](https://github.com/stecue/gMultiwfn/relea
 * If you choose `ifort`, make sure Intel Math Kernel Library (Intel MKL) is installed. If not sure, you can just try to continue building first because MKL is usually bundled and installed with `ifort` by default.
 * If you choose `gfortran`, make sure you have lapack/blas and their development files (usually named as `lapack-devel` and `blas-devel` *or* `lapack-dev` and `blas-dev` in your distro's repository) installed. The optimized LAPACK/BLAS implementations (see below) will not be searched and used by the `configure` script during building.
 
-## Basic build procedure
+## Basic build protocol
 1. Open a terminal and go to the directory where the tarball is downloaded, or move the tarball to your current directory.
 2. Unzip and extract files from the source tarball. If the name of the tarball is `gMultiwfn-3.3.9-1.tar.gz`, the command would be:
 ```
