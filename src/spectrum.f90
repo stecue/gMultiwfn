@@ -6,6 +6,8 @@ real*8,allocatable :: str(:),FWHM(:),linex(:),liney(:),datax(:),indcurve(:,:)
 integer,allocatable :: tmparr(:),indband2idx(:),idx2indband(:)
 character ctest,c200tmp*200,c80tmp*80
 real*8 :: sclfreqfac=1D0
+integer :: nrdfreq=0 ! >0 means pre-resonance raman, which loads external field frequency
+real*8,allocatable :: rdfreq(:)
 integer :: icurveclr=1,ilineclr=5 !curve color=Red, line color=black
 if (allocated(curvex)) deallocate(curvex,curvey,curveytmp) !Note that they are global allocatable arrays
 allocate(curvex(num1Dpoints),curvey(num1Dpoints),curveytmp(num1Dpoints))
@@ -21,9 +23,10 @@ iunitliney=1 !Only for IR
 shiftx=0D0 !Shift value in X direction
 iramantype=1 !=1 Raman activities   =2 Raman intensities
 if (index(filename,"tda.dat")/=0) then !sTDA output file
-    write(*,*) "Select spectrum type, 3:UV-Vis  4:ECD"
+    write(*,*) "Select type of the spectrum, 3:UV-Vis  4:ECD"
 else
-    write(*,*) "Select spectrum type, 1:IR  2:Raman  3:UV-Vis  4:ECD  5:VCD"
+    write(*,*) "Select type of the spectrum"
+    write(*,*) "1:IR  2:Raman (or pre-resonance Raman)  3:UV-Vis  4:ECD  5:VCD"
 end if
 read(*,*) ispectrum
 if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then
@@ -92,7 +95,35 @@ else !Gaussian output file or plain text file
         write(*,*) "This is a Gaussian output file, loading..."
 
         !IR, Raman, VCD
-        if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then !Find how many frequencies in the file
+        if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then
+            !Detect if this is a pre-resonance raman task, and how many frequencies are readed
+            if (ispectrum==2) then
+                call loclabel(10,"NFrqRd=",ifound,0)
+                if (ifound==1) then
+                    read(10,"(a)") c200tmp
+                    itmp=index(c200tmp,"NFrqRd=")
+                    read(c200tmp(itmp+7:),*) nrdfreq
+                    allocate(rdfreq(nrdfreq))
+                    do itmp=0,nrdfreq,5
+                        nleft=nrdfreq-itmp
+                        read(10,"(a)") c200tmp
+                        if (nleft>5) then
+                            read(c200tmp(14:),*) rdfreq(itmp+1:itmp+5)
+                        else
+                            read(c200tmp(14:),*) rdfreq(itmp+1:nrdfreq)
+                        end if
+                    end do
+                    write(*,*) "This is a pre-resonance Raman calculation, external field frequencies (a.u.):"
+                    do itmp=1,nrdfreq
+                        write(*,"(i5,':',f16.8)") itmp,rdfreq(itmp)
+                    end do
+                    write(*,*) "Load data for which frequency? Input its index, e.g. 3"
+                    read(*,*) irdfreq
+                end if
+                rewind(10)
+            end if
+            
+            !Find how many frequencies in the file
             do while(.true.)
                 call loclabel(10,"Frequencies -- ",ifound,0) !HPmodes is also compatible, because in this manner we locate to the tranditional output section
                 if (ifound==1) then
@@ -133,9 +164,18 @@ else !Gaussian output file or plain text file
                 if (iread==1) read(10,*) datax(inow)
                 if (iread==2) read(10,*) datax(inow),datax(inow+1)
                 if (iread==3) read(10,*) datax(inow),datax(inow+1),datax(inow+2)
-                if (ispectrum==1) call loclabel(10,"IR Inten    --",ifound,0)
-                if (ispectrum==2) call loclabel(10,"Raman Activ --",ifound,0)
-                if (ispectrum==5) call loclabel(10,"Rot. str.",ifound,0)            
+                if (ispectrum==1) then
+                    call loclabel(10,"IR Inten    --",ifound,0)
+                else if (ispectrum==2) then
+                    if (nrdfreq==0) then !Normal raman
+                        call loclabel(10,"Raman Activ --",ifound,0)
+                    else !Pre-resonance raman
+                        write(c200tmp,"('RamAct Fr=',i2)") irdfreq
+                        call loclabel(10,trim(c200tmp),ifound,0)
+                    end if
+                else if (ispectrum==5) then
+                    call loclabel(10,"Rot. str.",ifound,0)            
+                end if
                 read(10,"(16x)",advance="no")
                 if (iread==1) read(10,*) str(inow)
                 if (iread==2) read(10,*) str(inow),str(inow+1)

@@ -402,11 +402,8 @@ do while(.true.)
         read(*,*) igridmethod
         
     else if (isel==0) then
-        iopenglold=iopengl
         ioldtextheigh=textheigh
-        iopengl=1 !Must enable opengl, otherwish the speed for showing basin is too slow
         textheigh=40 !Default textheigh is too small
-        iopengl=iopenglold
         textheigh=ioldtextheigh
         
     else if (isel==1) then

@@ -245,8 +245,8 @@ real*8,allocatable :: extpt(:,:),extpttmp(:) !extpt(i,1:4) corresponds to X/Y/Z/
 
 !!!!!!!!!!!!!!!!!!!!!! Parameter !!!!!!!!!!!!!!!!!!!!!!
 !For passing Dislin main parent GUI and draw widget identifier
-integer idissetlight1,idissetlight2,idissetlight3,idissetlight4,idissetlight5,idissetlightall0,idissetlightall1
-integer idisgraph,idiszoomin,idiszoomout,idisisosurscl,idisscrval,idisshowbothsign,idisshowisosur,idisshowdatarange,idisshowmol,idisisosursec,iorbseltext
+integer idissetlight1,idissetlight2,idissetlight3,idissetlight4,idissetlight5,idissetlight6,idissetlight7,idissetlight8,idissetlightall0,idissetlightall1
+integer idisgraph,idiszoomin,idiszoomout,idisisosurscl,idisscrval,idisshowbothsign,idisshowisosur,idisshowdatarange,idisshowmol,iprogbar,idisisosursec
 integer idisisosurquality,idisisosurnumpt,idisorbinfo2
 integer idisshowatmlab,idisshowaxis,idisbondradius,idislabelsize,idisbondcrit,idisatmsize,idisshowpathlab !In draw mol GUI
 integer idisshowattlab,idisdrawinternalbasin,idisattsize !Draw basin GUI
@@ -293,7 +293,7 @@ real*8 :: clrRpath=0.3D0,clrGpath=0.1D0,clrBpath=0D0,clrR3n1path=0.0D0,clrG3n1pa
 integer,allocatable :: boldlinelist(:)
 character*3 :: drawsurmesh="ON "
 !Parameter for drawing molecular structure or 3D map
-integer :: ienablelight1=1,ienablelight2=1,ienablelight3=1,ienablelight4=0,ienablelight5=0 !If enable lighting 1~5
+integer :: ienablelight1=1,ienablelight2=1,ienablelight3=1,ienablelight4=0,ienablelight5=0,ienablelight6=0,ienablelight7=0,ienablelight8=0 !If enable lighting 1~8
 integer :: ishowatmlab=1,ishowCPlab=0,ishowpathlab=0,ishowaxis=1,isosurshowboth=1,ishowdatarange=0,idrawpath=1,idrawbassurf=1,ishowattlab=0,ishowatt=0
 integer :: isosur1style=1,isosur2style=1 !isosurface style,1/2/3/4/5=solid,mesh,points,solid+mesh,transparent
 integer :: ishowlocminlab=0,ishowlocmaxlab=0,ishowlocminpos=0,ishowlocmaxpos=0 !For molecular surface analysis
@@ -307,7 +307,7 @@ real*8 :: dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,sur_value=0.05D0
 !!! Other external parameter !!!
 integer :: iautointgrid=1,radpot=75,sphpot=434 !sphpot=230/302/434/590/770, low is 50*434, high is 100*590
 integer :: ispecial=0 !=0: Normal, =1 specific for Chunying Rong, =2 for Shubin's 2nd project
-integer :: igenDbas=0,igenMagbas=0,igenP=1,iwfntmptype=1,outmedinfo=0,intmolcust=0,isilent=0,isys=2,idelvirorb=1,ifchprog=1 !isys=1/2/3: Windows/Linux/MacOS X
+integer :: igenDbas=0,igenMagbas=0,igenP=1,iwfntmptype=1,outmedinfo=0,intmolcust=0,isilent=0,isys=2,iopengl=0,idelvirorb=1,ifchprog=1 !isys=1/2/3: Windows/Linux/MacOS X
 integer :: iuserfunc=0,iDFTxcsel=84,ispheratm=1,ADCtransfer=0,SpherIVgroup=0,MCvolmethod=2,readEDF=1,ireadatmEDF=0,ishowptESP=1,imolsurparmode=1
 integer :: NICSnptlim=8000
 real*8 :: bndordthres=0.05D0,compthres=0.5D0,compthresCDA=1D0,expcutoff=-40D0,espprecutoff=0D0

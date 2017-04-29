@@ -1275,8 +1275,6 @@ term1=(poltens(1,1)-poltens(2,2))**2 + (poltens(1,1)-poltens(3,3))**2 + (poltens
 term2=6*(poltens(1,2)**2+poltens(1,3)**2+poltens(2,3)**2)
 alphaani1=dsqrt((term1+term2)/2D0)
 write(ides,form) ' Polarizability anisotropy (definition 1):',alphaani1
-alphaani2=dsqrt(term1/2D0)
-write(ides,form) ' Polarizability anisotropy (definition 2):',alphaani2
 call diagmat(poltens,eigvecmat,eigval,300,1D-10)
 call sortr8(eigval)
 if (iunit==1) then
@@ -1284,8 +1282,8 @@ if (iunit==1) then
 else
     write(ides,"(a,3(1PE13.5))") ' Eigenvalues of polarizability tensor:',eigval
 end if
-alphaani3=eigval(3)-(eigval(1)+eigval(2))/2D0
-write(ides,form) ' Polarizability anisotropy (definition 3):',alphaani3
+alphaani2=eigval(3)-(eigval(1)+eigval(2))/2D0
+write(ides,form) ' Polarizability anisotropy (definition 2):',alphaani2
 write(ides,*)
 
 
@@ -1332,7 +1330,7 @@ if (isel==1.or.isel==3.or.isel==5) then
         !ZYZ=ZZY    =YZZ
         hypoltens(3,2,3)=hypoltens(2,3,3)
         hypoltens(3,3,2)=hypoltens(2,3,3)
-        write(ides,"(a,/)") " Note: It is well known that the sign of hyperpolarizability of Gaussian 09 should be multiplied by -1, the outputs below have already been corrected"
+        write(ides,"(a,/)") " Note: This is well known that the sign of hyperpolarizability of Gaussian 09 should be multiplied by -1, the outputs below have already been corrected"
         hypoltens=-hypoltens
         !Convert to other unit
         if (iunit==2) hypoltens=hypoltens*3.20636D-53
@@ -1363,15 +1361,6 @@ if (isel==1.or.isel==3.or.isel==5) then
         write(ides,form) " Beta ||     :",betaprj/5D0*3D0
         write(ides,form) " Beta ||(z)  :",betaZ/5D0*3D0
         write(ides,form) " Beta _|_(z) :",betaZ/5D0
-        
-        !---For easier inspection in special use
-!         write(*,*)
-!         write(*,*) "============="
-!         write(ides,form) ' Isotropic average polarizability:',alphaiso
-!         write(ides,form) ' Polarizability anisotropy (definition 2):',alphaani2
-!         write(ides,form) " Magnitude of first hyperpolarizability:",dsqrt(betaX**2+betaY**2+betaZ**2)
-!         write(ides,form) " Beta ||     :",betaprj/5D0*3D0
-!         pause
         
     else if (irdfreq==1) then !Frequency-dependent hyperpolarizability, only available for HF/DFT/semi-empirical
         write(*,*) "Loading which type of hyperpolarizability?"
@@ -1653,10 +1642,10 @@ write(*,*) "NOTE: All units used in this function is a.u."
 do while(.true.)
 write(*,*)
 write(*,*) "0 Return"
-write(*,*) "1 Calculate polarizability (alpha)"
-if (ionlyalpha==0) write(*,*) "2 Calculate first hyperpolarizability (beta)"
-if (ionlyalpha==0) write(*,*) "3 Calculate second hyperpolarizability (gamma)"
-if (ionlyalpha==0) write(*,*) "4 Calculate third hyperpolarizability (delta)"
+write(*,*) "1 Calculate polarizability(alpha)"
+if (ionlyalpha==0) write(*,*) "2 Calculate first hyperpolarizability(beta)"
+if (ionlyalpha==0) write(*,*) "3 Calculate second hyperpolarizability(gamma)"
+if (ionlyalpha==0) write(*,*) "4 Calculate third hyperpolarizability(delta)"
 write(*,*) "5 Show the variation of alpha w.r.t. the number of states in consideration"
 if (ionlyalpha==0) write(*,*) "6 Show the variation of beta w.r.t. the number of states in consideration"
 if (ionlyalpha==0) write(*,*) "7 Show the variation of gamma w.r.t. the number of states in consideration"

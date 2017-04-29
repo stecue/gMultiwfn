@@ -1432,7 +1432,6 @@ if (igauout==1) then
     do iexc=1,nstates
         call loclabel(10,"Excited State",ifound,0)
         read(10,"(a)") transmodestr
-!         write(*,*) transmodestr
         excmulti(iexc)=0 !Multiplicity of the excited state
         if (index(transmodestr,"Singlet")/=0) excmulti(iexc)=1
         if (index(transmodestr,"Triplet")/=0) excmulti(iexc)=3

@@ -755,7 +755,11 @@ open(10,file=filename,status="old")
 nmo=0
 call loclabel(10,"NBsUse=",ifound) !Gaussian may eliminate some linear dependency basis functions, so MO may be smaller than numNAO. NBsUse always equals to actual number of MO
 if (ifound==1) then
-    read(10,*) c80tmp,nmo
+    read(10,"(a)") c80tmp
+    !For DKH case, G09 may output such as RelInt: Using uncontracted basis, NUniq=   180 NBsUse=   180 0.100E-13, this nbsuse is meaningless, use next nbsuse
+    if (index(c80tmp,"RelInt")/=0) call loclabel(10,"NBsUse=",ifound)
+    itmp=index(c80tmp,'=')
+    read(c80tmp(itmp+1:),*) nmo
 end if
 call loclabel(10,"MOs in the NAO basis:",ifound,1)
 if (ifound==0) then

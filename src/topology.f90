@@ -492,7 +492,7 @@ do while(.true.)
     else if (isel==-4) then
         do while(.true.)
             write(*,*) "               ============ Modify or export found CPs ============"
-            write(*,*) "-1 Print summary of CPs in Angstrom"
+            write(*,*) "-1 Print summary of CPs (in Angstrom)"
             write(*,*) "0 Return"
             write(*,*) "1 Print summary of CPs (in Bohr)"
             write(*,*) "2 Delete some CPs"

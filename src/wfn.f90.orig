@@ -5,7 +5,7 @@ use function
 use topo
 implicit real*8(a-h,o-z)
 character nowdate*20,nowtime*20,inpstring*80,c200tmp*200,c2000tmp*2000,outcubfile*200,selectyn,lovername*80,settingpath*200
-real*8 :: inx,iny,inz,tmpvec(3)
+real*8 :: inx,iny,inz
 integer :: iprintfunc=1 !The default function whose gradient and Hessian will be outputted at a point by main function 1
 integer,allocatable :: exclfragatm(:),tmparrint(:)
 integer walltime1,walltime2
@@ -17,13 +17,13 @@ real*8,allocatable :: planemat_bk(:,:) !Used to backup plane data
 call getarg(1,filename)
 call getarg(2,cmdarg2)
 11 call loadsetting
-if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
-if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
-if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-Apr-16"
+if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows)"
+if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux)"
+if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS X)"
+write(*,*) "Version 3.3.9, release date: 2016-Sep-18"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
-write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
+write(*,*) "Multiwfn official website: http://Multiwfn.codeplex.com"
 write(*,*) "Multiwfn official forum (in Chinese): http://bbs.keinsci.com"
 write(*,*) "Bug reporting, question and suggestion, please contact: Sobereva@sina.com"
 
@@ -142,7 +142,7 @@ end if
 write(*,"(/,3a)") " Loaded ",trim(filename)," successfully!"
 ! call sys1eprop !Show some system 1e properties, only works when Cartesian basis functions are presented
 
-! call parseGauPolar
+! call qc
 
 !!!--------------------- Now everything start ---------------------!!!
 !!!--------------------- Now everything start ---------------------!!!
@@ -162,7 +162,7 @@ write(*,*) "1 Output all properties at a point"
 write(*,*) "2 Topology analysis"
 write(*,*) "3 Output and plot specific property in a line"
 write(*,*) "4 Output and plot specific property in a plane"
-write(*,*) "5 Output and plot specific property within a spatial region (calc. grid data)"
+write(*,*) "5 Output and plot specific property within a spatial region"
 write(*,*) "6 Check & modify wavefunction"
 write(*,*) "7 Population analysis"
 write(*,*) "8 Orbital composition analysis"
@@ -823,7 +823,6 @@ else if (infuncsel1==4) then
 401 write(*,*) "Define the plane to be plotted"
     write(*,*) "1:XY 2:XZ 3:YZ 4:Define by three atoms 5:Define by three points"
     write(*,*) "6:Input origin and translation vector (For expert user)"
-    write(*,*) "7:Parallel to a bond and meantime normal to a plane defined by three atoms"
     write(*,"(a,f8.4,a)") " 0:Set extension distance for plane type 1~5, current:",aug2D," Bohr"
     read(*,*) plesel
     aug2D2=aug2D !If don't draw gradient line map, needn't make the augment in the two dimension different
@@ -1011,53 +1010,13 @@ else if (infuncsel1==4) then
         a3x=orgx2D+ngridnum2*v2x
         a3y=orgy2D+ngridnum2*v2y
         a3z=orgz2D+ngridnum2*v2z
-    else if (plesel==7) then
-        write(*,*) "Input two atoms to define the bond, e.g. 4,5"
-        read(*,*) iatm1,iatm2
-        write(*,*) "Input three atoms to define a plane, e.g. 1,4,7"
-        read(*,*) jatm1,jatm2,jatm3
-        write(*,*) "Input length of X-axis in Bohr e.g. 10"
-        read(*,*) dist1
-        write(*,*) "Input length of Y-axis in Bohr e.g. 8"
-        read(*,*) dist2
-        v1x=a(iatm2)%x-a(iatm1)%x
-        v1y=a(iatm2)%y-a(iatm1)%y
-        v1z=a(iatm2)%z-a(iatm1)%z
-        call pointABCD(a(jatm1)%x,a(jatm1)%y,a(jatm1)%z,a(jatm2)%x,a(jatm2)%y,a(jatm2)%z,a(jatm3)%x,a(jatm3)%y,a(jatm3)%z,v2x,v2y,v2z,tmpD)
-        schmit=(v1x*v2x+v1y*v2y+v1z*v2z)/(v1x**2+v1y**2+v1z**2) !Use schmit method to make v2 ortho to v1
-        v2x=v2x-schmit*v1x
-        v2y=v2y-schmit*v1y
-        v2z=v2z-schmit*v1z
-        d1=dist1/(ngridnum1-1)
-        d2=dist2/(ngridnum2-1)
-        rnorm1=dsqrt(v1x**2+v1y**2+v1z**2)
-        v1x=v1x/rnorm1*d1
-        v1y=v1y/rnorm1*d1
-        v1z=v1z/rnorm1*d1
-        rnorm2=dsqrt(v2x**2+v2y**2+v2z**2)
-        v2x=v2x/rnorm2*d2
-        v2y=v2y/rnorm2*d2
-        v2z=v2z/rnorm2*d2
-        orgx2D=(a(iatm1)%x+a(iatm2)%x)/2 - v1x*ngridnum1/2 - v2x*ngridnum2/2
-        orgy2D=(a(iatm1)%y+a(iatm2)%y)/2 - v1y*ngridnum1/2 - v2y*ngridnum2/2
-        orgz2D=(a(iatm1)%z+a(iatm2)%z)/2 - v1z*ngridnum1/2 - v2z*ngridnum2/2
-        a1x=orgx2D !Although a1x...a3z is no use for generate data, but these are critical for plotting atom label (subroutine drawplane)
-        a1y=orgy2D
-        a1z=orgz2D
-        a2x=orgx2D+ngridnum1*v1x
-        a2y=orgy2D+ngridnum1*v1y
-        a2z=orgz2D+ngridnum1*v1z
-        a3x=orgx2D+ngridnum2*v2x
-        a3y=orgy2D+ngridnum2*v2y
-        a3z=orgz2D+ngridnum2*v2z
     end if
-    
     write(*,*)
-    write(*,"(' X/Y/Z of origin of the plane:',3f10.5,' Bohr')") orgx2D,orgy2D,orgz2D
+    write(*,"(' Origin of the plane:',3f10.5,' Bohr')") orgx2D,orgy2D,orgz2D
     endx2D=orgx2D+v1x*(ngridnum1-1)+v2x*(ngridnum2-1)
     endy2D=orgy2D+v1y*(ngridnum1-1)+v2y*(ngridnum2-1)
     endz2D=orgz2D+v1z*(ngridnum1-1)+v2z*(ngridnum2-1)
-    write(*,"(' X/Y/Z of end of the plane:   ',3f10.5,' Bohr')") endx2D,endy2D,endz2D
+    write(*,"(' End of the plane:   ',3f10.5,' Bohr')") endx2D,endy2D,endz2D
     write(*,"(' X/Y/Z of translation vector 1:',3f10.5,' Bohr')") v1x,v1y,v1z
     write(*,"(' X/Y/Z of translation vector 2:',3f10.5,' Bohr')") v2x,v2y,v2z
     write(*,*)
@@ -1337,9 +1296,6 @@ nthreads=getNThreads()
     else if (infuncsel2==111.or.infuncsel2==112) then !Becke/Hirshfeld weight
         drawlowlim=0D0
         drawuplim=1D0
-    else if (infuncsel2==100.and.iuserfunc==20) then !DORI
-        drawlowlim=0D0
-        drawuplim=1D0
     else ! Include infuncsel2==100
         drawlowlim=0.0D0
         drawuplim=5.0D0
@@ -1360,7 +1316,7 @@ nthreads=getNThreads()
         axhigh1=endy2D
         axlow2=orgz2D
         axhigh2=endz2D
-    else if (plesel==4.or.plesel==5.or.plesel==6.or.plesel==7) then
+    else if (plesel==4.or.plesel==5.or.plesel==6) then
         axlow1=0D0
         axhigh1=dist1-d1
         axlow2=0D0
@@ -1460,9 +1416,6 @@ nthreads=getNThreads()
             if (idrawplanevdwctr==1) write(*,*) "15 Don't draw a contour line of vdW surface"
             if (idrawplanevdwctr==1) write(*,*) "16 Set label size, style and color of the contour line of vdW surface"
             if (iatom_on_contour==1) write(*,"(a,f7.3)") " 17 Set the distance criterion for showing atom labels, current:",disshowlabel
-            if (iatmlabtype==1) write(*,*) "18 Change style of atomic labels: Only plot element symbol"
-            if (iatmlabtype==2) write(*,*) "18 Change style of atomic labels: Only plot atomic index"
-            if (iatmlabtype==3) write(*,*) "18 Change style of atomic labels: Plot both element symbol and atomic index"
         else if (idrawtype==4.or.idrawtype==5) then !Colored relief map with/without projected color-filled map
             write(*,*) "1 Set color scale range for filling color"
             write(*,"(a,a)") " 2 Toggle drawing mesh on the surface, current: ",drawsurmesh
@@ -1554,7 +1507,7 @@ nthreads=getNThreads()
                     rnowy=orgy2D+i*v1y+j*v2y
                     rnowz=orgz2D+i*v1z+j*v2z
 !                     if (planemat(i+1,j+1)<0.00098.or.planemat(i+1,j+1)>0.00103) cycle
-                    if (plesel==4.or.plesel==5.or.plesel==6.or.plesel==7) then
+                    if (plesel==4.or.plesel==5.or.plesel==6) then
                         write(10,"(5f10.5,1PE18.10)") rnowx*b2a,rnowy*b2a,rnowz*b2a,i*d1*b2a,j*d2*b2a,planemat(i+1,j+1)
                     else !Plane is vertical, the coordinate in a direction is zero
                         write(10,"(3f10.5,1PE18.10)") rnowx*b2a,rnowy*b2a,rnowz*b2a,planemat(i+1,j+1)
@@ -1562,7 +1515,7 @@ nthreads=getNThreads()
                 end do
             end do
             close(10)
-            if (plesel==4.or.plesel==5.or.plesel==6.or.plesel==7) then
+            if (plesel==4.or.plesel==5.or.plesel==6) then
                 write(*,"(a)") " The column 1,2,3 correspond to actual coordinates respectively"
                 write(*,"(a)") " The column 4,5,6 correspond to X,Y coordinates in the graph and function value respectively"
             else
@@ -1662,12 +1615,6 @@ nthreads=getNThreads()
                 else
                     iatom_on_contour_far=0
                 end if
-            else if (i==18) then
-                write(*,*) "1: Only plot element symbol"
-                write(*,*) "2: Only plot atomic index"
-                write(*,*) "3: Plot both element symbol and atomic index"
-                write(*,*) "Note that the default value can be set by ""iatmlabtype"" in settings.ini"
-                read(*,*) iatmlabtype
             end if
             
             !Options only for idrawtype 1=====================
@@ -1741,7 +1688,7 @@ nthreads=getNThreads()
                                     if (abs(cpy-orgy2D) > disshowlabel) cycle
                                 else if (plesel==3) then
                                     if (abs(cpx-orgx2D) > disshowlabel) cycle
-                                else if (plesel==4.or.plesel==5.or.plesel==6.or.plesel==7) then
+                                else if (plesel==4.or.plesel==5.or.plesel==6) then
                                     call pointprjple(a1x,a1y,a1z,a2x,a2y,a2z,a3x,a3y,a3z,cpx,cpy,cpz,prjx,prjy,prjz)
                                     if ( (cpx-prjx)**2+(cpy-prjy)**2+(cpz-prjz)**2 > disshowlabel**2) cycle
                                 end if
@@ -1991,25 +1938,6 @@ nthreads=getNThreads()
         else if (infuncsel2==112) then !Hirshfeld weight
             ncustommap=0
             call genhirshcubewei(tmparrint,size(tmparrint),iHirshdenstype)
-        else if (infuncsel2==120) then !Calculate and output three components of Steric force to plain text file
-            open(20,file="stericforce.txt",status="replace")
-            do k=1,nz
-                write(*,"(' Finished:',i5,'  /',i5)") k,nz
-                tmpz=orgz+(k-1)*dz
-                do j=1,ny
-                    tmpy=orgy+(j-1)*dy
-                    do i=1,nx
-                        tmpx=orgx+(i-1)*dx
-                        call stericderv(tmpx,tmpy,tmpz,tmpvec)
-                        write(20,"(7f12.6)") (orgx+(i-1)*dx)*b2a,(orgy+(j-1)*dy)*b2a,(orgz+(k-1)*dz)*b2a,-tmpvec, dsqrt(sum(tmpvec**2))
-                    end do
-                end do
-            end do
-            close(20)
-            write(*,*) "Done, the results have been outputted to stericforce.txt in current folder"
-            write(*,"(a)") " Columns 1,2,3 correspond to X,Y,Z coordinates, 4,5,6 correspond to steric force component in X,Y,Z. The last column denotes magnitude of steric force"
-            write(*,*)
-            pause
         else !Common cases
             cubmat=0D0
             icustom=0
@@ -2157,7 +2085,7 @@ nthreads=getNThreads()
         
         do while(.true.)
             write(*,*)
-            write(*,*) "-1 Show isosurface graph"
+            if (isys==1.or.(nx==ny.and.ny==nz.and.nz==nx)) write(*,*) "-1 Show isosurface graph" !For linux version, this option is present only when nx=ny=nz
             write(*,*) "0 Return to main menu"
             write(*,*) "1 Save graph of isosurface to file in current folder"
             write(*,*) "2 Export data to Gaussian cube file in current folder"
@@ -2346,7 +2274,7 @@ else if (infuncsel1==100) then
         write(*,*) "7 Generate Gaussian input file with initial guess from converged wavefunction"
         write(*,*) "8 Generate Gaussian input file with initial guess from fragment wavefunctions"
         write(*,*) "9 Evaluate coordination number for all atoms"
-        write(*,*) "11 Calculate overlap and centroid distance between two orbitals"
+        write(*,*) "11 Calculate overlap between norm of two orbitals over the whole space"
         write(*,*) "13 Calculate HOMA and Bird aromaticity index"
         write(*,*) "14 Calculate LOLIPOP (LOL Integrated Pi Over Plane)"
         write(*,*) "15 Calculate intermolecular orbital overlap"
@@ -2445,12 +2373,10 @@ else if (infuncsel1==100) then
         else if (infuncsel2==4) then
             if (ispecial/=1) then
                 call selfunc_interface(ifunc)
-                call intfunc(ifunc)
+                call intfunc(ifunc,0,0) !if ifunc/=101, namely integrate two orbital, then the two number is arbitrary
             else if (ispecial==1) then
-                call intfunc(1)
+                call intfunc(1,0,0)
             end if
-        else if (infuncsel2==-4) then
-            call intdiffsqr
         else if (infuncsel2==5) then
             call aboverlap
         else if (infuncsel2==6) then
@@ -2462,7 +2388,9 @@ else if (infuncsel1==100) then
         else if (infuncsel2==9) then
             call coordnum
         else if (infuncsel2==11) then
-            call ovlpdistorb
+            write(*,*) "Input the index of the two orbitals, e.g. 34,35"
+            read(*,*) iorb1,iorb2
+            call intfunc(101,iorb1,iorb2)
         else if (infuncsel2==13) then
             call HOMA_Bird
         else if (infuncsel2==14) then

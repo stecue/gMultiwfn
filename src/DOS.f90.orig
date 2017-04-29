@@ -503,9 +503,6 @@ nthreads=getNThreads()
     end do
     
     !======Generate energy levels line=======
-    TDOSliney=0
-    LDOSliney=0
-    OPDOSliney=0
     do imo=1,imoend
         inow=3*(imo-1)
         irealmo=imo

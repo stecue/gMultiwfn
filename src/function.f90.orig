@@ -118,7 +118,7 @@ calcfuncall=signlambda2rho(x,y,z)
 else if (ifunc==16) then
 calcfuncall=signlambda2rho_prodens(x,y,z)
 else if (ifunc==17) then
-calcfuncall=pairfunc(refx,refy,refz,x,y,z)
+calcfuncall=pairfunc(x,y,z)
 else if (ifunc==18) then
 calcfuncall=avglocion(x,y,z)
 else if (ifunc==19) then
@@ -611,7 +611,7 @@ end subroutine
 !The units should be given in a.u.
 real*8 function userfunc(x,y,z)
 real*8 x,y,z
-userfunc=1D0 !Default value. Note: default "iuserfunc" is 0
+userfunc=1.0D0 !Default value. Note: default "iuserfunc" is 0
 !Below functions can be selected by "iuserfunc" parameter in settings.ini
 if (iuserfunc==-2) userfunc=calcprodens(x,y,z,0) !Promolecular density
 if (iuserfunc==-1) userfunc=linintp3d(x,y,z,1) !The function value evaluated by trilinear interpolation from cubmat
@@ -645,8 +645,6 @@ if (iuserfunc==18) then !Region of Slow Electrons (RoSE), defined in Chem. Phys.
     G=Lagkin(x,y,z,0)
     userfunc=(Dh-G)/(Dh+G)
 end if
-if (iuserfunc==19) userfunc=SEDD(x,y,z) !SEDD
-if (iuserfunc==20) userfunc=DORI(x,y,z) !DORI
 if (iuserfunc==21) userfunc=-x*fdens(x,y,z) !Integrand of X component of electric dipole moment
 if (iuserfunc==22) userfunc=-y*fdens(x,y,z) !Integrand of Y component of electric dipole moment
 if (iuserfunc==23) userfunc=-z*fdens(x,y,z) !Integrand of Z component of electric dipole moment
@@ -665,21 +663,12 @@ if (iuserfunc==35) then !|V(r)|/G(r)
     tmpval=lagkin(x,y,z,0)
     userfunc=abs(-Hamkin(x,y,z,0)-tmpval)/tmpval
 end if
-if (iuserfunc==36) then !On-top pair density, i.e. r1=r2 case of pair density. paircorrtype affects result
-    pairfunctypeold=pairfunctype
-    pairfunctype=12
-    userfunc=pairfunc(x,y,z,x,y,z)
-    pairfunctype=pairfunctypeold
-end if
 if (iuserfunc==38) userfunc=Ang_rhoeigvec_ple(x,y,z,2) !The angle between the second eigenvector of rho and the plane defined by option 4 of main function 1000
 if (iuserfunc==39) userfunc=totespskip(x,y,z,iskipnuc) !ESP without contribution of nuclues "iskipnuc"
 if (iuserfunc==40) userfunc=weizsacker(x,y,z) !Steric energy
 if (iuserfunc==41) userfunc=stericpot(x,y,z) !Steric potential
 if (iuserfunc==42) userfunc=stericcharge(x,y,z) !Steric charge
 if (iuserfunc==43) userfunc=stericforce(x,y,z) !The magnitude of steric force
-if (iuserfunc==44) userfunc=stericpot_damp(x,y,z) !Steric potential with damping function to a given constant value
-if (iuserfunc==45) userfunc=stericforce_damp(x,y,z) !Steric force based on damped potential
-if (iuserfunc==46) userfunc=stericforce_directdamp(x,y,z) !Steric force directly damped to zero
 if (iuserfunc==50) userfunc=infoentro(2,x,y,z) !Shannon entropy density, see JCP,126,191107 for example
 if (iuserfunc==51) userfunc=Fisherinfo(1,x,y,z) !Fisher information density, see JCP,126,191107 for example
 if (iuserfunc==52) userfunc=Fisherinfo(2,x,y,z) !Second Fisher information density, see JCP,126,191107 for derivation
@@ -704,12 +693,6 @@ if (iuserfunc==75) userfunc=magmomdens(x,y,z,1) !X component of magnetic dipole 
 if (iuserfunc==76) userfunc=magmomdens(x,y,z,2) !Y component of magnetic dipole moment density
 if (iuserfunc==77) userfunc=magmomdens(x,y,z,3) !Z component of magnetic dipole moment density
 if (iuserfunc==78) userfunc=magmomdens(x,y,z,0) !Magnitude of magnetic dipole moment density
-if (iuserfunc==81) userfunc=hamkin(x,y,z,1) !X component of Hamiltonian kinetic energy density
-if (iuserfunc==82) userfunc=hamkin(x,y,z,2) !Y component of Hamiltonian kinetic energy density
-if (iuserfunc==83) userfunc=hamkin(x,y,z,3) !Z component of Hamiltonian kinetic energy density
-if (iuserfunc==84) userfunc=Lagkin(x,y,z,1) !X component of Lagrangian kinetic energy density
-if (iuserfunc==85) userfunc=Lagkin(x,y,z,2) !Y component of Lagrangian kinetic energy density
-if (iuserfunc==86) userfunc=Lagkin(x,y,z,3) !Z component of Lagrangian kinetic energy density
 if (iuserfunc==100) userfunc=fdens(x,y,z)**2 !Disequilibrium (also known as semi-similarity), DOI: 10.1002/qua.24510
 if (iuserfunc==101) then !Positive part of ESP
     userfunc=totesp(x,y,z)
@@ -1015,15 +998,13 @@ real*8 function Lagkin(x,y,z,idir)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo)
 integer idir
 call orbderv(2,1,nmo,x,y,z,wfnval,wfnderv)
-lagkin=0D0
 if (idir==0) then
-    do imo=1,nmo
-        lagkin=lagkin+MOocc(imo)*sum(wfnderv(:,imo)**2)
+    lagkin=0D0
+    do i=1,nmo
+        lagkin=lagkin+MOocc(i)*sum(wfnderv(:,i)**2)
     end do
 else
-    do imo=1,nmo
-        lagkin=lagkin+MOocc(imo)*wfnderv(idir,imo)**2
-    end do
+    lagkin=sum(MOocc(:)*wfnderv(idir,:)**2)
 end if
 lagkin=lagkin/2D0
 end function
@@ -1554,12 +1535,12 @@ linrespkernel=linrespkernel*4
 end function
 
 !!!------------- Output Exchange-correlation density, correlation hole and correlation factor
-!rfx,rfy,rfz is reference point (commonly use refx,refy,refz in defvar module), namely r1
+!refx,refy,refz is reference point, namely r1, stored in defvar module
 !x,y,z in the argument is the coordinate of r2
 !Calculate which function is controlled by "pairfunctype" in settings.ini, correlation type is determined by "paircorrtype" in settings.ini
-real*8 function pairfunc(rfx,rfy,rfz,x,y,z)
-real*8 rfx,rfy,rfz,x,y,z,orbvalr1(nmo),orbvalr2(nmo)
-call orbderv(1,1,nmo,rfx,rfy,rfz,orbvalr1)
+real*8 function pairfunc(x,y,z)
+real*8 x,y,z,orbvalr1(nmo),orbvalr2(nmo)
+call orbderv(1,1,nmo,refx,refy,refz,orbvalr1)
 call orbderv(1,1,nmo,x,y,z,orbvalr2)
 !Calculate alpha and beta density at r1 and r2
 adensr1=0.0D0
@@ -1655,9 +1636,10 @@ do itime=1,ntime
         if (pairfunctype==11) pairfunc=bdensr1*bdensr2+bXCdens
     end if
 end do
-if (pairfunctype==12) pairfunc=adensr1*(adensr2+bdensr2)+aXCdens +bdensr1*(adensr2+bdensr2)+bXCdens
+if (pairfunctype==12) then
+    pairfunc=adensr1*(adensr2+bdensr2)+aXCdens +bdensr1*(adensr2+bdensr2)+bXCdens
+end if
 end function
-
 
 
 !!!------------- Output source function
@@ -2620,6 +2602,12 @@ end if
 end function
 
 
+!!!------------------ Product of norm of two orbitals
+real*8 function twoorbnorm(x,y,z,inp1,inp2)
+real*8 x,y,z
+integer inp1,inp2
+twoorbnorm=abs(fmo(x,y,z,inp1))*abs(fmo(x,y,z,inp2))
+end function
 
 
 !!!------------- Generate Becke weight function, only used by Sobereva
@@ -2689,36 +2677,15 @@ end if
 end function
 
 
-!!!-------------- Single exponential decay detector (SEDD)
-!Originally proposed in ChemPhysChem, 13, 3462 (2012), current implementation is based on the new definition in DORI paper (10.1021/ct500490b)
+!!!-------------- Single exponential decay detector (SEDD), see DOI: ChemPhysChem, 13, 3462 (2012)
+!Hasn't been available in Multiwfn, the results are unlike to original paper, I don't know why...
 real*8 function SEDD(x,y,z)
-real*8 x,y,z,rho,grad(3),hess(3,3)
-call calchessmat_dens(2,x,y,z,rho,grad,hess)
-dersqr=sum(grad**2)
-tmp1_1=rho*(grad(1)*hess(1,1)+grad(2)*hess(1,2)+grad(3)*hess(1,3))
-tmp1_2=grad(1)*dersqr
-tmp2_1=rho*(grad(1)*hess(1,2)+grad(2)*hess(2,2)+grad(3)*hess(2,3))
-tmp2_2=grad(2)*dersqr
-tmp3_1=rho*(grad(1)*hess(1,3)+grad(2)*hess(2,3)+grad(3)*hess(3,3))
-tmp3_2=grad(3)*dersqr
-eps=4/rho**8*( (tmp1_1-tmp1_2)**2 + (tmp2_1-tmp2_2)**2 + (tmp3_1-tmp3_2)**2 )
-SEDD=dlog(1+eps)
-end function
-
-
-!!!-------------- Density Overlap Regions Indicator (DORI) DOI:10.1021/ct500490b
-real*8 function DORI(x,y,z)
-real*8 x,y,z,rho,grad(3),hess(3,3)
-call calchessmat_dens(2,x,y,z,rho,grad,hess)
-dersqr=sum(grad**2)
-tmp1_1=rho*(grad(1)*hess(1,1)+grad(2)*hess(1,2)+grad(3)*hess(1,3))
-tmp1_2=grad(1)*dersqr
-tmp2_1=rho*(grad(1)*hess(1,2)+grad(2)*hess(2,2)+grad(3)*hess(2,3))
-tmp2_2=grad(2)*dersqr
-tmp3_1=rho*(grad(1)*hess(1,3)+grad(2)*hess(2,3)+grad(3)*hess(3,3))
-tmp3_2=grad(3)*dersqr
-theta=4/dersqr**3*( (tmp1_1-tmp1_2)**2 + (tmp2_1-tmp2_2)**2 + (tmp3_1-tmp3_2)**2 )
-DORI=theta/(1+theta)
+real*8 x,y,z
+rdens=fdens(x,y,z)
+rder2=fgrad(x,y,z,'t')**2
+rlapl=flapl(x,y,z,'t')
+epsilon=rder2*( 2*rlapl/rdens**3-2*rder2/rdens**4 )**2
+SEDD=dlog(epsilon)
 end function
 
 
@@ -2878,7 +2845,6 @@ end if
 ! Above codes can be simplified as below two lines, but will consume additional 1/3 time
 ! call calchessmat_dens(2,x,y,z,eleval,elegrad,elehess)
 ! call calchessmat_lapl(1,x,y,z,laplval,laplgrad,laplhess)
-
 eleval=eleval+steric_addminimal
 elenorm2=sum(elegrad**2) !Square of norm of electron density gradient
 do i=1,3 !x,y,z
@@ -2895,63 +2861,8 @@ call stericderv(x,y,z,derv)
 stericforce=dsqrt(sum(derv**2))
 end function
 
-
-!memo: Shubin reported that steric potential/force is quite sensitive to steric_addminimal, &
-!so 2016-Sep-30 I devised another solution to solve the diverse behavior of steric potential/force via Becke's damping function
-!!!--- Steric potential with damping function to zero
-real*8 function stericpot_damp(x,y,z)
-real*8 x,y,z,gradrho(3),hessrho(3,3),lapltot
-call calchessmat_dens(2,x,y,z,rho,gradrho,hessrho)
-lapltot=hessrho(1,1)+hessrho(2,2)+hessrho(3,3)
-stericpotorg=sum(gradrho**2)/rho**2/8D0-lapltot/rho/4D0
-weiwidth=2 !e.g. weiwidth=2 and steric_potcutrho=-13 means the Becke damping function of [1,0] corresponds to 1D-11~1D-15
-tmps=-(dlog(rho)-steric_potcutrho)/weiwidth
-if (tmps<-1) then
-    consorg=1
-else if (tmps>1) then
-    consorg=0
-else
-    do iter=1,2
-        tmps=1.5D0*(tmps)-0.5D0*(tmps)**3
-    end do
-    consorg=0.5D0*(1-tmps) !The weight to switch to constant value steric_potcons
-end if
-stericpot_damp=stericpotorg*consorg+steric_potcons*(1-consorg)
-end function
-!!!--- Steric force based on damped steric potential
-real*8 function stericforce_damp(x,y,z)
-real*8 x,y,z,derv(3)
-diffstep=2D-5
-derv(1)=(stericpot_damp(x+diffstep,y,z)-stericpot_damp(x-diffstep,y,z))/(2*diffstep)
-derv(2)=(stericpot_damp(x,y+diffstep,z)-stericpot_damp(x,y-diffstep,z))/(2*diffstep)
-derv(3)=(stericpot_damp(x,y,z+diffstep)-stericpot_damp(x,y,z-diffstep))/(2*diffstep)
-stericforce_damp=dsqrt(sum(derv**2))
-end function
-!!!--- Steric force directly damped to zero rather than based on damped steric potential
-real*8 function stericforce_directdamp(x,y,z)
-real*8 x,y,z
-weiwidth=2
-tmps=-(dlog(fdens(x,y,z))-steric_potcutrho)/weiwidth
-if (tmps<-1) then
-    consorg=1
-else if (tmps>1) then
-    consorg=0
-else
-    do iter=1,2
-        tmps=1.5D0*(tmps)-0.5D0*(tmps)**3
-    end do
-    consorg=0.5D0*(1-tmps)
-end if
-steric_addminimalold=steric_addminimal
-steric_addminimal=0
-stericforce_directdamp=stericforce(x,y,z)*consorg
-steric_addminimal=steric_addminimalold
-end function
-
-
-
 !!!----- Steric charge, =lapl(steric potential)/(-4*pi)
-! Based on analytical first-order derivative, using finite difference to obtain d2v/dx2, d2v/dy2 and d2v/dz2
+!---- Based on analytical first-order derivative, using finite difference to obtain d2v/dx2, d2v/dy2 and d2v/dz2
 real*8 function stericcharge(x,y,z)
 real*8 x,y,z,derv1add(3),derv1min(3)
 if (fdens(x,y,z)<steric_potcutrho) then
@@ -2964,7 +2875,7 @@ call stericderv(x-diffstep,y,z,derv1min)
 derv2x=(derv1add(1)-derv1min(1))/(2*diffstep) !d2v/dx2
 call stericderv(x,y+diffstep,z,derv1add)
 call stericderv(x,y-diffstep,z,derv1min)
-derv2y=(derv1add(2)-derv1min(2))/(2*diffstep) !d2v/dy2
+derv2y=(derv1add(2)-derv1min(2))/(2*diffstep) !d2v/dx2
 call stericderv(x,y,z+diffstep,derv1add)
 call stericderv(x,y,z-diffstep,derv1min)
 derv2z=(derv1add(3)-derv1min(3))/(2*diffstep) !d2v/dz2

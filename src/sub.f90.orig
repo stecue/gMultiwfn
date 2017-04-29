@@ -24,11 +24,7 @@ do while(.true.)
     write(*,*) "22 Set type of a primitive function"
     write(*,*) "23 Set exponent of a primitive function"
     write(*,*) "24 Set coefficient of a primitive function"
-    if (allocated(CObasa)) then
-        write(*,*) "25 Set coefficients of GTFs/basis functions that satisfied certain conditions"
-    else
-        write(*,*) "25 Set coefficients of GTFs that satisfied certain conditions"
-    end if
+    write(*,*) "25 Set coefficients of some GTFs satisfied certain conditions"
     write(*,*) "26 Set occupation number of some orbitals"
     write(*,*) "27 Set type of some orbitals"
     write(*,*) "31 Translate the system"
@@ -47,22 +43,18 @@ do while(.true.)
             write(*,*) "Density matrix has been updated"
         end if
         exit
-        
     else if (iselect==0) then
         call outwfn("new.wfn",1,1,10)
         write(*,*) "New .wfn file has been outputted to new.wfn in current folder"
-    
     else if (iselect==1) then
         do i=1,nprims
             write(*,"(i6,' Center:',i5,'(',a2,')','   Type: ',a,' Exponent:',D16.7)") i,b(i)%center,a(b(i)%center)%name,GTFtype2name(b(i)%functype),b(i)%exp
         end do
-    
     else if (iselect==2) then
         do i=1,nbasis
             write(*,"(' Basis:',i5,' Shell:',i5,' Center:',i5,'(',a2,') Type:',a)")&
              i,basshell(i),bascen(i),a(bascen(i))%name,GTFtype2name(bastype(i))
         end do
-    
     else if (iselect==3) then
         do i=1,nmo
             if (MOtype(i)==0) orbtype="A+B"
@@ -74,7 +66,6 @@ do while(.true.)
                 write(*,"(' Orbital:',i5,' Energy(a.u.):',f12.6,' Occ:',f10.6,' Type: ',a)") i,MOene(i),MOocc(i),orbtype
             end if
         end do
-    
     else if (iselect==4) then
         write(*,*) "Input the orbital index, e.g. 12"
         read(*,*) i
@@ -101,7 +92,6 @@ do while(.true.)
             end if
             write(*,"(a,/)") " Note: The ""coeff."" are expansion coefficients of orbitals with respect to basis functions, which are normalized functions"
         end if
-    
     else if (iselect==5) then
         write(*,*) "(i,j) element means coefficient of ith basis function in jth orbital"
         if (wfntype==0.or.wfntype==2.or.wfntype==3) then
@@ -110,7 +100,6 @@ do while(.true.)
             call showmatgau(cobasa,"Alpha coefficient matrix",0)
             call showmatgau(cobasb,"Beta coefficient matrix",0)
         end if
-    
     else if (iselect==6) then
         call showmatgau(Ptot,"Total density matrix",1)
         sum=0
@@ -131,7 +120,6 @@ do while(.true.)
             write(*,*)
             write(*,"(' The trace of the alpha and beta density matrix:',2f12.6)") suma,sumb
         end if
-    
     else if (iselect==7) then
         tmpmat=sbas
         call showmatgau(Sbas,"Overlap matrix",1)
@@ -139,7 +127,6 @@ do while(.true.)
         write(*,*)
         write(*,*) "Eigenvalues:"
         write(*,"(6f12.8)") eigval
-    
     else if (iselect==11) then
         write(*,*) "Swap information of which two GTFs? Input their indices  e.g. 18,21"
         read(*,*) i,j
@@ -156,7 +143,6 @@ do while(.true.)
         if (iswapcontent==4) call swap(i,j,"exp")
         if (iswapcontent==5) call swap(i,j,"MO ")
         write(*,*) "Swapping finished!"
-    
     else if (iselect==21) then
         write(*,*) "Input the index of primitive function"
         read(*,*) i
@@ -167,7 +153,6 @@ do while(.true.)
         else
             write(*,"('Error: The value should >0 and <=',i7)") ncenter
         end if
-    
     else if (iselect==22) then
         write(*,*) "Input the index of primitive function"
         read(*,*) i
@@ -183,14 +168,12 @@ do while(.true.)
             end if
             if (j==20) write(*,*) "Error: Couldn't recognize this type"
         end do
-    
     else if (iselect==23) then
         write(*,*) "Input the index of primitive function"
         read(*,*) i
         write(*,*) "Input the exponent"
         read(*,*) rexp
         b(i)%exp=rexp
-    
     else if (iselect==24) then
         write(*,*) "Input the index of primitive function"
         read(*,*) iprm
@@ -203,92 +186,37 @@ do while(.true.)
         else
             write(*,"('Error: The index of function or orbital exceed valid range')")
         end if
-    
     else if (iselect==25) then
-        isetmode=1
-        if (allocated(CObasa)) then
-            write(*,*) "1 Set coefficients of GTFs"
-            write(*,*) "2 Set coefficients of basis functions"
-            read(*,*) isetmode
-        end if
-        if (isetmode==1) then
-            write(*,*) "The following your inputs are conditions for filtering GTFs"
-            write(*,*) "Rule of range input: 3,17 means from 3 to 17, 6,6 means only 6, 0,0 means all"
-            write(*,*)
-            write(*,*) "Input the range of index of GTFs"
-            read(*,*) ind1,ind2
-            write(*,*) "Input the range of atoms"
-            read(*,*) iatm1,iatm2
-            write(*,*) "Input the type of GTFs (one of S,X,Y,Z,XX,XY... ALL means all types)"
-            read(*,*) seltmpc
-            write(*,*) "Input the range of orbitals"
-            read(*,*) imo1,imo2
-            write(*,*) "Input the expansion coefficient you want to set, e.g. 0.5"
-            read(*,*) coval
-            do itypfil=1,size(type2ix)
-                if (seltmpc==GTFtype2name(itypfil)) exit
-            end do
-            if (ind1==0) ind1=1
-            if (ind2==0) ind2=nprims
-            if (iatm1==0) iatm1=1
-            if (iatm2==0) iatm2=ncenter
-            if (imo1==0) imo1=1
-            if (imo2==0) imo2=nmo
-            do iGTF=ind1,ind2
-                if (seltmpc=="ALL".or.seltmpc=="all") then
-                    if (b(iGTF)%center>=iatm1.and.b(iGTF)%center<=iatm2) CO(imo1:imo2,iGTF)=coval
-                else
-                    if (b(iGTF)%center>=iatm1.and.b(iGTF)%center<=iatm2.and.b(iGTF)%functype==itypfil) CO(imo1:imo2,iGTF)=coval
-                end if
-            end do
-        else if (isetmode==2) then
-            write(*,*) "The following your inputs are conditions for filtering basis functions"
-            write(*,*) "Rule of range input: 3,17 means from 3 to 17, 6,6 means only 6, 0,0 means all"
-            write(*,*)
-            write(*,*) "Input the range of index of basis functions"
-            read(*,*) ind1,ind2
-            write(*,*) "Input the range of atoms"
-            read(*,*) iatm1,iatm2
-            write(*,"(a)") "Input the type of basis functions (one of S,X,Y,Z,XX,XY... ALL means all types)"
-            read(*,*) seltmpc
-            write(*,*) "Input the range of orbitals"
-            read(*,*) imo1,imo2
-            ispinsel=1
-            if (wfntype==1.or.wfntype==4) then
-                write(*,*) "For which type of orbitals? 0=Both 1=Alpha 2=Beta"
-                read(*,*) ispinsel
+        write(*,*) "The following your inputs are condition for filtering GTFs"
+        write(*,*) "Rule of range input: 3,17 means from 3 to 17, 6,6 means only 6, 0,0 means all"
+        write(*,*)
+        write(*,*) "Input the range of index of GTFs"
+        read(*,*) ind1,ind2
+        write(*,*) "Input the range of atoms"
+        read(*,*) iatm1,iatm2
+        write(*,*) "Input the type of GTFs (one of S,X,Y,Z,XX,XY... ALL means all types)"
+        read(*,*) seltmpc
+        write(*,*) "Input the range of orbitals"
+        read(*,*) imo1,imo2
+        write(*,*) "Input the expansion coefficient you want to set"
+        read(*,*) coval
+        do itypfil=1,size(type2ix)
+            if (seltmpc==GTFtype2name(itypfil)) exit
+        end do
+        if (ind1==0) ind1=1
+        if (ind2==0) ind2=nprims
+        if (iatm1==0) iatm1=1
+        if (iatm2==0) iatm2=ncenter
+        if (imo1==0) imo1=1
+        if (imo2==0) imo2=nmo
+        do i=ind1,ind2
+            if (seltmpc=="ALL".or.seltmpc=="all") then
+                if (b(i)%center>=iatm1.and.b(i)%center<=iatm2) CO(imo1:imo2,i)=coval
+            else
+                if (b(i)%center>=iatm1.and.b(i)%center<=iatm2.and.b(i)%functype==itypfil) CO(imo1:imo2,i)=coval
             end if
-            write(*,*) "Input the expansion coefficient you want to set, e.g. 0.5"
-            read(*,*) coval
-            do itypfil=1,size(type2ix)
-                if (seltmpc==GTFtype2name(itypfil)) exit
-            end do
-            if (ind1==0) ind1=1
-            if (ind2==0) ind2=nbasis
-            if (iatm1==0) iatm1=1
-            if (iatm2==0) iatm2=ncenter
-            if (imo1==0) imo1=1
-            if (imo2==0) imo2=nbasis
-            do ibas=ind1,ind2
-                if (ispinsel==0.or.ispinsel==1) then
-                    if (seltmpc=="ALL".or.seltmpc=="all") then
-                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2) CObasa(ibas,imo1:imo2)=coval
-                    else
-                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2.and.bastype(ibas)==itypfil) CObasa(ibas,imo1:imo2)=coval
-                    end if
-                end if
-                if (ispinsel==0.or.ispinsel==2) then
-                    if (seltmpc=="ALL".or.seltmpc=="all") then
-                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2) CObasb(ibas,imo1:imo2)=coval
-                    else
-                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2.and.bastype(ibas)==itypfil) CObasb(ibas,imo1:imo2)=coval
-                    end if
-                end if
-            end do
-            imodwfn=1
-        end if
+        end do
         write(*,*) "Done!"
-
     else if (iselect==26) then
         do while(.true.)
             write(*,*) "Select the orbitals for which the occupation numbers are needed to be changed"
@@ -347,7 +275,6 @@ do while(.true.)
             end if
             write(*,*)
         end do
-    
     else if (iselect==27) then
         write(*,*) "Set type for which range of orbitals? e.g. 14,17"
         write(*,*) "Hint: Input 0,0 can select all orbitals"
@@ -388,7 +315,6 @@ do while(.true.)
             write(*,*)
         end if
         imodwfn=1
-    
     else if (iselect==31) then
         write(*,*) "Input X,Y,Z of translation vector (e.g. 3.2,1.0,0)"
         read(*,*) pbctransx,pbctransy,pbctransz
@@ -405,7 +331,6 @@ do while(.true.)
             a(i)%z=a(i)%z+pbctransz
         end do
         imodwfn=1
-    
     else if (iselect==32) then
         write(*,*) "Input X,Y,Z of translation vector (e.g. 3.2,1.0,0)"
         read(*,*) pbctransx,pbctransy,pbctransz
@@ -448,7 +373,6 @@ do while(.true.)
         deallocate(a_tmp,b_tmp,CO_tmp)
         imodwfn=1
         call gendistmat !The number of atoms have changed, so we must update distance matrix
-    
     else if (iselect==33) then
         write(*,*) "Rotate which orbital? (Input 0 to rotate all orbitals)"
         read(*,*) iorb
@@ -470,7 +394,6 @@ do while(.true.)
             end if
         end if
         write(*,*) "Done!"
-    
     else if (iselect==34) then
         innerel=0
         do i=1,ncenter
@@ -498,10 +421,8 @@ do while(.true.)
         end if
         if (wfntype==3.or.wfntype==4) write(*,"('Warning: Discarding inner orbitals for post-HF wavefunction will lead to unexpected result!')") 
         imodwfn=1
-    
     else if (iselect==35) then
         call SelMO_IRREP
-    
     else if (iselect==36) then
         write(*,*) "Input lower and upper limits of orbital index, e.g. 8,15"
         read(*,*) ilow,ihigh
@@ -521,8 +442,6 @@ do while(.true.)
     write(*,*)
 end do
 end subroutine
-
-
 
 
 !!---------------- Select MOs according to irreducible representation
@@ -1895,7 +1814,7 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
 !     valKz=Hamkin(inx,iny,inz,3)
     write(ifileid,"(' Hamiltonian kinetic energy K(r):',E18.10)") valK
 !     write(ifileid,"(' K(r) in X,Y,Z:',3E18.10)") valKx,valKy,valKz
-    write(ifileid,"(' Potential energy density V(r):',E18.10)") -valK-valG !When without EDF, also equals to flapl(inx,iny,inz,'t')/4.0D0-2*valG
+    write(ifileid,"(' Potential energy density V(r):',E18.10)") flapl(inx,iny,inz,'t')/4.0D0-2*valG
     write(ifileid,"(' Energy density E(r) or H(r):',E18.10)") -valK
     write(ifileid,"(' Laplacian of electron density:',E18.10)") laplfac*(elehess(1,1)+elehess(2,2)+elehess(3,3))
     write(ifileid,"(' Electron localization function (ELF):',E18.10)") ELF_LOL(inx,iny,inz,"ELF")
@@ -1905,12 +1824,12 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
     write(ifileid,"(' Reduced density gradient with promolecular approximation:',E18.10)") RDGprodens(inx,iny,inz)
     write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho(inx,iny,inz)
     write(ifileid,"(' Sign(lambda2)*rho with promolecular approximation:',E18.10)") signlambda2rho_prodens(inx,iny,inz)
-    if (pairfunctype==1) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. hole for alpha, ref.:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
-    if (pairfunctype==2) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. hole for beta, ref.:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
-    if (pairfunctype==4) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. fac. for alpha, ref.:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
-    if (pairfunctype==5) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. fac. for beta, ref.:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
-    if (pairfunctype==7) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for alpha, ref:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
-    if (pairfunctype==8) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for beta, ref:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
+    if (pairfunctype==1) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. hole for alpha, ref.:",refx,refy,refz,pairfunc(inx,iny,inz)
+    if (pairfunctype==2) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. hole for beta, ref.:",refx,refy,refz,pairfunc(inx,iny,inz)
+    if (pairfunctype==4) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. fac. for alpha, ref.:",refx,refy,refz,pairfunc(inx,iny,inz)
+    if (pairfunctype==5) write(ifileid,"(a,3f10.5,' :',E18.10)") " Corr. fac. for beta, ref.:",refx,refy,refz,pairfunc(inx,iny,inz)
+    if (pairfunctype==7) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for alpha, ref:",refx,refy,refz,pairfunc(inx,iny,inz)
+    if (pairfunctype==8) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for beta, ref:",refx,refy,refz,pairfunc(inx,iny,inz)
     write(ifileid,"(' Source function, ref.:',3f10.5,' :',E18.10)") refx,refy,refz,srcfunc(inx,iny,inz,srcfuncmode)
     write(ifileid,"(' Wavefunction value for orbital',i10,' :',E18.10)") iorbsel,fmo(inx,iny,inz,iorbsel)
     if (iALIEdecomp==0) then
@@ -1960,7 +1879,7 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
     write(ifileid,*) "Eigenvectors(columns) of Hessian:"
     write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
     write(ifileid,"(' Determinant of Hessian:',D18.10)") detmat(funchess)
-    if (ifuncsel==1) then !Output ellipticity for rho
+    if (ifuncsel==1) then !Output ellipicity for rho
         eigmax=maxval(eigval) !At bcp, will be the most positive 
         eigmin=minval(eigval) !At bcp, will be the most negative
         do itmp=1,3
@@ -2573,7 +2492,7 @@ end subroutine
 
 !!-------- Randomly generate the name of Sobereva's lover
 subroutine mylover(outname)
-integer,parameter :: nlovers=45
+integer,parameter :: nlovers=43
 character*80 lovername(nlovers),outname
 CALL RANDOM_SEED()
 CALL RANDOM_NUMBER(tmp)
@@ -2620,8 +2539,6 @@ lovername(40)="MaiMengJun\QinXue_Chen"
 lovername(41)="Sakurako-san_no_Ashimoto_ni_wa_Shitai_ga_Umatteiru\Sakurako"
 lovername(42)="Hibike!_Euphonium\Reina_Kousaka"
 lovername(43)="Planetarian\Yumemi_Hoshino"
-lovername(44)="Lovelive_sunshine!!\Yoshiko_Tsushima"
-lovername(45)="Lovelive_sunshine!!\You_Watanabe"
 !Dear Kanan,
 !
 !You are the only one I deeply love forever in the real world,
@@ -2836,6 +2753,8 @@ call loclabel(20,'imodlayout=')
 read(20,*) c80tmp,imodlayout
 call loclabel(20,'outmedinfo=')
 read(20,*) c80tmp,outmedinfo
+call loclabel(20,'iopengl=')
+read(20,*) c80tmp,iopengl
 call loclabel(20,'iwfntmptype=')
 read(20,*) c80tmp,iwfntmptype
 call loclabel(20,'ispecial=')

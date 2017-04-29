@@ -1320,7 +1320,6 @@ close(10)
 totenergy=0D0
 virialratio=0D0
 nbasis=sum(shellnumbas) !Calculate the number of basis
-write(*,"(' Expected number of basis functions:',i10)") nbasis
 open(10,file=name2,access="sequential",status="old")
 read(10,*)
 read(10,*)
@@ -1328,53 +1327,29 @@ read(10,*)
 read(10,"(a)") chartemp
 naelec=0D0
 nbelec=0D0
-!Note: When diffuse functions are used, although the number of AO in NBO plot files are always identical to nbasis, 
-!the number of NAOs and thus the resulting NBOs etc. may be smaller than nbasis (and can also be different to Nbsuse in Gaussian output file)
 if (chartemp(1:11)==" ALPHA SPIN".or.chartemp(1:11)==" alpha spin") then
     wfntype=4
     nmo=2*nbasis
     allocate(orbcoeff(nbasis,nmo),MOocc(nmo),MOene(nmo),MOtype(nmo))
     MOtype(1:nbasis)=1 !alpha
     MOtype(nbasis+1:nmo)=2 !beta
-    orbcoeff=0
-    MOocc=0
-    nload=0
-    do iorb=1,nbasis !Note that the occupation section may be erronesouly loaded as orbital coefficient here when linear dependency problem occur
-        read(10,*,iostat=ierror) orbcoeff(1:nbasis,iorb)
-        if (ierror/=0) exit
-        nload=nload+1
+    do iorb=1,nbasis
+        read(10,*) orbcoeff(1:nbasis,iorb)
     end do
-    if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") then !Need to load occupation
-        if (nload/=nbasis) then
-            write(*,"(/,a)") " Warning: The number of orbitals is smaller than basis functions! This is because diffuse functions are used. &
-            Please now input the actual number of NAOs (you can easily find it from output of NBO program), e.g. 374"
-            read(*,*) nNAOs
-            call loclabel(10,chartemp(1:11))
-            read(10,*)
-            do iorb=1,nNAOs
-                read(10,*) orbcoeff(1:nbasis,iorb)
-            end do
-            orbcoeff(1:nbasis,nNAOs+1:nbasis)=0
-        else
-            nNAOs=nbasis
-        end if
-        read(10,*) MOocc(1:nNAOs)
-    end if
+    if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") read(10,*) MOocc(1:nbasis)
+    
     if (chartemp(1:11)==" ALPHA SPIN") then
         call loclabel(10," BETA  SPIN",ifound)
     else
         call loclabel(10," beta  spin",ifound)
     end if
-    if (ifound==1) then
-        read(10,*)
-        do iorb=nbasis+1,nbasis+nNAOs
-            read(10,*) orbcoeff(1:nbasis,iorb)
-        end do
-        if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") read(10,*) MOocc(nbasis+1:nbasis+nNAOs)
-    else
-        write(*,*) "Warning: Beta-spin information are not found in this file!"
-        write(*,*)
-    end if
+    read(10,*)
+    do iorb=nbasis+1,nmo
+        read(10,*) orbcoeff(1:nbasis,iorb)
+    end do
+    if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") read(10,*) MOocc(nbasis+1:nmo)
+    
+    if (name2(itmplen-1:itmplen)/="37".and.name2(itmplen-1:itmplen)/="39") MOocc=1D0 !This setting has no physical meaning
     naelec=sum(MOocc(1:nbasis))
     nbelec=sum(MOocc(nbasis+1:nmo))
     nelec=naelec+nbelec
@@ -1384,31 +1359,18 @@ else !Close shell system
     allocate(orbcoeff(nbasis,nmo),MOocc(nmo),MOene(nmo),MOtype(nmo))
     MOtype=0
     orbcoeff=0
-    MOocc=0
-    nload=0
+    MOocc=1D0 !This setting has no physical meaning
     backspace(10)
     do iorb=1,nmo
         read(10,*,iostat=ierror) orbcoeff(1:nbasis,iorb)
-        if (ierror/=0) exit
-        nload=nload+1
-    end do
-    if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") then
-        if (nload/=nbasis) then
-            write(*,"(/,a)") " Warning: The number of orbitals is smaller than basis functions! This is because diffuse functions are used. &
-            Please now input the actual number of NAOs (you can easily find it from output of NBO program), e.g. 374"
-            read(*,*) nNAOs
-            call loclabel(10,chartemp(1:11))
-            read(10,*)
-            do iorb=1,nNAOs
-                read(10,*) orbcoeff(1:nbasis,iorb)
-            end do
-            orbcoeff(1:nbasis,nNAOs+1:nbasis)=0
-        else
-            nNAOs=nbasis
+        if (ierror/=0) then !Note that the number of orbitals may be smaller than nbasis, therefore if we don't do this determination, we may encounter end-of-file!
+            write(*,"(' Warning: The number of orbitals is smaller than basis functions!',/)")
+            goto 1300 !I am unable to determine how many actually the number of orbitals it is, if this condition really happen, &
+            ! the occupation will be incorrectly (but unavoidable) loaded as coefficients, and thus we skip occupation loading
         end if
-        read(10,*) MOocc(1:nNAOs)
-    end if
-    nelec=sum(MOocc)
+    end do
+    if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") read(10,*) MOocc
+1300    nelec=sum(MOocc)
     naelec=nelec/2
     nbelec=naelec
 end if
@@ -1421,16 +1383,12 @@ if (isphergau==1) then
     nbasis5D=nbasis
     nbasis=0
     do i=1,nshell
-        if (shellnumbas(i)==5) then !D
-            nbasis=nbasis+6
-        else if (shellnumbas(i)==7) then !F
-            nbasis=nbasis+10
-        else if (shellnumbas(i)==9) then !G
-            nbasis=nbasis+15
-        else !S,P,SP, or cartesian shells
-            nbasis=nbasis+shellnumbas(i)
-        end if
+        if (shellnumbas(i)==1.or.shellnumbas(i)==3.or.shellnumbas(i)==4) nbasis=nbasis+shellnumbas(i) !S,P,SP
+        if (shellnumbas(i)==5) nbasis=nbasis+6 !D
+        if (shellnumbas(i)==7) nbasis=nbasis+10 !F
+        if (shellnumbas(i)==9) nbasis=nbasis+15 !G
     end do
+    
     allocate(shellnumbas5D(nshell))
     shellnumbas5D=shellnumbas !Backup
     where(shellnumbas==5) shellnumbas=6 !Convert number of orbitals in each shell from 5D to cartesian type
@@ -1449,13 +1407,13 @@ if (isphergau==1) then
     !Generate cartesian .31 basis type, the indexes are consecutive, in line with conv5d6d and conv7f10f
     i=1
     do ish=1,nshell
-        if (shellnumbas(ish)==1) then !s
+        if (shellnumbas(ish)==1) then
             bastype31(i)=1
-        else if (shellnumbas(ish)==3) then !p
+        else if (shellnumbas(ish)==3) then
             bastype31(i)=101
             bastype31(i+1)=102
             bastype31(i+2)=103
-        else if (shellnumbas(ish)==4) then !sp
+        else if (shellnumbas(ish)==4) then
             bastype31(i)=1
             bastype31(i+1)=101
             bastype31(i+2)=102

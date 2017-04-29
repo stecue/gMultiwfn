@@ -758,7 +758,7 @@ nthreads=getNThreads()
         else if (imapfunc==-1) then
             survtx(icyc)%value=userfunc(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)
         else if (imapfunc==10) then
-            survtx(icyc)%value=pairfunc(refx,refy,refz,survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)  !Calculate pair density, not for normal users
+            survtx(icyc)%value=pairfunc(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)  !Calculate pair density, not for normal users
         else if (imapfunc==11) then
             survtx(icyc)%value=fdens(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)  !Calculate electron density
         else if (imapfunc==12) then

@@ -41,9 +41,9 @@ else
             if (allocated(frag1)) then
                 write(*,*) "Atoms in current fragment:"
                 write(*,"(13i6)") frag1
-                write(*,"(a)") " Input 0 to keep unchanged, or redefine fragment, e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment 1"
+                write(*,"(a)") " Input 0 to keep unchanged, or redefine fragment, e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
             else
-                write(*,"(a)") " Input atomic indices to define the fragment. e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment 1"
+                write(*,"(a)") " Input atomic indices to define the fragment. e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
             end if
             read(*,"(a)") c2000tmp
             if (c2000tmp(1:1)/='0') then

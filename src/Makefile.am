@@ -26,7 +26,6 @@ Multiwfn-function.$(OBJEXT): Multiwfn-util.o
 Multiwfn-fuzzyana.$(OBJEXT): Multiwfn-util.o Multiwfn-topology.o
 Multiwfn-otherfunc2.$(OBJEXT): Multiwfn-util.o Multiwfn-function.o
 Multiwfn-otherfunc.$(OBJEXT): Multiwfn-util.o Multiwfn-function.o
-Multiwfn-plot.$(OBJEXT): Multiwfn-util.o
 Multiwfn-population.$(OBJEXT): Multiwfn-function.o
 Multiwfn-procgriddata.$(OBJEXT): Multiwfn-define.o
 Multiwfn-spectrum.$(OBJEXT): Multiwfn-util.o

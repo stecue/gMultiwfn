@@ -982,10 +982,11 @@ end subroutine
 
 !!---------- Integrating a function in whole space
 !! ifunc: The real space function to be integrated
+!! inp1&inp2: used to select two orbitals for twoorbnorm function, no use otherwise
 !
 !The integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
 !the grid will not be adjusted automatically (parm always=1) as proposed by Becke for more efficient integration of XC functional
-subroutine intfunc(ifunc)
+subroutine intfunc(ifunc,inp1,inp2)
 use function
 use util
 implicit real*8 (a-h,o-z)
@@ -999,7 +1000,6 @@ call walltime(iwalltime1)
 CALL CPU_TIME(time_begin)
 
 intval=0
-intvalold=0
 do iatm=1,ncenter
     write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
     gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
@@ -1011,7 +1011,11 @@ do iatm=1,ncenter
         rnowy=gridatm(i)%y
         rnowz=gridatm(i)%z
         if (ispecial==0) then
-            funcval(i,1)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
+            if (ifunc==101) then
+                funcval(i,1)=twoorbnorm(rnowx,rnowy,rnowz,inp1,inp2)
+            else
+                funcval(i,1)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
+            end if
         else if (ispecial==1) then
             funcval(i,1)=infoentro(2,rnowx,rnowy,rnowz) !Shannon entropy density, see JCP,126,191107 for example
             funcval(i,2)=Fisherinfo(1,rnowx,rnowy,rnowz) !Fisher information density, see JCP,126,191107 for example
@@ -1041,165 +1045,6 @@ else if (ispecial==1) then
     write(*,"(' Fisher information:',f23.8)") intval(2)
     write(*,"(' Steric energy:     ',f23.8)") intval(3)
 end if
-end subroutine
-
-
-
-!------ Calculate overlap and distance between two orbitals
-subroutine ovlpdistorb
-use function
-use util
-implicit real*8 (a-h,o-z)
-real*8 intval(2),funcval(radpot*sphpot,2) !1/2=overlap of norm/sqr
-real*8 cenpos(3,2),cenval(radpot*sphpot,3,2) !1st: point,  2st: x/y/z,  3st: iorb,jorb
-real*8 beckeweigrid(radpot*sphpot)
-type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
-character selectyn
-
-do while(.true.)
-    write(*,*)
-    write(*,*) "Input the index of the two orbitals, e.g. 32,35"
-    write(*,*) "To exit, input 0,0"
-    read(*,*) iorb,jorb
-    if (iorb==0.and.jorb==0) return
-
-    write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
-    call gen1cintgrid(gridatmorg,iradcut)
-
-    intval=0
-    cenpos=0
-    do iatm=1,ncenter
-        write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
-        gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-        gridatm%y=gridatmorg%y+a(iatm)%y
-        gridatm%z=gridatmorg%z+a(iatm)%z
-        !$OMP parallel do shared(funcval,cenval) private(i,vali,valj,vali2,valj2,rnowx,rnowy,rnowz) num_threads(nthreads)
-        do i=1+iradcut*sphpot,radpot*sphpot
-            rnowx=gridatm(i)%x
-            rnowy=gridatm(i)%y
-            rnowz=gridatm(i)%z
-            vali=fmo(rnowx,rnowy,rnowz,iorb)
-            vali2=vali**2 !rho of iorb
-            valj=fmo(rnowx,rnowy,rnowz,jorb)
-            valj2=valj**2 !rho of jorb
-            funcval(i,1)=abs(vali)*abs(valj)
-            funcval(i,2)=vali2*valj2
-            cenval(i,1,1)=vali2*rnowx
-            cenval(i,2,1)=vali2*rnowy
-            cenval(i,3,1)=vali2*rnowz
-            cenval(i,1,2)=valj2*rnowx
-            cenval(i,2,2)=valj2*rnowy
-            cenval(i,3,2)=valj2*rnowz
-        end do
-        !$OMP end parallel do
-        
-        call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
-        do i=1+iradcut*sphpot,radpot*sphpot
-            intval=intval+funcval(i,:)*gridatmorg(i)%value*beckeweigrid(i)
-            cenpos=cenpos+cenval(i,:,:)*gridatmorg(i)%value*beckeweigrid(i)
-        end do
-        
-    end do
-    write(*,*)
-    write(*,"(' X/Y/Z of centroid of electron density (Angstrom)')")
-    write(*,"(' Orbital',i6,':',3f12.6)") iorb,cenpos(:,1)*b2a
-    write(*,"(' Orbital',i6,':',3f12.6)") jorb,cenpos(:,2)*b2a
-    write(*,"(' Centroid distance between the two orbitals:',f12.6,' Angstrom')") dsqrt(sum((cenpos(:,1)-cenpos(:,2))**2))
-    write(*,"(' Overlap integral of norm of the two orbitals:',f16.10)") intval(1)
-    write(*,"(' Overlap integral of square of the two orbitals:',f16.10)") intval(2)
-    write(*,*)
-    write(*,"(a)") " Do you like to add the two centroids as two dummy atoms? (y/n)"
-    write(*,"(a)") " Note: Then you may enter main function 0 to visualize them along with corresponding orbital isosurfaces"
-    read(*,*) selectyn
-    if (selectyn=='y'.or.selectyn=='Y') then
-        deallocate(a)
-        allocate(a(ncenter+2))
-        a(1:ncenter)=a_org
-        a(ncenter+1)%name="Bq"
-        a(ncenter+1)%index=0
-        a(ncenter+1)%charge=0
-        a(ncenter+1)%x=cenpos(1,1)
-        a(ncenter+1)%y=cenpos(2,1)
-        a(ncenter+1)%z=cenpos(3,1)
-        a(ncenter+2)=a(ncenter+1)
-        a(ncenter+2)%x=cenpos(1,2)
-        a(ncenter+2)%y=cenpos(2,2)
-        a(ncenter+2)%z=cenpos(3,2)
-        ncenter=ncenter+2
-        exit
-    end if
-end do
-end subroutine
-
-
-
-!--- Integrate (D_wfn1 - D_wfn2)**2, where D_wfn1 means real space function for wavefunction file 1, D_wfn1 is that for wavefunction file 2
-!This function was specifically written for realizing Michael G. Medvedev's idea
-subroutine intdiffsqr
-use function
-use util
-implicit real*8 (a-h,o-z)
-real*8 intval,intvalold,funcval1(radpot*sphpot),funcval2(radpot*sphpot),beckeweigrid(radpot*sphpot)
-type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
-character*200 filename2
-
-write(*,*) "Select the function to be integrated over the whole space"
-call funclist
-read(*,*) ifunc
-write(*,*)
-write(*,*) "Input the filename of another wavefunction file, e.g. C:\yuri.wfn"
-read(*,"(a)") filename2
-
-write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
-call gen1cintgrid(gridatmorg,iradcut)
-
-call walltime(iwalltime1)
-CALL CPU_TIME(time_begin)
-
-intval=0
-do iatm=1,ncenter
-    write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
-    gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-    gridatm%y=gridatmorg%y+a(iatm)%y
-    gridatm%z=gridatmorg%z+a(iatm)%z
-    
-    !Calculate data for wfn1
-    !$OMP parallel do shared(funcval1) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
-    do i=1+iradcut*sphpot,radpot*sphpot
-        rnowx=gridatm(i)%x
-        rnowy=gridatm(i)%y
-        rnowz=gridatm(i)%z
-        funcval1(i)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
-    end do
-    !$OMP end parallel do
-    
-    !Calculate data for wfn2
-    call dealloall
-    call readinfile(filename2,1)
-    !$OMP parallel do shared(funcval2) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
-    do i=1+iradcut*sphpot,radpot*sphpot
-        rnowx=gridatm(i)%x
-        rnowy=gridatm(i)%y
-        rnowz=gridatm(i)%z
-        funcval2(i)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
-    end do
-    !$OMP end parallel do
-    !Recover to wfn1
-    call dealloall
-    call readinfile(firstfilename,1)
-    
-    call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
-    do i=1+iradcut*sphpot,radpot*sphpot
-        intval=intval+(funcval1(i)-funcval2(i))**2 *gridatmorg(i)%value*beckeweigrid(i)
-    end do
-    write(*,"(' Accumulated value:',f20.10,'  Current center:',f20.10)") intval,intval-intvalold
-    intvalold=intval
-end do
-
-CALL CPU_TIME(time_end)
-call walltime(iwalltime2)
-write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s',/)") time_end-time_begin,iwalltime2-iwalltime1
-write(*,"(' Final result:',f24.12)") intval
 end subroutine
 
 
