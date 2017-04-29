@@ -44,4 +44,5 @@ autom4te.cache/
 **/config.status
 **/config.log
 **/5unable
+**/*.orig
 *.swp
