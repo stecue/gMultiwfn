@@ -8,7 +8,7 @@ Multiwfn_LDFLAGS = -mkl -static-intel
 else
 Multiwfn_FCFLAGS = -O3 -ffree-line-length-0 -std=legacy -fopenmp
 Multiwfn_FFLAGS = -O3 -std=legacy -fopenmp
-Multiwfn_LDFLAGS = -llapack -lblas
+Multiwfn_LDADD= $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 endif
 CLEANFILES = *.mod
 #Add dependencies manually at last.
