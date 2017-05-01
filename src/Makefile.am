@@ -1,5 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
-bin_PROGRAMS = Multiwfn
+Multiwfndir = $(pkglibdir)
+Multiwfn_PROGRAMS = Multiwfn
 Multiwfn_SOURCES = Lebedev-Laikov.F DFTxclib.F define.f90 util.f90 function.f90 sub.f90 fileIO.f90 spectrum.f90 DOS.f90 wfn.f90 population.f90 compana.f90 bondana.f90 topology.f90 excittransana.f90 otherfunc.f90 otherfunc2.f90 surfana.f90 procgriddata.f90 AdNDP.f90 fuzzyana.f90 CDA.f90 basinana.f90 atmraddens.f90
 if IFORT
 Multiwfn_FCFLAGS = -O2 -qopenmp -threads -qopenmp-link=static
@@ -8,7 +9,7 @@ Multiwfn_LDFLAGS = -mkl -static-intel
 else
 Multiwfn_FCFLAGS = -O3 -ffree-line-length-0 -std=legacy -fopenmp
 Multiwfn_FFLAGS = -O3 -std=legacy -fopenmp
-Multiwfn_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+Multiwfn_LDADD= $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 endif
 CLEANFILES = *.mod
 #Add dependencies manually at last.
@@ -26,7 +27,6 @@ Multiwfn-function.$(OBJEXT): Multiwfn-util.o
 Multiwfn-fuzzyana.$(OBJEXT): Multiwfn-util.o Multiwfn-topology.o
 Multiwfn-otherfunc2.$(OBJEXT): Multiwfn-util.o Multiwfn-function.o
 Multiwfn-otherfunc.$(OBJEXT): Multiwfn-util.o Multiwfn-function.o
-Multiwfn-plot.$(OBJEXT): Multiwfn-util.o
 Multiwfn-population.$(OBJEXT): Multiwfn-function.o
 Multiwfn-procgriddata.$(OBJEXT): Multiwfn-define.o
 Multiwfn-spectrum.$(OBJEXT): Multiwfn-util.o
