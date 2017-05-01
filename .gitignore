@@ -30,6 +30,7 @@
 src/Multiwfn
 
 # Config files
+Multiwfn
 gMultiwfn-*/
 gMultiwfn-*gz
 build/
