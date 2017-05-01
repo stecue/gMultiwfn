@@ -31,6 +31,9 @@ src/Multiwfn
 
 # Config files
 Multiwfn
+Multiwfn.01
+Multiwfn.02
+settings.ini
 gMultiwfn-*/
 gMultiwfn-*gz
 build/
