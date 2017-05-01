@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# Multiwfn start-up script
-# Copyright (C) 2017 Xing (stecue@gmail.com)
+# Multiwfn start-up script, written by Xing (stecue@gmail.com)
+# Copyright (C) 2017 Multiwfn developers and gMultiwfn project
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
