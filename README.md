@@ -2,7 +2,7 @@
 gMultiwfn is an unofficial and (maybe) enhanced gfortran port of the popular wavefunction analyzing software *[Multiwfn](http://sobereva.com/multiwfn)* developed by Tian Lu. This gfortran port is maintained by Xing Yin (stecue@gmail.com). Email Xing or [open an issue on the github](https://github.com/stecue/gMultiwfn/issues) (__*strongly preferred!*__) on the github if you find a bug or need a new additional feature. You can also discuss related topics in the [official Chinese forum](http://bbs.keinsci.com/forum-112-1.html) for `Multiwfn`.
 
 # Binary Packages
-RPM packages for openSUSE, Fedora and CentOS are built on the OBS platform (thanks to openSUSE!). Go to the [gMultiwfn download page]( https://software.opensuse.org//download.html?project=home%3Astecue%3AgMultiwfn&package=gMultiwfn) and you will be able to select the OS and the download instruction will show.
+RPM packages for openSUSE, Fedora and CentOS are built on the OBS platform (thanks to openSUSE!). Go to this [gMultiwfn download page]( https://software.opensuse.org//download.html?project=home%3Astecue%3AgMultiwfn&package=gMultiwfn) and select the OS, the download instructions for your system will show.
 
 # Compile From Source
 `gMultiwfn` uses the standard [GNU Build System](https://en.wikipedia.org/wiki/GNU_Build_System). If you are familiar with `./configure` and `make && make install`, building gMultiwfn is very easy. The following steps sevre as a general guideline and you can make changes accordingly if you are an expert on GNU autotools or have special needs.
