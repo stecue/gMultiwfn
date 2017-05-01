@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 bin_SCRIPTS = Multiwfn
 CLEANFILES  = $(bin_SCRIPTS)
-EXTRA_DIST  = init 
+EXTRA_DIST  = Multiwfn.01 Multiwfn.02 settings.ini 
 
 do_subst = ( sed \
   -e 's,[@]pkglibdir[@],$(pkglibdir),g' \
