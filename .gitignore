@@ -30,11 +30,15 @@
 src/Multiwfn
 
 # Config files
+Multiwfn
+Multiwfn.01
+Multiwfn.02
+settings.ini
 gMultiwfn-*/
 gMultiwfn-*gz
+vdiff/
 build/
 build-aux/
-vdiff/
 configure
 install-sh
 missing
@@ -45,5 +49,4 @@ autom4te.cache/
 **/config.status
 **/config.log
 **/5unable
-**/*.orig
 *.swp
