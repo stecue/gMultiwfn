@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Multiwfn start-up script, written by Xing (stecue@gmail.com)
+# Copyright (C) 2017 Multiwfn developers and gMultiwfn project
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+MW_PROG="@pkglibdir@/Multiwfn"
+
+export Multiwfnpath="$HOME/.config/gMultiwfn"
+if [ ! -d "$Multiwfnpath" ]
+then
+    mkdir -p "$Multiwfnpath"
+fi
+fsettings="${Multiwfnpath}/settings.ini"
+if [ ! -s "${fsettings}" ]
+then
+    echo "No settings.ini found! Creating a new config file with default optons in"
+    echo "          ${Multiwfnpath}"
+    echo -n "..."
+cat > "${fsettings}" <<EOF
