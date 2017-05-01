@@ -5,16 +5,32 @@ then
     Multiwfn="/usr/lib/gMultiwfn/Multiwfn"
 else
     Multiwfn="/usr/lib64/gMultiwfn/Multiwfn"
+fi 
+if [ x$Multiwfnpath = 'x' ]
+then
+    export Multiwfnpath="$HOME/.config/gMultiwfn"
 fi
-export Multiwfnpath="$HOME/.config/gMultiwfn"
 if [ ! -d "$Multiwfnpath" ]
 then
     mkdir -p "$Multiwfnpath"
 fi
 fsettings="${Multiwfnpath}/settings.ini"
+if [ -s settings.ini ]
+then
+    if [ -s {Multiwfnpath}/settings.ini ]
+    then
+        echo "Your ${Multiwfnpath}/settings.ini will be overwritten by"
+        echo "./settings.ini. Backing up current ${Multiwfnpath}/settings.ini"
+        echo "to ${Multiwfnpath} as settings.ini~ ..."
+    else
+        echo "copying ./settings.ini to ${Multiwfnpath}/settings.ini ..."
+    fi
+    cp -b settings.ini ${Multiwfnpath}/settings.ini
+    echo "... Done!"
+fi
 if [ ! -s "${fsettings}" ]
 then
-    echo "No settings.ini found! Creating a new config file with default optons in"
+    echo "No default settings.ini found! Creating a new config file with default optons in"
     echo "          ${Multiwfnpath}"
     echo -n "..."
 cat > "${fsettings}" <<EOF
@@ -139,3 +155,9 @@ else
     echo ""
     $Multiwfn "$@"
 fi
+if [ ! -d ${HOME}/.config/gMultiwfn ]
+then
+    mkdir -p ${HOME}/.config/gMultiwfn
+fi
+#Sync the settings.ini after Multiwfn finished.
+cp -b ${fsettings} "${HOME}/.config/gMultiwfn/settings.ini" &> /dev/null
