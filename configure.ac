@@ -1,4 +1,4 @@
-AC_INIT([gMultiwfn], [3.3.9-2])
+AC_INIT([gMultiwfn], [3.3.9-3])
 : ${FFLAGS=""}
 : ${FCFLAGS=""}
 AC_PROG_F77([ifort gfortran])
@@ -11,7 +11,7 @@ AC_FC_SRCEXT(F)
 AC_FC_SRCEXT(f90)
 dnl AC_OPENMP
 AX_LAPACK([],AC_MSG_ERROR([lapack-devel not found!]))
-AM_INIT_AUTOMAKE(gMultiwfn, 3.3.9-2)
+AM_INIT_AUTOMAKE(gMultiwfn, 3.3.9-3)
 AC_CONFIG_FILES([
   Makefile
   src/Makefile
