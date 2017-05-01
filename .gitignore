@@ -36,6 +36,7 @@ Multiwfn.02
 settings.ini
 gMultiwfn-*/
 gMultiwfn-*gz
+sync/
 build/
 build-aux/
 configure
