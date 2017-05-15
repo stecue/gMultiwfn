@@ -37,6 +37,7 @@ settings.ini
 gMultiwfn-*/
 gMultiwfn-*gz
 vdiff/
+src.orig/
 build/
 build-aux/
 configure
