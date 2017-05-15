@@ -41,3 +41,6 @@ fi
 cd src
 patch -p1 < ../$dirdiff/src_update.diff
 cd ..
+# rename .zip #should be down manually
+#mv current_src.zip previous_src.zip
+#mv latest_src.zip current_src.zip
