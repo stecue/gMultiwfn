@@ -27,7 +27,7 @@ if (iselfunc1==0.and.iselfunc2==0) then !Directly load grid data
     call readcubetmp(c200tmp,inconsis)
     if (inconsis==1) then
         write(*,"(a)") " Error: The grid setting of this cube file is inconsistent with that of present grid data, exit..."
-        read (*,*)
+        pause
         return
     end if
 else

@@ -12,4 +12,5 @@ do
 #        ntab=`grep -P '^ *\t' "${srcF}"|wc -l`
 #    done
     sed -i -e 's/\t/    /g' "${srcF}"
+    sed -i -e 's/\(^ *\)read *(\*,\*)\( *\)$/\1pause\2/g' "${srcF}"
 done

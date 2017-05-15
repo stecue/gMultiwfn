@@ -2871,7 +2871,7 @@ write(*,*) "Citation of FCD method: J. Chem. Phys., 117, 5607 (2002)"
                 write(*,"(a)") " Warning: To use GMH method, you should set ""igenDbas"" in settings.ini to 1, &
                 and then restart Multiwfn, so that dipole moment integral matrix could be generated when loading file"
                 write(*,"(a)") " Alternatively, now you can press ENTER to reload input file and meantime generate dipole moment integral matrix"
-                read(*,*)
+                pause
                 call dealloall
                 write(*,*) "Reloading input file..."
                 igenDbas=1

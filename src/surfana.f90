@@ -856,7 +856,7 @@ else if (ireadextmapval==3) then !Will calculate mapped function by interpolatin
     write(*,*) "Loading data finished!"
     if (inconsis==1) then
         write(*,"(a)") " Warning: The grid setting in the cube file you inputted is not identical to the template cube file! The analysis result may be meaningless!"
-        read (*,*)
+        pause
     end if
     do icyc=1,nsurvtx
         if (elimvtx(icyc)==1) cycle

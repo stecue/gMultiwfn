@@ -894,7 +894,7 @@ write(*,"(' Summing up all charges:',f15.8)") sum(charge)
 if (allocated(b_EDF).and.sum(charge)<=-9.5) then
     write(*,"(a)") " Warning: One or more atomic charges may be evidently incorrect. If you have used pseudopotential, &
     set ""readEDF"" in settings.ini to 0, reboot Multiwfn and redo the calculation, then you will get correct result"
-    read (*,*)
+    pause
 end if
 totdip=dsqrt(xmoldip**2+ymoldip**2+zmoldip**2)
 write(*,"(' Total dipole from atomic charges:',f12.6,' a.u.')") totdip

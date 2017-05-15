@@ -88,7 +88,7 @@ else
     inquire(file=filename,exist=alive)
     if (alive.eqv..false.) then
         write(*,*) "File not found, exit program..."
-        read(*,*)
+        pause
         stop
     end if
 end if

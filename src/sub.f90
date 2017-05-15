@@ -1090,7 +1090,7 @@ do i=1,nfragatmnum
                 write(*,"(a,a,a)") " Error: Multiwfn can't invoke Gaussian to generate wavefunction file and sphericalize density for ",a(fragatm(i))%name,", since its &
                 index is larger than 36! You should provide corresponding atom .wfn files in ""atomwfn"" folder manually"
                 write(*,*) "Press ENTER to continue"
-                read (*,*)
+                pause
                 return
             end if
         end if
@@ -1168,13 +1168,13 @@ else if (noatmwfn==1) then !Some wfn needs to be genereated by Gaussian and sphe
             close(10)
             if (igaunormal==0) then
                 write(*,"(a)") "Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder. Press ENTER to continue"
-                read (*,*)
+                pause
             else if (igaunormal==1) then
                 write(*,*) "Finished successfully!"
             end if
         else
             write(*,"(a)") "Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder"
-            read (*,*)
+            pause
         end if
     
         !Load and sphericalize electron density for the just generated wfn, and then save

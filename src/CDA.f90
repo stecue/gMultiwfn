@@ -128,7 +128,7 @@ do ifrag=0,nCDAfrag !Here we first gather basic informations of complex(ifrag=0)
         if (nmoCDA(ifrag)/=nbasistmp) then
             write(*,"(a)") " Error: The number of basis functions is unequal to the number of orbitals! Some basis functions may be &
             eliminated during Gaussian calculation due to linear dependence problem. Please redo the Gaussian task with IOp(3/32=2) specified in route section"
-            read(*,*)
+            pause
             return
         end if
         call loclabel(10,"alpha electrons",ifound,1)
@@ -192,7 +192,7 @@ if (sum(natmCDA(1:))/=natmCDA(0)) then
     write(*,*)
     write(*,"(a)") " Error: The sum of the number of atoms in the fragments is not identical to complex!"
     write(*,*) "Press ENTER to exit"
-    read (*,*)
+    pause
     return
 end if
 !Check atom consistence between complex and fragments
@@ -201,7 +201,7 @@ do iatm=1,ncenter
         write(*,"(/,a)") " Error: The sequence of the atoms in the fragments is not consistent with complex, &
         the result will be meaningless! Please carefully check the input files."
         write(*,*) "Press ENTER to exit"
-        read (*,*)
+        pause
         return
     end if
 end do
@@ -210,7 +210,7 @@ if (nmoCDA(0)/=sum(nmoCDA(1:))) then
     write(*,"(/,a)") " Error: The sum of the number of basis functions in all fragments is inconsistent with complex! &
     Please carefully check the basis-set you used in each calculation."
     write(*,*) "Press ENTER to exit"
-    read (*,*)
+    pause
     return
 end if
 
@@ -359,7 +359,7 @@ end do
 if ( all(iRO==0) .and. (sum(naelecCDA(1:))/=naelecCDA(0) .or. sum(nbelecCDA(1:))/=nbelecCDA(0)) ) then
     write(*,"(/,a)") " Error: The sum of the number of alpha (beta) electrons of all fragments is unequal to the number of alpha (beta) electrons of the complex! &
     Please check if electron spin flipping option was incorrectly set"
-    read (*,*)
+    pause
     return
 end if
 
