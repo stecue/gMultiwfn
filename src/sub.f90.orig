@@ -13,12 +13,12 @@ do while(.true.)
     write(*,*) "-1 Return"
     write(*,*) "0 Save the modified wavefunction to a new .wfn file"
     write(*,*) "1 List all primitive function"
-    if (allocated(CObasa)) write(*,*) "2 List all basis function"
+    if (ifiletype==1.or.ifiletype==9) write(*,*) "2 List all basis function" !appear only when input file contains basis information
     write(*,*) "3 List all orbitals"
     write(*,*) "4 Print detail information of an orbital"
-    if (allocated(CObasa)) write(*,*) "5 Print coefficient matrix in basis function"
-    if (allocated(CObasa)) write(*,*) "6 Print density matrix in basis function"
-    if (allocated(CObasa)) write(*,*) "7 Print overlap matrix in basis function along with eigenvalues"
+    if (ifiletype==1.or.ifiletype==9) write(*,*) "5 Print coefficient matrix in basis function"
+    if (ifiletype==1.or.ifiletype==9) write(*,*) "6 Print density matrix in basis function"
+    if (ifiletype==1.or.ifiletype==9) write(*,*) "7 Print overlap matrix in basis function along with eigenvalues"
     write(*,*) "11 Swap some information of two primitive functions"
     write(*,*) "21 Set center of a primitive function"
     write(*,*) "22 Set type of a primitive function"
@@ -41,7 +41,7 @@ do while(.true.)
     
     write(*,*)
     if (iselect==-1) then
-        if (allocated(CObasa).and.imodwfn==1) then
+        if ((ifiletype==1.or.ifiletype==9).and.imodwfn==1) then
             write(*,*) "Updating density matrix..."
             call genP
             write(*,*) "Density matrix has been updated"
@@ -66,19 +66,20 @@ do while(.true.)
     else if (iselect==3) then
         do i=1,nmo
             if (MOtype(i)==0) orbtype="A+B"
-            if (MOtype(i)==1) orbtype="A"
-            if (MOtype(i)==2) orbtype="B"
+            if (MOtype(i)==1) orbtype="Alpha"
+            if (MOtype(i)==2) orbtype="Beta"
             if (allocated(MOsym)) then
-                write(*,"(' Orb:',i6,' Ene(au/eV):',f13.6,f13.4,' Occ:',f9.6,' Type: ',a,' (',a,')')") i,MOene(i),MOene(i)*au2eV,MOocc(i),trim(orbtype),trim(MOsym(i))
+                write(*,"(' Orbital:',i5,' Energy(a.u.):',f12.6,' Occ:',f10.6,' Type: ',a,' Sym: ',a)") i,MOene(i),MOocc(i),orbtype,MOsym(i)
             else
-                write(*,"(' Orb:',i6,' Ene(au/eV):',f13.6,f13.4,' Occ:',f9.6,' Type: ',a)") i,MOene(i),MOene(i)*au2eV,MOocc(i),trim(orbtype)
+                write(*,"(' Orbital:',i5,' Energy(a.u.):',f12.6,' Occ:',f10.6,' Type: ',a)") i,MOene(i),MOocc(i),orbtype
             end if
         end do
+    
     else if (iselect==4) then
         write(*,*) "Input the orbital index, e.g. 12"
         read(*,*) i
         if (i<1.or.i>nmo) then
-            write(*,"(' Invalid orbital index, should within range of',i5,' and ',i5)") 1,nmo
+            write(*,"('Invalid orbital index, should within range of',i5,' and ',i5)") 1,nmo
         else
             write(*,"(' Occupation number is ',f12.7,'     Energy is',f12.6,' Hartree')") MOocc(i),MOene(i)
             if (MOtype(i)==0) write(*,*) "This is a close-shell orbital"
@@ -173,7 +174,7 @@ do while(.true.)
         write(*,*) "Input the type"
         write(*,*) "Valid input: S/X/Y/Z/XX/YY/ZZ/XY/XZ/YZ/XXX/YYY/ZZZ/XXY/XXZ/YYZ/XYY/XZZ/YZZ/XYZ"
         write(*,*) "ZZZZ/YZZZ/YYZZ/YYYZ/YYYY/XZZZ/XYZZ/XYYZ/XYYY/XXZZ/XXYZ/XXYY/XXXZ/XXXY/XXXX"
-        write(*,"(a)") " ZZZZZ/YZZZZ/YYZZZ/YYYZZ/YYYYZ/YYYYY/XZZZZ/XYZZZ/XYYZZ/XYYYZ/XYYYY/XXZZZ/XXYZZ/XXYYZ/XXYYY/XXXZZ/XXXYZ/XXXYY/XXXXZ/XXXXY/XXXXX"
+        write(*,*) "ZZZZZ/YZZZZ/YYZZZ/YYYZZ/YYYYZ/YYYYY/XZZZZ/XYZZZ/XYYZZ/XYYYZ/XYYYY/XXZZZ/XXYZZ/XXYYZ/XXYYY/XXXZZ/XXXYZ/XXXYY/XXXXZ/XXXXY/XXXXX"
         read(*,*) seltmpc
         do j=1,size(GTFtype2name)
             if (seltmpc==GTFtype2name(j)) then
@@ -219,38 +220,36 @@ do while(.true.)
             write(*,*) "Input the range of atoms"
             read(*,*) iatm1,iatm2
             write(*,*) "Input the type of GTFs (one of S,X,Y,Z,XX,XY... ALL means all types)"
-            write(*,*) "You can also input S,P,D,F,G,H to select GTF according to angular moment"
             read(*,*) seltmpc
             write(*,*) "Input the range of orbitals"
             read(*,*) imo1,imo2
             write(*,*) "Input the expansion coefficient you want to set, e.g. 0.5"
             read(*,*) coval
+            do itypfil=1,size(type2ix)
+                if (seltmpc==GTFtype2name(itypfil)) exit
+            end do
             if (ind1==0) ind1=1
             if (ind2==0) ind2=nprims
             if (iatm1==0) iatm1=1
             if (iatm2==0) iatm2=ncenter
             if (imo1==0) imo1=1
             if (imo2==0) imo2=nmo
-            nsel=0
             do iGTF=ind1,ind2
-                if (b(iGTF)%center>=iatm1.and.b(iGTF)%center<=iatm2) then
-                    if (seltmpc=="ALL".or.seltmpc=="all".or.GTFtype2name(b(iGTF)%functype)==trim(seltmpc).or.type2ang(b(iGTF)%functype)==trim(seltmpc)) then
-                        CO(imo1:imo2,iGTF)=coval
-                        nsel=nsel+1
-                    end if
+                if (seltmpc=="ALL".or.seltmpc=="all") then
+                    if (b(iGTF)%center>=iatm1.and.b(iGTF)%center<=iatm2) CO(imo1:imo2,iGTF)=coval
+                else
+                    if (b(iGTF)%center>=iatm1.and.b(iGTF)%center<=iatm2.and.b(iGTF)%functype==itypfil) CO(imo1:imo2,iGTF)=coval
                 end if
             end do
-            write(*,"(' Coefficient of',i8,' GTFs are set')") nsel
         else if (isetmode==2) then
             write(*,*) "The following your inputs are conditions for filtering basis functions"
             write(*,*) "Rule of range input: 3,17 means from 3 to 17, 6,6 means only 6, 0,0 means all"
-            write(*,*) "You can also input S,P,D,F,G,H to select according to angular moment"
             write(*,*)
             write(*,*) "Input the range of index of basis functions"
             read(*,*) ind1,ind2
             write(*,*) "Input the range of atoms"
             read(*,*) iatm1,iatm2
-            write(*,"(a)") " Input the type of basis functions (one of S,X,Y,Z,XX... ALL means all types)"
+            write(*,"(a)") "Input the type of basis functions (one of S,X,Y,Z,XX,XY... ALL means all types)"
             read(*,*) seltmpc
             write(*,*) "Input the range of orbitals"
             read(*,*) imo1,imo2
@@ -261,23 +260,31 @@ do while(.true.)
             end if
             write(*,*) "Input the expansion coefficient you want to set, e.g. 0.5"
             read(*,*) coval
+            do itypfil=1,size(type2ix)
+                if (seltmpc==GTFtype2name(itypfil)) exit
+            end do
             if (ind1==0) ind1=1
             if (ind2==0) ind2=nbasis
             if (iatm1==0) iatm1=1
             if (iatm2==0) iatm2=ncenter
             if (imo1==0) imo1=1
             if (imo2==0) imo2=nbasis
-            nsel=0
             do ibas=ind1,ind2
-                if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2) then
-                    if (seltmpc=="ALL".or.seltmpc=="all".or.GTFtype2name(bastype(ibas))==trim(seltmpc).or.type2ang(bastype(ibas))==trim(seltmpc)) then
-                        if (ispinsel==0.or.ispinsel==1) CObasa(ibas,imo1:imo2)=coval
-                        if (ispinsel==0.or.ispinsel==2) CObasb(ibas,imo1:imo2)=coval
-                        nsel=nsel+1
+                if (ispinsel==0.or.ispinsel==1) then
+                    if (seltmpc=="ALL".or.seltmpc=="all") then
+                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2) CObasa(ibas,imo1:imo2)=coval
+                    else
+                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2.and.bastype(ibas)==itypfil) CObasa(ibas,imo1:imo2)=coval
+                    end if
+                end if
+                if (ispinsel==0.or.ispinsel==2) then
+                    if (seltmpc=="ALL".or.seltmpc=="all") then
+                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2) CObasb(ibas,imo1:imo2)=coval
+                    else
+                        if (bascen(ibas)>=iatm1.and.bascen(ibas)<=iatm2.and.bastype(ibas)==itypfil) CObasb(ibas,imo1:imo2)=coval
                     end if
                 end if
             end do
-            write(*,"(' Coefficient of',i8,' basis functions are set')") nsel
             imodwfn=1
         end if
         write(*,*) "Done!"
@@ -2056,17 +2063,9 @@ else
     molxlen=(maxval(a%x)-minval(a%x))+2*aug3D
     molylen=(maxval(a%y)-minval(a%y))+2*aug3D
     molzlen=(maxval(a%z)-minval(a%z))+2*aug3D
-    if (molxlen==0.0D0.or.molylen==0.0D0.or.molzlen==0.0D0) then !Avoid catastrophe when aug3D=0 and system is plane
-        write(*,"(a,/)") " WARNING: The box size in one of Caresian axis is zero, &
-        the calculation cannot be proceeded. Therefore, the size of corresponding direction is automatically set to 3 Bohr"
-        if (molxlen==0D0) then
-            molxlen=3D0
-        else if (molylen==0D0) then
-            molylen=3D0
-        else if (molzlen==0D0) then
-            molzlen=3D0
-        end if
-    end if
+    if (molxlen==0.0D0) molxlen=2.0D0 !Avoid catastrophe when aug3D=0 and system is plane
+    if (molylen==0.0D0) molylen=2.0D0
+    if (molzlen==0.0D0) molzlen=2.0D0
     if (igridsel==1.or.igridsel==2.or.igridsel==3) then
         if (igridsel==1) dx=(molxlen*molylen*molzlen/dfloat(ntotlow))**(1.0D0/3.0D0)
         if (igridsel==2) dx=(molxlen*molylen*molzlen/dfloat(ntotmed))**(1.0D0/3.0D0)
@@ -2772,8 +2771,6 @@ call loclabel(20,'igenDbas=')
 read(20,*) c80tmp,igenDbas
 call loclabel(20,'igenMagbas=')
 read(20,*) c80tmp,igenMagbas
-call loclabel(20,'iloadasCart=')
-read(20,*) c80tmp,iloadasCart
 !Below are the parameters involved in plotting
 call loclabel(20,'symbolsize=')
 read(20,*) c80tmp,symbolsize

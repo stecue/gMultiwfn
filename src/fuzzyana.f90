@@ -92,8 +92,8 @@ if (iwork==0) then
     write(*,*) "6 Calculate FLU (Aromatic fluctuation index)"
     write(*,*) "7 Calculate FLU-pi"
     write(*,*) "8 Perform integration in fuzzy overlap region for a real space functions"
-    if (ifiletype==1.or.ifiletype==9) write(*,*) "9 Calculate condensed linear response kernel (CLRK)" !Need virtual orbital informations
-    if (ifiletype==1.or.ifiletype==9) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
+    if (allocated(CObasa)) write(*,*) "9 Calculate condensed linear response kernel (CLRK)" !Need virtual orbital informations
+    if (allocated(CObasa)) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
     write(*,*) "11 Calculate multi-center delocalization index" !Only can be used for HF/DFT close-shell wavefunction
 !     write(*,*) "101 Integrating real space function in Hirshfeld atom with molecular grid"
     if (ispecial==2) then

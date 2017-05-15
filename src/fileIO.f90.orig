@@ -26,8 +26,6 @@ else if (thisfilename(inamelen-2:inamelen)=="grd") then
     call readgrd(thisfilename,infomode,0)
 else if (thisfilename(inamelen-2:inamelen)=="cub".or.thisfilename(inamelen-3:inamelen)=="cube") then
     call readcube(thisfilename,infomode,0)
-else if (thisfilename(inamelen-2:inamelen)=="gms") then
-    call readgms(thisfilename,infomode)
 else if (len_trim(thisfilename)>=6) then
     if  (index(thisfilename,".molden")/=0) then
         call readmolden(thisfilename,infomode)
@@ -35,8 +33,8 @@ else if (len_trim(thisfilename)>=6) then
 else
     ifiletype=0
 end if
-!Load EDF information from external atomic .wfx files for .fch/.wfn/.wfx/.molden/.gms
-if (ireadatmEDF==1.and.(.not.allocated(b_EDF)).and.(ifiletype==1.or.ifiletype==2.or.ifiletype==3.or.ifiletype==9.or.ifiletype==10)) then
+!Load EDF information from external atomic .wfx files for .fch/.wfn/.wfx/.molden
+if (ireadatmEDF==1.and.(.not.allocated(b_EDF)).and.(ifiletype==1.or.ifiletype==2.or.ifiletype==3.or.ifiletype==9)) then
     call readatmEDF
 end if
 end subroutine
@@ -209,21 +207,22 @@ end subroutine
 !!------------------------- Read gaussian formatted check file
 !I am trying to make this routine compatible with Q-Chem .fch file
 !Some temporary arrays, including shelltype, shell2atom, shellcon, primexp, concoeff will be store to corresponding global arrays after some revisions
-!infomode=0 means output info, =1 silent
-subroutine readfch(name,infomode)
+subroutine readfch(name,infomode) !infomode=0 means output info, =1 silent
 use defvar
 use util
 implicit real*8 (a-h,o-z)
 character(len=*) name
 character c80*80,fchtitle*79 !c80 for temporary store text
+real*8 temp
+integer :: i,j,k,l,ifound
 integer,allocatable :: shelltype(:),shell2atom(:),shellcon(:) !Degree of shell contraction
 real*8,allocatable :: primexp(:),concoeff(:),SPconcoeff(:),amocoeff(:,:),bmocoeff(:,:),tmpmat(:,:),tmparr(:)
 integer :: s2f(-5:5,21)=0 !Give shell type & orbital index to get functype
 real*8 conv5d6d(6,5),conv7f10f(10,7),conv9g15g(15,9),conv11h21h(21,11)
 real*8 conv5d6dtr(5,6),conv7f10ftr(7,10),conv9g15gtr(9,15),conv11h21htr(11,21)
 !For backing up spherical basis functions
-integer,allocatable :: shelltype5D(:),MOtype5D(:)
-real*8,allocatable :: CObasa5D(:,:),CObasb5D(:,:),Sbas5D(:,:),Dbas5D(:,:,:),Magbas5D(:,:,:),MOocc5D(:),MOene5D(:),CO5D(:,:)
+integer,allocatable :: shelltype5D(:)
+real*8,allocatable :: CObasa5D(:,:),CObasb5D(:,:),Sbas5D(:,:),Dbas5D(:,:,:),Magbas5D(:,:,:)
 real*8,external :: normgau
 ifiletype=1
 imodwfn=0
@@ -305,9 +304,12 @@ read(10,"(6i12)") (shelltype(i),i=1,nshell)
 
 !Note that Multiwfn allows cartesian and spherical harmonic basis functions mixed together. If any basis function is spherical harmonic type, then isphergau=1.
 !Only the spherical harmonic ones will be treated specially
-write(*,"(' The highest angular moment basis functions is ',a)") shtype2name(maxval(abs(shelltype))) 
 isphergau=0
-if (any(shelltype<=-2)) isphergau=1
+if (any(shelltype<=-2)) isphergau=1 
+! if (any(shelltype==-2).and.infomode==0) write(*,*) "Note: Spherical d type Gauss functions are detected"
+! if (any(shelltype==-3).and.infomode==0) write(*,*) "Note: Spherical f type Gauss functions are detected"
+! if (any(shelltype==-4).and.infomode==0) write(*,*) "Note: Spherical g type Gauss functions are detected"
+! if (any(shelltype==-5).and.infomode==0) write(*,*) "Note: Spherical h type Gauss functions are detected"
 if (any(abs(shelltype)>5).and.infomode==0) then
     write(*,"(a)") " Error: GTFs with angular moment higher h are found, while Multiwfn currently only support up to h. Press Enter to exit"
     pause
@@ -402,9 +404,7 @@ if (isaveNBOene==1) MOocc=0.0D0 !For saveNBO, the automatically determined occup
 where (MOocc==1000) MOocc=0.0D0 !When saveNBO is used, the latest several occupation/energy of NBO are 1000, we modify them to zero
 where (MOene==1000) MOene=0.0D0
 
-close(10)
-
-!!!!!! Reading have finished, now generate basis information
+!!!!!! Most reading have finished, now generate basis information
 
 !Backup spherical basis information (some of them may be Cartesian ones) with 5D suffix (of course, may be actually 7f, 9g, 11h...),
 !convert them to cartesian type temporarily, at final stage recover them back, namely get Sbas, Ptot... in spherical basis
@@ -415,14 +415,14 @@ if (isphergau==1) then
     nbasis5D=nbasis
     nbasis=0
     do i=1,nshell
-        nbasis=nbasis+shtype2nbas(shelltype(i))
+        nbasis=nbasis+type2norb(shelltype(i))
     end do
 end if
 
 !Allocate space for arrays
 nprims=0
 do i=1,nshell
-    nprims=nprims+shtype2nbas(shelltype(i))*shellcon(i)
+    nprims=nprims+type2norb(shelltype(i))*shellcon(i)
 end do
 allocate(b(nprims),co(nmo,nprims),basshell(nbasis),bascen(nbasis),bastype(nbasis),primstart(nbasis),&
 primend(nbasis),primconnorm(nprims),basstart(ncenter),basend(ncenter))
@@ -449,8 +449,8 @@ else if (isphergau==1) then
     do ish=1,nshell
         ishtyp5D=shelltype5D(ish)
         ishtyp6D=shelltype(ish)
-        numshorb5D=shtype2nbas(ishtyp5D)
-        numshorb6D=shtype2nbas(ishtyp6D)
+        numshorb5D=type2norb(ishtyp5D)
+        numshorb6D=type2norb(ishtyp6D)
         if (ishtyp5D>=-1) then !S or P or SP or other cartesian shells
             CObasa(ipos6D:ipos6D+numshorb6D-1,1:nbasis5D)=CObasa5D(ipos5D:ipos5D+numshorb5D-1,:)
             if (wfntype==1.or.wfntype==4) CObasb(ipos6D:ipos6D+numshorb6D-1,1:nbasis5D)=CObasb5D(ipos5D:ipos5D+numshorb5D-1,:)            
@@ -484,10 +484,10 @@ iexp=1
 ibasis=1 !Current position of basis
 !Note: Below commented with !!! means the line associated to setting basis information
 do i=1,nshell !cycle each shell
-    b(k:k+shellcon(i)*shtype2nbas(shelltype(i))-1)%center=shell2atom(i)
-    basshell(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=i !!! Set basis attributed to which shell
-    bascen(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=shell2atom(i) !!! Set basis attributed to which center
-    do j=1,shtype2nbas(shelltype(i)) !cycle each basis(orbital) in each shell
+    b(k:k+shellcon(i)*type2norb(shelltype(i))-1)%center=shell2atom(i)
+    basshell(ibasis:ibasis+type2norb(shelltype(i))-1)=i !!! Set basis attributed to which shell
+    bascen(ibasis:ibasis+type2norb(shelltype(i))-1)=shell2atom(i) !!! Set basis attributed to which center
+    do j=1,type2norb(shelltype(i)) !cycle each basis(orbital) in each shell
         b(k:k+shellcon(i)-1)%functype=s2f(shelltype(i),j)
         bastype(ibasis)=s2f(shelltype(i),j) !!! set basis type
         primstart(ibasis)=k !!! From where the GTFs attributed to ibasis'th basis
@@ -500,9 +500,9 @@ do i=1,nshell !cycle each shell
             if (shelltype(i)==-1.and.j/=1) temp=SPconcoeff(iexp+l-1)
             primconnorm(k)=temp*tnormgau !Combines contraction and normalization coefficient
             do imo=1,nmo
-                if (wfntype==0.or.wfntype==2.or.wfntype==3) then !R or RO
+                if (wfntype==0.or.wfntype==2.or.wfntype==3) then
                     co(imo,k)=cobasa(ibasis,imo)*temp*tnormgau
-                else if (wfntype==1.or.wfntype==4) then !U
+                else if (wfntype==1.or.wfntype==4) then
                     if (isphergau==1) then
                         if (imo<=nbasis5D) co(imo,k)=cobasa(ibasis,imo)*temp*tnormgau
                         if (imo>nbasis5D) co(imo,k)=cobasb(ibasis,imo-nbasis5D)*temp*tnormgau
@@ -535,146 +535,110 @@ if (igenMagbas==1) then
 end if
 
 if (isphergau==1) then
-    if (iloadasCart==1) then !For special purpose, keep Cartesian basis functions, e.g. convert spherical .fch/.molden to .47 file
-        !Currently nbasis and dimension of all matrix (except for CO) correspond to full Cartesian case, but nmo &
-        !and related arrays as well as CO still correspond to spherical harmonic case and thus need to be "expanded", the MO energies are artifically set to 100
-        allocate(MOocc5D(nmo),MOene5D(nmo),MOtype5D(nmo),CO5D(nmo,nprims))
-        MOocc5D=MOocc
-        MOene5D=MOene
-        MOtype5D=MOtype
-        CO5D=CO
-        deallocate(MOocc,MOene,MOtype,CO)
-        if (wfntype==0.or.wfntype==2.or.wfntype==3) nmo=nbasis !R, RO
-        if (wfntype==1.or.wfntype==4) nmo=2*nbasis !U
-        allocate(MOocc(nmo),MOene(nmo),MOtype(nmo),CO(nmo,nprims))
-        MOocc=0
-        MOene=100
-        CO=0
-        if (wfntype==0.or.wfntype==2.or.wfntype==3) then !R, RO
-            MOtype=0
-            MOocc(1:nbasis5D)=MOocc5D
-            MOene(1:nbasis5D)=MOene5D
-            MOtype(1:nbasis5D)=MOtype5D
-            CO(1:nbasis5D,:)=CO5D
-        else !U
-            MOtype(:nbasis)=1
-            MOtype(nbasis+1:)=2
-            MOocc(:nbasis5D)=MOocc5D(:nbasis5D)
-            MOocc(nbasis+1:nbasis+nbasis5D)=MOocc5D(nbasis5D+1:)
-            MOene(:nbasis5D)=MOene5D(:nbasis5D)
-            MOene(nbasis+1:nbasis+nbasis5D)=MOene5D(nbasis5D+1:)
-            MOtype(:nbasis5D)=MOtype5D(:nbasis5D)
-            MOtype(nbasis+1:nbasis+nbasis5D)=MOtype5D(nbasis5D+1:)
-            CO(:nbasis5D,:)=CO5D(:nbasis5D,:)
-            CO(nbasis+1:nbasis+nbasis5D,:)=CO5D(nbasis5D+1:,:)
-        end if
+    if (infomode==0) write(*,*) "Converting basis function information from Cartesian to spherical type..."
+    !Map cartesian overlap matrix to spherical
+    allocate(sbas5D(nbasis5D,nbasis5D))
+    if (igenDbas==1) allocate(Dbas5D(3,nbasis5D,nbasis5D))
+    if (igenMagbas==1) allocate(Magbas5D(3,nbasis5D,nbasis5D))
+    ipos5D=1
+    ipos6D=1
+    do ish=1,nshell
+        ishtyp5D=shelltype5D(ish)
+        ishtyp6D=shelltype(ish)
+        numshorb5D=type2norb(ishtyp5D)
+        numshorb6D=type2norb(ishtyp6D)
+        !Now contract columns of Sbas
+        if (ishtyp5D>=-1) sbas(:,ipos5D:ipos5D+numshorb5D-1)=sbas(:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
+        if (ishtyp5D==-2) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
+        if (ishtyp5D==-3) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
+        if (ishtyp5D==-4) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
+        if (ishtyp5D==-5) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
+        !Now contract rows of Sbas
+        if (ishtyp5D>=-1) sbas(ipos5D:ipos5D+numshorb5D-1,:)=sbas(ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
+        if (ishtyp5D==-2) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
+        if (ishtyp5D==-3) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
+        if (ishtyp5D==-4) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
+        if (ishtyp5D==-5) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
         
-    else !Commonly case, transform to spherical harmonic functions
-        if (infomode==0) write(*,*) "Converting basis function information from Cartesian to spherical type..."
-        !Map cartesian overlap matrix to spherical
-        allocate(sbas5D(nbasis5D,nbasis5D))
-        if (igenDbas==1) allocate(Dbas5D(3,nbasis5D,nbasis5D))
-        if (igenMagbas==1) allocate(Magbas5D(3,nbasis5D,nbasis5D))
-        ipos5D=1
-        ipos6D=1
-        do ish=1,nshell
-            ishtyp5D=shelltype5D(ish)
-            ishtyp6D=shelltype(ish)
-            numshorb5D=shtype2nbas(ishtyp5D)
-            numshorb6D=shtype2nbas(ishtyp6D)
-            !Now contract columns of Sbas
-            if (ishtyp5D>=-1) sbas(:,ipos5D:ipos5D+numshorb5D-1)=sbas(:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
-            if (ishtyp5D==-2) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
-            if (ishtyp5D==-3) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
-            if (ishtyp5D==-4) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
-            if (ishtyp5D==-5) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
-            !Now contract rows of Sbas
-            if (ishtyp5D>=-1) sbas(ipos5D:ipos5D+numshorb5D-1,:)=sbas(ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
-            if (ishtyp5D==-2) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            if (ishtyp5D==-3) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            if (ishtyp5D==-4) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            if (ishtyp5D==-5) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            
-            if (igenDbas==1) then
-                do idir=1,3
-                    !Now contract columns of Dbas
-                    if (ishtyp5D>=-1) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
-                    if (ishtyp5D==-3) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
-                    if (ishtyp5D==-4) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
-                    if (ishtyp5D==-5) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
-                    !Now contract rows of Dbas
-                    if (ishtyp5D>=-1) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-3) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-4) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-5) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                end do
-            end if
-            if (igenMagbas==1) then
-                do idir=1,3
-                    !Now contract columns of Magbas
-                    if (ishtyp5D>=-1) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
-                    if (ishtyp5D==-3) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
-                    if (ishtyp5D==-4) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
-                    if (ishtyp5D==-5) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
-                    !Now contract rows of Magbas
-                    if (ishtyp5D>=-1) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-3) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-4) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-5) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                end do
-            end if
-            ipos5D=ipos5D+numshorb5D
-            ipos6D=ipos6D+numshorb6D
-        end do
-        sbas5D=sbas(1:nbasis5D,1:nbasis5D)
-        if (igenDbas==1) Dbas5D=Dbas(:,1:nbasis5D,1:nbasis5D)
-        if (igenMagbas==1) Magbas5D=Magbas(:,1:nbasis5D,1:nbasis5D)
-    !     where (abs(sbas5D)<1D-9) sbas5D=0D0 !Ignore too small value to avoid confusing insight
-    !Test if the sbas generated by Multiwfn is consistent with Gaussian IOP(3/33=1)
-    !     open(15,file="x\cof3_5d.out",status="old")
-    !     allocate(tmpmat(nbasis5D,nbasis5D))
-    !     call loclabel(15,"*** Overlap ***")
-    !     call readmatgau(15,tmpmat,1)
-    !     close(15)
-    !     write(*,*) maxval(abs(tmpmat-sbas5D))
-
-        !Recover spherical Gauss basis function information
-        nbasis=nbasis5D
-        shelltype=shelltype5D
-        ibasis=1
-        do i=1,nshell
-            basshell(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=i
-            bascen(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=shell2atom(i)
-            do j=1,shtype2nbas(shelltype(i))
-                bastype(ibasis)=s2f(shelltype(i),j)
-                ibasis=ibasis+1
-            end do
-        end do
-        deallocate(CObasa)
-        allocate(CObasa(nbasis,nbasis))
-        CObasa=CObasa5D
-        if (wfntype==1.or.wfntype==4) then
-            deallocate(CObasb)
-            allocate(CObasb(nbasis,nbasis))
-            CObasb=CObasb5D
-        end if
-        deallocate(sbas)
-        allocate(sbas(nbasis,nbasis))
-        sbas=sbas5D
         if (igenDbas==1) then
-            deallocate(Dbas)
-            allocate(Dbas(3,nbasis,nbasis))
-            Dbas=Dbas5D
+            do idir=1,3
+                !Now contract columns of Dbas
+                if (ishtyp5D>=-1) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
+                if (ishtyp5D==-3) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
+                if (ishtyp5D==-4) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
+                if (ishtyp5D==-5) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
+                !Now contract rows of Dbas
+                if (ishtyp5D>=-1) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-3) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-4) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-5) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+            end do
         end if
         if (igenMagbas==1) then
-            deallocate(Magbas)
-            allocate(Magbas(3,nbasis,nbasis))
-            Magbas=Magbas5D
+            do idir=1,3
+                !Now contract columns of Magbas
+                if (ishtyp5D>=-1) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
+                if (ishtyp5D==-3) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
+                if (ishtyp5D==-4) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
+                if (ishtyp5D==-5) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
+                !Now contract rows of Magbas
+                if (ishtyp5D>=-1) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-3) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-4) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-5) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+            end do
         end if
+        ipos5D=ipos5D+numshorb5D
+        ipos6D=ipos6D+numshorb6D
+    end do
+    sbas5D=sbas(1:nbasis5D,1:nbasis5D)
+    if (igenDbas==1) Dbas5D=Dbas(:,1:nbasis5D,1:nbasis5D)
+    if (igenMagbas==1) Magbas5D=Magbas(:,1:nbasis5D,1:nbasis5D)
+!     where (abs(sbas5D)<1D-9) sbas5D=0D0 !Ignore too small value to avoid confusing insight
+!Test if the sbas generated by Multiwfn is consistent with Gaussian IOP(3/33=1)
+!     open(15,file="x\cof3_5d.out",status="old")
+!     allocate(tmpmat(nbasis5D,nbasis5D))
+!     call loclabel(15,"*** Overlap ***")
+!     call readmatgau(15,tmpmat,1)
+!     close(15)
+!     write(*,*) maxval(abs(tmpmat-sbas5D))
+
+    !Recover spherical Gauss basis function information
+    nbasis=nbasis5D
+    shelltype=shelltype5D
+    ibasis=1
+    do i=1,nshell
+        basshell(ibasis:ibasis+type2norb(shelltype(i))-1)=i
+        bascen(ibasis:ibasis+type2norb(shelltype(i))-1)=shell2atom(i)
+        do j=1,type2norb(shelltype(i))
+            bastype(ibasis)=s2f(shelltype(i),j)
+            ibasis=ibasis+1
+        end do
+    end do
+    deallocate(CObasa)
+    allocate(CObasa(nbasis,nbasis))
+    CObasa=CObasa5D
+    if (wfntype==1.or.wfntype==4) then
+        deallocate(CObasb)
+        allocate(CObasb(nbasis,nbasis))
+        CObasb=CObasb5D
+    end if
+    deallocate(sbas)
+    allocate(sbas(nbasis,nbasis))
+    sbas=sbas5D
+    if (igenDbas==1) then
+        deallocate(Dbas)
+        allocate(Dbas(3,nbasis,nbasis))
+        Dbas=Dbas5D
+    end if
+    if (igenMagbas==1) then
+        deallocate(Magbas)
+        allocate(Magbas(3,nbasis,nbasis))
+        Magbas=Magbas5D
     end if
 end if
 
@@ -688,7 +652,7 @@ do i=1,nshell !Count how many basis shells and primitive shells after split SP a
         nprimshell=nprimshell+shellcon(i)
         basshell(ibasis+1:nbasis)=basshell(ibasis+1:nbasis)+1 !The shell index of the basis function after current one should be augmented by 1, since current shell is splitted
     end if
-    ibasis=ibasis+shtype2nbas(shelltype(i))
+    ibasis=ibasis+type2norb(shelltype(i))
 end do
 allocate(shtype(nshell),shcen(nshell),shcon(nshell),primshexp(nprimshell),primshcoeff(nprimshell)) !Global array
 jsh=1 !New basis shell index
@@ -759,12 +723,10 @@ if (igenP==1) then
             do i=1,nbasis
                 ptot(i,i)=ptot(i,i)/2D0
             end do
-            if (infomode==0) write(*,"(a)") " Note: Post-HF density matrix is loaded from .fch file, all &
-            of the following analyses based on basis information will be for post-HF wavefunction"
+            if (infomode==0) write(*,"(a)") " Note: Post-HF density matrix is loaded from .fch file, all of the following analyses based on basis information will be for post-HF wavefunction"
         else if (ifoundSCFDM==0.or.ifoundpostDM==0) then
             if (isaveNO==0) then
-                if (infomode==0) write(*,"(a)") " Warning: Post-HF density matrix was not found and natural &
-                orbitals are seemingly not stored, so all of the following analyses based on basis information will be for HF wavefunction"
+                if (infomode==0) write(*,"(a)") " Warning: Post-HF density matrix was not found and natural orbitals are seemingly not stored, so all of the following analyses based on basis information will be for HF wavefunction"
                 if (infomode==0) write(*,*) "Generating HF density matrix..."
             else if (isaveNO==1) then
                 if (infomode==0) write(*,*) "Generating post-HF density matrix based on natural orbitals..."
@@ -797,12 +759,10 @@ if (igenP==1) then
                 Palpha(i,i)=Palpha(i,i)/2D0
                 Pbeta(i,i)=Pbeta(i,i)/2D0
             end do
-            if (infomode==0) write(*,"(a)") " Note: Post-HF density matrix is loaded from .fch file, all &
-            of the following analyses based on basis information will be for post-HF wavefunction"
+            if (infomode==0) write(*,"(a)") " Note: Post-HF density matrix is loaded from .fch file, all of the following analyses based on basis information will be for post-HF wavefunction"
         else if (ifoundSCFDM==0.or.ifoundpostDM==0) then
             if (isaveNO==0) then
-                if (infomode==0) write(*,"(a)") " Warning: Post-HF density matrix was not found and natural &
-                orbitals are seemingly not stored, so all of the following analyses based on basis information will be for HF wavefunction"
+                if (infomode==0) write(*,"(a)") " Warning: Post-HF density matrix was not found and natural orbitals are seemingly not stored, so all of the following analyses based on basis information will be for HF wavefunction"
                 if (infomode==0) write(*,*) "Generating HF density matrix..."
             else if (isaveNO==1) then
                 if (infomode==0) write(*,*) "Generating post-HF density matrix based on natural orbitals..."
@@ -844,6 +804,18 @@ if (wfntype==0) then
     do idxHOMO=nmo,1,-1
         if (nint(MOocc(idxHOMO))==2D0) exit
     end do
+end if
+
+!Clean
+close(10)
+deallocate(shelltype,shellcon,shell2atom,primexp,concoeff,amocoeff)
+if (allocated(SPconcoeff)) deallocate(SPconcoeff)
+if (allocated(bmocoeff)) deallocate(bmocoeff)
+if (allocated(tmpmat)) deallocate(tmpmat)
+if (allocated(tmparr)) deallocate(tmparr)
+if (isphergau==1) then
+    deallocate(shelltype5D,cobasa5D)
+    if (allocated(cobasb5D)) deallocate(cobasb5D)
 end if
 end subroutine
 
@@ -940,14 +912,14 @@ if (isphergau==1) then
     nbasis5D=nbasis
     nbasis=0
     do i=1,nshell
-        nbasis=nbasis+shtype2nbas(shelltype(i))
+        nbasis=nbasis+type2norb(shelltype(i))
     end do
 end if
 
 !Allocate space for arrays
 nprims=0
 do i=1,nshell
-    nprims=nprims+shtype2nbas(shelltype(i))*shellcon(i)
+    nprims=nprims+type2norb(shelltype(i))*shellcon(i)
 end do
 if (.not.allocated(b)) allocate(b(nprims))
 if (allocated(CO)) deallocate(CO)
@@ -969,8 +941,8 @@ else if (isphergau==1) then
     do ish=1,nshell
         ishtyp5D=shelltype5D(ish)
         ishtyp6D=shelltype(ish)
-        numshorb5D=shtype2nbas(ishtyp5D)
-        numshorb6D=shtype2nbas(ishtyp6D)
+        numshorb5D=type2norb(ishtyp5D)
+        numshorb6D=type2norb(ishtyp6D)
         if (ishtyp5D==0.or.ishtyp5D==1.or.ishtyp5D==-1) then !S or P or SP
             CObasa(ipos6D:ipos6D+numshorb6D-1,1:nmo)=CObasa5D(ipos5D:ipos5D+numshorb5D-1,1:nmo)
         else if (ishtyp5D==-2) then
@@ -997,8 +969,8 @@ iexp=1
 ibasis=1 !current position of basis
 !Note: Below commented with !!! means the line associated to setting basis information
 do i=1,nshell !cycle each shell
-    b(k:k+shellcon(i)*shtype2nbas(shelltype(i))-1)%center=shell2atom(i)
-    do j=1,shtype2nbas(shelltype(i)) !cycle each basis(orbital) in each shell
+    b(k:k+shellcon(i)*type2norb(shelltype(i))-1)%center=shell2atom(i)
+    do j=1,type2norb(shelltype(i)) !cycle each basis(orbital) in each shell
         b(k:k+shellcon(i)-1)%functype=s2f(shelltype(i),j)
         do l=1,shellcon(i) !cycle each GTF in each basis in each shell
             b(k)%exp=primexp(iexp+l-1)
@@ -1187,8 +1159,7 @@ end subroutine
 
 
 !!-----------------------------------------------------------------
-!! Read .31 and one of .32 to .40 file generated by NBO program
-!! After loading, only GTF information is yielded, while basis functions are discarded
+!!------------------------- Read .31 and one of .32 to .40 file generated by NBO program
 subroutine read31(name,infomode) !mode=0 means output wfn property,=1 not
 use defvar
 use util
@@ -1196,7 +1167,7 @@ implicit real*8 (a-h,o-z)
 character(len=*) name
 character :: name2*200=" ",chartemp*80,tmpc2*2
 integer infomode
-integer bastype2func(500) !Convert basis type in NBO (NBO5.0 Program Manual P103) to function type in .wfn
+integer bastype2func(500) !Convert basis type in NBO(NBO5.0 Program Manual P103) to function type in .wfn
 integer,allocatable :: shellcon(:),shell2atom(:),shellnumbas(:),shell2prmshl(:),bastype31(:),shellnumbas5D(:)
 real*8,allocatable :: orbcoeff(:,:),prmshlexp(:),cs(:),cp(:),cd(:),cf(:),cg(:),orbcoeff5D(:,:)
 real*8 :: conv5d6d(6,5)=0D0,conv7f10f(10,7)=0D0,conv9g15g(15,9)=0D0
@@ -1222,7 +1193,7 @@ bastype2func(307)=12 !yyy
 bastype2func(308)=16 !yyz
 bastype2func(309)=19 !yzz
 bastype2func(310)=13 !zzz
-!Below g sequence comes from line 47384 in NBO_5 src
+!Below sequence comes from line 47384 in NBO_5 src
 bastype2func(401)=35 !XXXX
 bastype2func(402)=34 !XXXY
 bastype2func(403)=33 !XXXZ
@@ -1238,7 +1209,6 @@ bastype2func(412)=24 !YYYZ
 bastype2func(413)=23 !YYZZ
 bastype2func(414)=22 !YZZZ
 bastype2func(415)=21 !ZZZZ
-!Conversion relationship used below can be found in http://sobereva.com/97
 !Used to convert coefficient matrix from 5D to 6D
 !5D sequence in .31: 255   252   253   254   251
 !namely -0.5*XX-0.5*YY+ZZ, XZ, YZ, ¡Ì3/2*(XX-YY), XY
@@ -1325,9 +1295,8 @@ if (any(bastype31==251).or.any(bastype31==351).or.any(bastype31==451)) isphergau
 !The conversion relationship between Cartesian and pure functions used by NBO is different to mainstream quantum chemistry code, the relationship for f is documented
 !in the NBO manual, however there is no way to find out that for g-type. So if g-type is involved, Cartesian type must be used.
 if (any(bastype31==451)) then
-    write(*,"(a)") " Error: Multiwfn doesn't support spherical harmonic Gauss functions with g or higher angular moment in NBO plot files. &
-    If you used Gaussian to generate them, you should add ""6d 10f"" keywords and regenerate these files"
-    write(*,*) "Press ENTER to exit"
+    write(*,"(a)") "Error: Multiwfn doesn't support spherical harmonic Gauss functions with g or higher angular moment for NBO plot files. For Gaussian, &
+    you should add ""6d 10f"" keywords and regenerate these files. Press ENTER to exit"
     pause
     stop
 end if
@@ -1446,7 +1415,7 @@ end if
 close(10)
 MOene=0D0
 
-!Temporarily convert spherical harmonic Gauss functions' information to cartesian type
+!Temporarily convert spherical harmonic gauss functions' information to cartesian type
 if (isphergau==1) then
     !Calculate how many cartesian basis after conversion
     nbasis5D=nbasis
@@ -1544,7 +1513,7 @@ iGTF=1 !current GTF index
 ibasis=1
 do i=1,nshell !cycle each shell
     b(iGTF:iGTF+shellcon(i)*shellnumbas(i)-1)%center=shell2atom(i)
-    do j=1,shellnumbas(i) !cycle each basis function in each shell
+    do j=1,shellnumbas(i) !cycle each basis(orbital) in each shell
         b(iGTF:iGTF+shellcon(i)-1)%functype=bastype2func(bastype31(ibasis))
         do k=1,shellcon(i) !cycle each GTF in each basis in each shell
             iprmshlpos=shell2prmshl(i)+k-1
@@ -2036,7 +2005,6 @@ integer i,j,infomode
 integer :: convGseq(35)=(/ (0,i=1,20), 35,25,21,34,33, 29,24,26,22,32, 30,23,31,28,27 /)
 ifiletype=2
 imodwfn=0
-iORCA=0 !Assume this is not a ORCA .wfn file
 open(10,file=name,access="sequential",status="old")
 read(10,"(a)") wfntitle
 read(10,"(a8,i15,13x,i7,11x,i9)") c80tmp,nmo,nprims,ncenter
@@ -2047,18 +2015,13 @@ if (ibasmode==2) then
     pause
     stop
 end if
-if (index(wfntitle,"Run Type")/=0) then
-    write(*,"(a)") " Warning: It seems that this .wfn file was generated by ORCA. Notice that the .wfn file generated by ORCA is often non-standard, &
-    and usually makes Multiwfn crash. Using .molden file as input file instead is recommended."
-end if
-
+if (allocated(a)) deallocate(a)
 allocate(a(ncenter))
 allocate(b(nprims))
 allocate(co(nmo,nprims))
 allocate(MOocc(nmo))
 allocate(MOene(nmo))
 allocate(MOtype(nmo))
-
 do i=1,ncenter
     read(10,"(a24,3f12.8,10x,f5.1)") c80tmp,a(i)%x,a(i)%y,a(i)%z,a(i)%charge
     read(c80tmp,*) a(i)%name
@@ -2084,14 +2047,14 @@ do i=1,nprims
     if (b(i)%functype>=21.and.b(i)%functype<=35) b(i)%functype=convGseq(b(i)%functype)
 end do
 
-!Read exponents
 read(10,"(a)") c80tmp
 backspace(10)
 if (c80tmp(11:11)==' ') then !This is a standard .wfn file
     read(10,"(10x,5D14.7)") (b(i)%exp,i=1,nprims)
-else !This .wfn file is probably generated by Windows version of ORCA, special treatment is employed since it is non-standard
-    read(10,"(10x,5D14.7)") (b(i)%exp,i=1,nprims)
-    iORCA=1
+else
+    write(*,"(a)") " Note: This .wfn file is probably generated by ORCA, special treatment is employed since it is non-standard"
+    if (c80tmp(25:25)==' ') read(10,"(9x,5D15.7)") (b(i)%exp,i=1,nprims) !Windows
+    if (c80tmp(24:24)==' ') read(10,"(9x,5D14.7)") (b(i)%exp,i=1,nprims) !Linux
 end if
 
 !From Gaussian09 B.01, if ECP is used, additional CENTER, TYPE, EXPONENTS field present to represent EDF(electron density functions) likewise .wfx file
@@ -2123,6 +2086,7 @@ end if
 
 !Read orbitals
 do i=1,nmo
+!     read(10,"(35X,f12.7,15x,f12.6)") MOocc(i),MOene(i) !The life is not so easy, programs such as ADF doesn't follow the standard rule
     read(10,"(a)") c80tmp
     do ichar=1,80
         if (c80tmp(ichar:ichar)=='=') then
@@ -2137,11 +2101,7 @@ do i=1,nmo
         end if
     end do
 !     read(10,"(5D16.8)") (co(i,j),j=1,nprims) ! Note: row/column of CO denote MO/basis function respectively, in contrary to convention
-    if (iORCA==0) then
-        read(10,*) co(i,:)
-    else
-        read(10,"(5D16.8)") co(i,:)
-    end if
+    read(10,*) co(i,:) !Read data in this way has better compatability
 end do
 read(10,*)
 !Use free format to read in energy and virial to ensure compatibility
@@ -2176,7 +2136,7 @@ end if
 
 close (10)
 
-!Determine type of wavefunction
+! Determine type of wavefunction
 if (sum(MOocc)==2*nmo.and.all(int(MOocc)==MOocc)) then
     wfntype=0 !This is restricted wavefunction
     MOtype=0
@@ -2265,6 +2225,7 @@ end subroutine
 
 !!-----------------------------------------------------------------
 !!------------------------- Read .wfx, mode=0 means output wfn property,=1 not
+!For more information, see http://aim.tkgristmill.com/wfxformat.html
 subroutine readwfx(name,infomode)
 use defvar
 use util
@@ -2376,7 +2337,7 @@ read(10,*) totenergy
 call loclabel(10,"<Virial Ratio (-V/T)>")
 read(10,*)
 read(10,*) virialratio
-!------ Process EDF information
+!------process EDF information
 call loclabel(10,"<Number of EDF Primitives>",ifound)
 if (ifound==1.and.readEDF==1) then
     read(10,*)
@@ -2556,9 +2517,8 @@ real*8,allocatable :: amocoeff(:,:),bmocoeff(:,:)
 real*8 conv5d6d(6,5),conv7f10f(10,7),conv9g15g(15,9),conv11h21h(21,11)
 real*8 conv5d6dtr(5,6),conv7f10ftr(7,10),conv9g15gtr(9,15),conv11h21htr(11,21)
 !For backing up spherical basis functions
-integer,allocatable :: shelltype5D(:),MOtype5D(:)
-character*4,allocatable :: MOsym5D(:)
-real*8,allocatable :: CObasa5D(:,:),CObasb5D(:,:),Sbas5D(:,:),Dbas5D(:,:,:),Magbas5D(:,:,:),MOene5D(:),MOocc5D(:),CO5D(:,:)
+integer,allocatable :: shelltype5D(:)
+real*8,allocatable :: CObasa5D(:,:),CObasb5D(:,:),Sbas5D(:,:),Dbas5D(:,:,:),Magbas5D(:,:,:)
 real*8,external :: normgau
 ifiletype=9
 imodwfn=0
@@ -2770,7 +2730,14 @@ i10Flabel=0
 i9G=0
 i11H=0
 imaxL=maxval(shelltype)
-write(*,"(' The highest angular moment basis functions is ',a)") shtype2name(imaxL) 
+if (infomode==0) then
+    if (imaxL==0) write(*,*) "The highest angular moment basis functions is S"
+    if (imaxL==1) write(*,*) "The highest angular moment basis functions is P"
+    if (imaxL==2) write(*,*) "The highest angular moment basis functions is D"
+    if (imaxL==3) write(*,*) "The highest angular moment basis functions is F"
+    if (imaxL==4) write(*,*) "The highest angular moment basis functions is G"
+    if (imaxL==5) write(*,*) "The highest angular moment basis functions is H"
+end if
 if (imaxL>=2) then
     rewind(10)
     do while(.true.)
@@ -2804,11 +2771,11 @@ if (infomode==0) then
 end if
 nbasis=0
 do ishell=1,nshell
-    nbasis=nbasis+shtype2nbas(shelltype(ishell))
+    nbasis=nbasis+type2norb(shelltype(ishell))
 end do
 if (infomode==0.and.iorca==1.and.imaxL>=4) then
-    write(*,"(a)") " Warning! For the Molden input file generated by ORCA, when g angular moment basis functions are present, the result may be inaccurate!"
-    write(*,"(a)") " I suggest you use molden2aim program to standardize it before loading it into Multiwfn. If you really want to preceed, press ENTER button"
+    write(*,"(a)") " Warning! For the Molden input file generated by ORCA, when g angular moment basis functions present, the result may be inaccurate! &
+    If you really want to preceed, press ENTER button"
     pause
 end if
 
@@ -2891,7 +2858,7 @@ if (iorca==1) then
             amocoeff(:,ibasis+6:ibasis+9)=-amocoeff(:,ibasis+6:ibasis+9)
             if (ibeta==1) bmocoeff(:,ibasis+6:ibasis+9)=-bmocoeff(:,ibasis+6:ibasis+9)
         end if
-        ibasis=ibasis+shtype2nbas(shelltype(ishell))
+        ibasis=ibasis+type2norb(shelltype(ishell))
     end do
 end if
 !Fix orbital coefficients for CFour according to Molden2aim. CFour only use Cartesian type basis function
@@ -2925,7 +2892,7 @@ if (icfour==1) then
                 bmocoeff(:,ibasis+13:ibasis+15)=bmocoeff(:,ibasis+13:ibasis+15)*sqrt(3D0)
             end if
         end if
-        ibasis=ibasis+shtype2nbas(shelltype(ishell))
+        ibasis=ibasis+type2norb(shelltype(ishell))
     end do    
 end if
 
@@ -2951,8 +2918,8 @@ else if (ibeta==1) then
 end if
 call updatenelec !Cound the number of electrons
 
-close(10)
 
+close(10)
 !!!!!! All reading have finished, now generate basis information
 !Below codes are adapted from readfch
 
@@ -2965,18 +2932,17 @@ if (isphergau==1) then
     nbasis5D=nbasis
     nbasis=0
     do i=1,nshell
-        nbasis=nbasis+shtype2nbas(shelltype(i))
+        nbasis=nbasis+type2norb(shelltype(i))
     end do
 end if
 
 !Allocate space for arrays
 nprims=0
 do i=1,nshell
-    nprims=nprims+shtype2nbas(shelltype(i))*shellcon(i)
+    nprims=nprims+type2norb(shelltype(i))*shellcon(i)
 end do
 allocate(b(nprims),co(nmo,nprims),basshell(nbasis),bascen(nbasis),bastype(nbasis),primstart(nbasis),&
 primend(nbasis),primconnorm(nprims),basstart(ncenter),basend(ncenter))
-
 !Fill Cobasa and CObasb
 if (isphergau==0) then
     allocate(CObasa(nbasis,nbasis))
@@ -2985,7 +2951,7 @@ if (isphergau==0) then
         allocate(CObasb(nbasis,nbasis))
         CObasb=transpose(bmocoeff)
     end if
-else if (isphergau==1) then !Since we have artifically converted spherical shells to cartesian shells, here the orbital coefficients are also correspondingly converted
+else if (isphergau==1) then !Since we have artifically convert spherical shells to cartesian shells, here the orbital coefficients are also correspondingly converted
     allocate(CObasa(nbasis,nbasis),CObasa5D(nbasis5D,nbasis5D))
     CObasa5D=transpose(amocoeff)
     CObasa=0D0
@@ -3001,8 +2967,8 @@ else if (isphergau==1) then !Since we have artifically converted spherical shell
     do ish=1,nshell
         ishtyp5D=shelltype5D(ish)
         ishtyp6D=shelltype(ish)
-        numshorb5D=shtype2nbas(ishtyp5D)
-        numshorb6D=shtype2nbas(ishtyp6D)
+        numshorb5D=type2norb(ishtyp5D)
+        numshorb6D=type2norb(ishtyp6D)
         if (ishtyp5D>=-1) then !S or P or SP or other cartesian shells, directly copy
             CObasa(ipos6D:ipos6D+numshorb6D-1,1:nbasis5D)=CObasa5D(ipos5D:ipos5D+numshorb5D-1,:)
             if (wfntype==1.or.wfntype==4) CObasb(ipos6D:ipos6D+numshorb6D-1,1:nbasis5D)=CObasb5D(ipos5D:ipos5D+numshorb5D-1,:)            
@@ -3036,10 +3002,10 @@ iexp=1
 ibasis=1 !current position of basis
 !Note: Below commented with !!! means the line associated to setting basis information
 do i=1,nshell !cycle each basis shell
-    b(k:k+shellcon(i)*shtype2nbas(shelltype(i))-1)%center=shell2atom(i)
-    basshell(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=i !!! set basis attributed to which shell
-    bascen(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=shell2atom(i) !!! set basis attributed to which center
-    do j=1,shtype2nbas(shelltype(i)) !cycle each basis function in each basis shell
+    b(k:k+shellcon(i)*type2norb(shelltype(i))-1)%center=shell2atom(i)
+    basshell(ibasis:ibasis+type2norb(shelltype(i))-1)=i !!! set basis attributed to which shell
+    bascen(ibasis:ibasis+type2norb(shelltype(i))-1)=shell2atom(i) !!! set basis attributed to which center
+    do j=1,type2norb(shelltype(i)) !cycle each basis function in each basis shell
         b(k:k+shellcon(i)-1)%functype=s2f(shelltype(i),j)
         bastype(ibasis)=s2f(shelltype(i),j) !!! set basis type
         primstart(ibasis)=k !!! From where the GTFs attributed to ibasis'th basis
@@ -3090,143 +3056,102 @@ end if
 ! end do
 
 if (isphergau==1) then
-    if (iloadasCart==1) then !For special purpose, keep Cartesian basis functions, e.g. convert spherical .fch/.molden to .47 file
-        !Currently nbasis and dimension of all matrix (except for CO) correspond to full Cartesian case, but nmo &
-        !and related arrays as well as CO still correspond to spherical harmonic case and thus need to be "expanded", the MO energies are artifically set to 100
-        allocate(MOocc5D(nmo),MOene5D(nmo),MOtype5D(nmo),MOsym5D(nmo),CO5D(nmo,nprims))
-        MOocc5D=MOocc
-        MOene5D=MOene
-        MOtype5D=MOtype
-        MOsym5D=MOsym
-        CO5D=CO
-        deallocate(MOocc,MOene,MOtype,MOsym,CO)
-        if (wfntype==0.or.wfntype==2.or.wfntype==3) nmo=nbasis !R, RO
-        if (wfntype==1.or.wfntype==4) nmo=2*nbasis !U
-        allocate(MOocc(nmo),MOene(nmo),MOtype(nmo),MOsym(nmo),CO(nmo,nprims))
-        MOocc=0
-        MOene=100
-        MOsym=" "
-        CO=0
-        if (wfntype==0.or.wfntype==2.or.wfntype==3) then !R, RO
-            MOtype=0
-            MOocc(1:nbasis5D)=MOocc5D
-            MOene(1:nbasis5D)=MOene5D
-            MOtype(1:nbasis5D)=MOtype5D
-            MOsym(1:nbasis5D)=MOsym5D
-            CO(1:nbasis5D,:)=CO5D
-        else !U
-            MOtype(:nbasis)=1
-            MOtype(nbasis+1:)=2
-            MOocc(:nbasis5D)=MOocc5D(:nbasis5D)
-            MOocc(nbasis+1:nbasis+nbasis5D)=MOocc5D(nbasis5D+1:)
-            MOene(:nbasis5D)=MOene5D(:nbasis5D)
-            MOene(nbasis+1:nbasis+nbasis5D)=MOene5D(nbasis5D+1:)
-            MOtype(:nbasis5D)=MOtype5D(:nbasis5D)
-            MOtype(nbasis+1:nbasis+nbasis5D)=MOtype5D(nbasis5D+1:)
-            MOsym(:nbasis5D)=MOsym5D(:nbasis5D)
-            MOsym(nbasis+1:nbasis+nbasis5D)=MOsym5D(nbasis5D+1:)
-            CO(:nbasis5D,:)=CO5D(:nbasis5D,:)
-            CO(nbasis+1:nbasis+nbasis5D,:)=CO5D(nbasis5D+1:,:)
-        end if
+    if (infomode==0) write(*,*) "Converting basis function information from Cartesian to spherical type..."
+    !Map cartesian overlap matrix to spherical harmonic overlap matrix
+    allocate(Sbas5D(nbasis5D,nbasis5D))
+    if (igenDbas==1) allocate(Dbas5D(3,nbasis5D,nbasis5D))
+    if (igenMagbas==1) allocate(Magbas5D(3,nbasis5D,nbasis5D))
+    ipos5D=1
+    ipos6D=1
+    do ish=1,nshell
+        ishtyp5D=shelltype5D(ish)
+        ishtyp6D=shelltype(ish)
+        numshorb5D=type2norb(ishtyp5D)
+        numshorb6D=type2norb(ishtyp6D)
+        !Now contract columns
+        if (ishtyp5D>=-1) sbas(:,ipos5D:ipos5D+numshorb5D-1)=sbas(:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
+        if (ishtyp5D==-2) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
+        if (ishtyp5D==-3) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
+        if (ishtyp5D==-4) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
+        if (ishtyp5D==-5) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
+        !Now contract rows
+        if (ishtyp5D>=-1) sbas(ipos5D:ipos5D+numshorb5D-1,:)=sbas(ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
+        if (ishtyp5D==-2) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
+        if (ishtyp5D==-3) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
+        if (ishtyp5D==-4) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
+        if (ishtyp5D==-5) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
         
-    else !Commonly case, transform to spherical harmonic functions
-        if (infomode==0) write(*,*) "Converting basis function information from Cartesian to spherical type..."
-        !Map cartesian overlap matrix to spherical harmonic overlap matrix
-        allocate(Sbas5D(nbasis5D,nbasis5D))
-        if (igenDbas==1) allocate(Dbas5D(3,nbasis5D,nbasis5D))
-        if (igenMagbas==1) allocate(Magbas5D(3,nbasis5D,nbasis5D))
-        ipos5D=1
-        ipos6D=1
-        do ish=1,nshell
-            ishtyp5D=shelltype5D(ish)
-            ishtyp6D=shelltype(ish)
-            numshorb5D=shtype2nbas(ishtyp5D)
-            numshorb6D=shtype2nbas(ishtyp6D)
-            !Now contract columns
-            if (ishtyp5D>=-1) sbas(:,ipos5D:ipos5D+numshorb5D-1)=sbas(:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
-            if (ishtyp5D==-2) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
-            if (ishtyp5D==-3) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
-            if (ishtyp5D==-4) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
-            if (ishtyp5D==-5) sbas(:,ipos5D:ipos5D+numshorb5D-1)=matmul(sbas(:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
-            !Now contract rows
-            if (ishtyp5D>=-1) sbas(ipos5D:ipos5D+numshorb5D-1,:)=sbas(ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
-            if (ishtyp5D==-2) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            if (ishtyp5D==-3) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            if (ishtyp5D==-4) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            if (ishtyp5D==-5) sbas(ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,sbas(ipos6D:ipos6D+numshorb6D-1,:))
-            
-            if (igenDbas==1) then
-                do idir=1,3
-                    !Now contract columns of Dbas
-                    if (ishtyp5D>=-1) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
-                    if (ishtyp5D==-3) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
-                    if (ishtyp5D==-4) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
-                    if (ishtyp5D==-5) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
-                    !Now contract rows of Dbas
-                    if (ishtyp5D>=-1) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-3) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-4) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-5) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                end do
-            end if
-            if (igenMagbas==1) then
-                do idir=1,3
-                    !Now contract columns of Magbas
-                    if (ishtyp5D>=-1) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
-                    if (ishtyp5D==-3) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
-                    if (ishtyp5D==-4) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
-                    if (ishtyp5D==-5) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
-                    !Now contract rows of Magbas
-                    if (ishtyp5D>=-1) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
-                    if (ishtyp5D==-2) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-3) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-4) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                    if (ishtyp5D==-5) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
-                end do
-            end if
-            ipos5D=ipos5D+numshorb5D
-            ipos6D=ipos6D+numshorb6D
-        end do
-        Sbas5D=sbas(1:nbasis5D,1:nbasis5D)
-        if (igenDbas==1) Dbas5D=Dbas(:,1:nbasis5D,1:nbasis5D)
-        if (igenMagbas==1) Magbas5D=Magbas(:,1:nbasis5D,1:nbasis5D)
-
-        !Recover spherical Gauss basis function information
-        nbasis=nbasis5D
-        shelltype=shelltype5D
-        ibasis=1
-        do i=1,nshell
-            basshell(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=i
-            bascen(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=shell2atom(i)
-            do j=1,shtype2nbas(shelltype(i))
-                bastype(ibasis)=s2f(shelltype(i),j)
-                ibasis=ibasis+1
-            end do
-        end do
-        deallocate(CObasa)
-        allocate(CObasa(nbasis,nbasis))
-        CObasa=CObasa5D
-        if (wfntype==1.or.wfntype==4) then
-            deallocate(CObasb)
-            allocate(CObasb(nbasis,nbasis))
-            CObasb=CObasb5D
-        end if
-        deallocate(sbas)
-        allocate(sbas(nbasis,nbasis))
-        sbas=Sbas5D
         if (igenDbas==1) then
-            deallocate(Dbas)
-            allocate(Dbas(3,nbasis,nbasis))
-            Dbas=Dbas5D
+            do idir=1,3
+                !Now contract columns of Dbas
+                if (ishtyp5D>=-1) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
+                if (ishtyp5D==-3) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
+                if (ishtyp5D==-4) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
+                if (ishtyp5D==-5) Dbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Dbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
+                !Now contract rows of Dbas
+                if (ishtyp5D>=-1) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-3) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-4) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-5) Dbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Dbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+            end do
         end if
         if (igenMagbas==1) then
-            deallocate(Magbas)
-            allocate(Magbas(3,nbasis,nbasis))
-            Magbas=Magbas5D
+            do idir=1,3
+                !Now contract columns of Magbas
+                if (ishtyp5D>=-1) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv5d6d)
+                if (ishtyp5D==-3) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv7f10f)
+                if (ishtyp5D==-4) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv9g15g)
+                if (ishtyp5D==-5) Magbas(idir,:,ipos5D:ipos5D+numshorb5D-1)=matmul(Magbas(idir,:,ipos6D:ipos6D+numshorb6D-1),conv11h21h)
+                !Now contract rows of Magbas
+                if (ishtyp5D>=-1) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:) !S, P, SP or other Cartesian shells
+                if (ishtyp5D==-2) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv5d6dtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-3) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv7f10ftr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-4) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv9g15gtr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+                if (ishtyp5D==-5) Magbas(idir,ipos5D:ipos5D+numshorb5D-1,:)=matmul(conv11h21htr,Magbas(idir,ipos6D:ipos6D+numshorb6D-1,:))
+            end do
         end if
+        ipos5D=ipos5D+numshorb5D
+        ipos6D=ipos6D+numshorb6D
+    end do
+    Sbas5D=sbas(1:nbasis5D,1:nbasis5D)
+    if (igenDbas==1) Dbas5D=Dbas(:,1:nbasis5D,1:nbasis5D)
+    if (igenMagbas==1) Magbas5D=Magbas(:,1:nbasis5D,1:nbasis5D)
+
+    !Recover spherical gauss basis function information
+    nbasis=nbasis5D
+    shelltype=shelltype5D
+    ibasis=1
+    do i=1,nshell
+        basshell(ibasis:ibasis+type2norb(shelltype(i))-1)=i
+        bascen(ibasis:ibasis+type2norb(shelltype(i))-1)=shell2atom(i)
+        do j=1,type2norb(shelltype(i))
+            bastype(ibasis)=s2f(shelltype(i),j)
+            ibasis=ibasis+1
+        end do
+    end do
+    deallocate(CObasa)
+    allocate(CObasa(nbasis,nbasis))
+    CObasa=CObasa5D
+    if (wfntype==1.or.wfntype==4) then
+        deallocate(CObasb)
+        allocate(CObasb(nbasis,nbasis))
+        CObasb=CObasb5D
+    end if
+    deallocate(sbas)
+    allocate(sbas(nbasis,nbasis))
+    sbas=Sbas5D
+    if (igenDbas==1) then
+        deallocate(Dbas)
+        allocate(Dbas(3,nbasis,nbasis))
+        Dbas=Dbas5D
+    end if
+    if (igenMagbas==1) then
+        deallocate(Magbas)
+        allocate(Magbas(3,nbasis,nbasis))
+        Magbas=Magbas5D
     end if
 end if
 
@@ -3288,7 +3213,7 @@ if (infomode==0) then
     write(*,*)
     write(*,"(' Total/Alpha/Beta electrons:',3f12.4)") nelec,naelec,nbelec
     write(*,"(' Net charge:',f12.5,'      Expected multiplicity:',i5)") sum(a(:)%charge)-nelec,nint(naelec-nbelec)+1
-    write(*,"(' Atoms:',i7,',  Basis functions:',i7,',  GTFs:',i7)") ncenter,nbasis,nprims
+    write(*,"(' Atoms:',i7,',  Basis functions:',i7,',  GTFs:',i7)") ncenter,nmo,nprims
     if (wfntype==0) then
         write(*,"(' This is restricted single-determinant wavefunction')")
         write(*,"(' Orbitals from 1 to',i6,' are occupied')") nint(nelec/2)
@@ -3314,384 +3239,7 @@ if (wfntype==0) then
         if (nint(MOocc(idxHOMO))==2D0) exit
     end do
 end if
-
 end subroutine
-
-
-
-
-!---------- Read GAMESS-US output file to get GTF and basis information, the suffix must be "gms"
-!GAMESS-US always print LCAO cofficients as Cartesian basis functions, while the number of MOs correspond to spherical harmonic functions (if used)
-!infomode=0 means output info, =1 silent
-subroutine readgms(name,infomode)
-use defvar
-use util
-implicit real*8 (a-h,o-z)
-character(len=*) name
-character c80*80,chartmp
-integer :: s2f(0:5,21)=0 !Give shell type & orbital index to get functype
-real*8,allocatable :: amocoeff(:,:),bmocoeff(:,:)
-real*8,external :: normgau
-ifiletype=10
-imodwfn=0
-s2f(0,1)=1
-s2f(1,1:3)=(/ 2,3,4 /)
-s2f(2,1:6)=(/ 5,6,7,8,9,10 /)
-!---------- The sequence of f functions in Multiwfn (=wfn=wfx) is not identical to GAMESS, so convert here
-!11  12  13  14  15  16  17  18  19  20  !Multiwfn sequence
-!XXX YYY ZZZ XXY XXZ YYZ XYY XZZ YZZ XYZ
-!xxx yyy zzz xxy xxz xyy yyz zzx zzy xyz !GAMESS sequence
-s2f(3,1:10)=(/ 11,12,13,14,15,17,16,18,19,20 /)
-!---------- The sequence of g functions in Multiwfn (=fch) is not identical to GAMESS(=molden), so convert here
-! 21   22   23   24   25   26   27   28   29   30   31   32   33   34   35  !Multiwfn sequence
-!ZZZZ YZZZ YYZZ YYYZ YYYY XZZZ XYZZ XYYZ XYYY XXZZ XXYZ XXYY XXXZ XXXY XXXX
-!xxxx yyyy zzzz xxxy xxxz yyyx yyyz zzzx zzzy xxyy xxzz yyzz xxyz yyxz zzxy !GAMESS sequence
-s2f(4,1:15)=(/ 35,25,21,34,33,29,24,26,22,32,30,23,31,28,27 /)
-!---------- The sequence of h functions in Multiwfn (=fch=wfx) is not identical to GAMESS, so convert here
-! 36    37    38    39    40    41    42    43    44    45    46  !Multiwfn sequence
-!ZZZZZ YZZZZ YYZZZ YYYZZ YYYYZ YYYYY XZZZZ XYZZZ XYYZZ XYYYZ XYYYY
-!xxxxx yyyyy zzzzz xxxxy xxxxz xyyyy yyyyz xzzzz yzzzz xxxyy xxxzz !GAMESS sequence
-! 47    48    49    50    51    52    53    54    55    56  !Multiwfn sequence
-!XXZZZ XXYZZ XXYYZ XXYYY XXXZZ XXXYZ XXXYY XXXXZ XXXXY XXXXX
-!xxyyy yyyzz xxzzz yyzzz xxxyz xyyyz xyzzz xxyyz xxyzz xyyzz !GAMESS sequence
-s2f(5,1:21)=(/ 56,41,36,55,54,46,40,42,37,53,51, 50,39,47,38,52,45,43,49,48,44 /)
-
-open(10,file=name,access="sequential",status="old")
-if (infomode==0) write(*,*) "Loading various information of the wavefunction"
-
-!!!!! Load atom information
-call loclabel(10,"TOTAL NUMBER OF ATOMS",ifound)
-read(10,"(47x,i5)") ncenter
-allocate(a(ncenter))
-call loclabel(10,"RUNTYP=OPTIMIZE",iopt)
-if (iopt==1) then
-    !Although GAMESS-US output final geometry and corresponding wavefunction (labelled by "MOLECULAR ORBITALS"), 
-    !the number of orbitals is much smaller than expected, therefore unable to provide enough information
-    write(*,"(a)") " Warning: This is an optimization task, only wavefunction corresponding to initial geometry will be loaded"
-    write(*,*) "Press ENTER to continue"
-    pause
-end if
-call loclabel(10,"ATOM      ATOMIC",ifound)
-read(10,*)
-read(10,*)
-do iatm=1,ncenter
-    read(10,*) c80,a(iatm)%index,a(iatm)%x,a(iatm)%y,a(iatm)%z
-end do
-a%name=ind2name(a%index)
-a%charge=a%index
-rewind(10)
-
-!!!!! Load basis-set, and build up GTF information
-if (infomode==0) write(*,*) "Loading basis set definition..."
-
-!First time, we count how many shells are there to allocate proper size of allocatable arrays
-nshell=0
-nprimshell=0
-call loclabel(10,"SHELL TYPE  PRIMITIVE",ifound)
-read(10,*)
-read(10,*)
-do iatm=1,ncenter
-    read(10,*) !Atom name
-    read(10,*)
-    do while(.true.)
-        read(10,"(a)") c80
-        if (c80==" ") then !Finished loading last shell
-            nshell=nshell+1
-            if (iaddshell==1) nshell=nshell+1 !Last shell is L
-            iaddshell=0
-            read(10,"(a)") c80
-            backspace(10)
-            if (c80(2:2)/=" ") exit !Next atom
-        else
-            nprimshell=nprimshell+1
-            if (index(c80,"L")/=0) then
-                nprimshell=nprimshell+1 !sp shell will be separated as s and p
-                iaddshell=1
-            end if
-        end if
-    end do
-end do
-
-!Second time, read basis set information actually
-allocate(shtype(nshell),shcon(nshell),shcen(nshell))
-allocate(primshexp(nprimshell),primshcoeff(nprimshell))
-call loclabel(10,"SHELL TYPE  PRIMITIVE",ifound)
-read(10,*)
-read(10,*)
-shcon=0
-ishell=1
-iprimshell=0
-do iatm=1,ncenter
-    read(10,*) !Atom name
-    read(10,*)
-    do while(.true.)
-        read(10,"(a)") c80
-        if (c80==" ") then !Finished loading last shell
-            if (shtype(ishell)==-1) then !Separate SP shell as S and P shells
-                shtype(ishell)=0 !s
-                ishell=ishell+1
-                shtype(ishell)=1 !p
-                shcon(ishell)=shcon(ishell-1)
-                shcen(ishell)=shcen(ishell-1)
-                do itmp=1,shcon(ishell)+1 !Backspace and load P contraction coefficient
-                    backspace(10)
-                end do
-                do itmp=1,shcon(ishell)
-                    iprimshell=iprimshell+1
-                    read(10,*) inouse,chartmp,inouse,primshexp(iprimshell),rnouse,primshcoeff(iprimshell)
-                end do
-                read(10,*)
-            end if
-            ishell=ishell+1
-            read(10,"(a)") c80
-            backspace(10)
-            if (c80(2:2)/=" ") exit !Next atom
-        else
-            iprimshell=iprimshell+1
-            shcon(ishell)=shcon(ishell)+1
-            read(c80,*) inouse,chartmp,inouse,primshexp(iprimshell),primshcoeff(iprimshell)
-            shcen(ishell)=iatm
-            if (chartmp=="L") then
-                shtype(ishell)=-1
-            else if (chartmp=="S") then
-                shtype(ishell)=0
-            else if (chartmp=="P") then
-                shtype(ishell)=1
-            else if (chartmp=="D") then
-                shtype(ishell)=2
-            else if (chartmp=="F") then
-                shtype(ishell)=3
-            else if (chartmp=="G") then
-                shtype(ishell)=4
-            else if (chartmp=="H") then
-                shtype(ishell)=5
-            end if
-        end if
-    end do
-end do
-
-nbasis=0
-do ishell=1,nshell
-!     write(*,*) ishell,shtype(ishell),shcon(ishell),shcen(ishell)
-    nbasis=nbasis+shtype2nbas(shtype(ishell))
-end do
-! do i=1,nprimshell
-!     write(*,"(i5,2f20.10)") i,primshexp(i),primshcoeff(i)
-! end do
-
-if (infomode==0) write(*,*) "Loading orbitals..."
-call loclabel(10,"----- BETA SET -----",ibeta)
-call loclabel(10,"TOTAL NUMBER OF MOS IN VARIATION SPACE=",ispher)
-if (ispher==0) then !Cartesian functions
-    nmoactual=nbasis
-else
-    read(10,"(40x,i8)") nmoactual !The actual number of MOs (value is for each spin in unrestricted case), less than nbasis
-end if
-if (ibeta==0) then !Only one set of orbitals
-    nmo=nbasis
-    allocate(amocoeff(nbasis,nmoactual),MOocc(nmo),MOene(nmo),MOtype(nmo),MOsym(nmo))
-    MOocc=0
-    MOene=100
-    MOsym="?"
-    call loclabel(10,"EIGENVECTORS",ifound)
-    call readgmsLCAO(10,nbasis,nmoactual,amocoeff,MOene(1:nmoactual),MOsym(1:nmoactual))
-else
-    nmo=2*nbasis
-    allocate(amocoeff(nbasis,nmoactual),bmocoeff(nbasis,nmoactual),MOocc(nmo),MOene(nmo),MOtype(nmo),MOsym(nmo))
-    MOocc=0
-    MOene=100
-    MOsym="?"
-    call loclabel(10,"EIGENVECTORS",ifound)
-    call readgmsLCAO(10,nbasis,nmoactual,amocoeff,MOene(1:nmoactual),MOsym(1:nmoactual))
-    call loclabel(10,"EIGENVECTORS",ifound,0) !Don't rewind
-    call readgmsLCAO(10,nbasis,nmoactual,bmocoeff,MOene(nbasis+1:nbasis+nmoactual),MOsym(nbasis+1:nbasis+nmoactual))
-end if
-
-!Determine wavefunction type
-call loclabel(10,"NUMBER OF OCCUPIED ORBITALS (ALPHA)",ifound)
-read(10,"(47x,f5.0)") naelec
-call loclabel(10,"NUMBER OF OCCUPIED ORBITALS (BETA )",ifound)
-read(10,"(47x,f5.0)") nbelec
-nelec=naelec+nbelec
-if (ibeta==0) then
-    if (any(MOocc/=nint(MOocc))) then
-!         wfntype=3 !R-post-HF
-    else if (naelec/=nbelec) then
-        wfntype=2 !ROHF
-        MOocc(1:nbelec)=2D0
-        MOocc(nbelec+1:naelec)=1D0
-        MOtype=0 !Close shell orbital
-        MOtype(nbelec+1:naelec)=1
-    else !RHF
-        wfntype=0
-        MOocc(1:naelec)=2D0
-        MOtype=0 !Close shell orbital        
-    end if
-else if (ibeta==1) then
-    wfntype=1 !UHF
-!     if (any(MOocc/=nint(MOocc))) wfntype=4 !U-post-HF
-    MOtype(1:nbasis)=1
-    MOtype(nbasis+1:nmo)=2
-    MOocc(1:naelec)=1D0
-    MOocc(nbasis+1:nbasis+nbelec)=1D0
-end if
-
-close(10)
-
-!!!!!! All reading have finished, now generate basis information
- 
-!Allocate space for arrays
-nprims=0
-do i=1,nshell
-    nprims=nprims+shtype2nbas(shtype(i))*shcon(i)
-end do
-allocate(b(nprims),co(nmo,nprims),basshell(nbasis),bascen(nbasis),bastype(nbasis),primstart(nbasis),&
-primend(nbasis),primconnorm(nprims),basstart(ncenter),basend(ncenter))
-
-!Fill Cobasa and CObasb, the gap spaces due to difference between Cartesian and spherical harmonic functions are filled by zero
-allocate(CObasa(nbasis,nbasis))
-CObasa=0
-CObasa(:,1:nmoactual)=amocoeff
-if (wfntype==1.or.wfntype==4) then
-    allocate(CObasb(nbasis,nbasis))
-    CObasb=0
-    CObasb(:,1:nmoactual)=bmocoeff
-end if
-
-if (infomode==0) write(*,*) "Converting basis function information to GTF information..."
-!Distribute exponent, functype to every GTF and generate CO(:,:) from amocoeff/bmocoeff
-!Fill: b,basshell,bascen,bastype,co,primstart,primend,primconnorm
-k=1 !current position of GTF
-iexp=1
-ibasis=1 !current position of basis
-!Note: Below commented with !!! means the line associated to setting basis information
-do i=1,nshell !cycle each basis shell
-    b(k:k+shcon(i)*shtype2nbas(shtype(i))-1)%center=shcen(i)
-    basshell(ibasis:ibasis+shtype2nbas(shtype(i))-1)=i !!! set basis attributed to which shell
-    bascen(ibasis:ibasis+shtype2nbas(shtype(i))-1)=shcen(i) !!! set basis attributed to which center
-    do j=1,shtype2nbas(shtype(i)) !cycle each basis function in each basis shell
-        b(k:k+shcon(i)-1)%functype=s2f(shtype(i),j)
-        bastype(ibasis)=s2f(shtype(i),j) !!! set basis type
-        primstart(ibasis)=k !!! From where the GTFs attributed to ibasis'th basis
-        primend(ibasis)=k+shcon(i)-1 !!! To where the GTFs attributed to ibasis'th basis
-        do l=1,shcon(i) !cycle each GTF in each basis function
-            b(k)%exp=primshexp(iexp+l-1)
-            tnormgau=normgau(b(k)%functype,b(k)%exp)  !!!Normalization coefficient of cartesian GTFs
-            temp=primshcoeff(iexp+l-1)  !!!Contraction coefficient of GTFs
-            primconnorm(k)=temp*tnormgau !Combines contraction and normalization coefficient
-            do imo=1,nmo
-                if (wfntype==0.or.wfntype==2.or.wfntype==3) then
-                    co(imo,k)=cobasa(ibasis,imo)*temp*tnormgau
-                else if (wfntype==1.or.wfntype==4) then
-                    if (imo<=nbasis) co(imo,k)=cobasa(ibasis,imo)*temp*tnormgau
-                    if (imo>nbasis) co(imo,k)=cobasb(ibasis,imo-nbasis)*temp*tnormgau
-                end if
-            end do
-            k=k+1
-        end do
-        ibasis=ibasis+1
-    end do
-    iexp=iexp+shcon(i)
-end do
-
-!Generate basstart and basend
-nowcen=0
-indcen=0
-do ibasis=1,nbasis
-    if (bascen(ibasis)/=nowcen) then
-        nowcen=bascen(ibasis)
-        indcen=indcen+1
-        basstart(indcen)=ibasis
-        if (indcen/=1) basend(indcen-1)=ibasis-1
-    end if
-end do
-basend(ncenter)=nbasis
-
-!Generate one-particle matrices for basis functions
-if (igenP==1) then
-    if (infomode==0) write(*,*) "Generating density matrix..."
-    call genP
-end if
-if (infomode==0) write(*,*) "Generating overlap matrix..."
-allocate(Sbas(nbasis,nbasis))
-call genSbas
-if (igenDbas==1) then
-    if (infomode==0) write(*,*) "Generating electric dipole moment integral matrix..."
-    allocate(Dbas(3,nbasis,nbasis))
-    call genDbas
-end if
-if (igenMagbas==1) then
-    if (infomode==0) write(*,*) "Generating magnetic dipole moment integral matrix..."
-    allocate(Magbas(3,nbasis,nbasis))
-    call genMagbas
-end if
- 
-!Output summary of present wavefunction
-if (infomode==0) then
-    write(*,*)
-    write(*,"(' Total/Alpha/Beta electrons:',3f12.4)") nelec,naelec,nbelec
-    write(*,"(' Net charge:',f12.5,'      Expected multiplicity:',i5)") sum(a(:)%charge)-nelec,nint(naelec-nbelec)+1
-    write(*,"(' Atoms:',i7,',  Basis functions:',i7,',  GTFs:',i7)") ncenter,nbasis,nprims
-    if (wfntype==0) then
-        write(*,"(' This is restricted single-determinant wavefunction')")
-        write(*,"(' Orbitals from 1 to',i6,' are occupied')") nint(nelec/2)
-    else if (wfntype==1) then
-        write(*,"(' This is unrestricted single-determinant wavefunction')")
-        write(*,"(' Orbitals from ',i6,' to',i6,' are alpha, from',i6,' to',i6,' are occupied')") 1,nbasis,1,nint(naelec)
-        write(*,"(' Orbitals from ',i6,' to',i6,' are beta,  from',i6,' to',i6,' are occupied')") nbasis+1,nmo,nbasis+1,nbasis+nint(nbelec)
-    else if (wfntype==2) then
-        write(*,"(' This is restricted open-shell wavefunction')")
-        write(*,"(' Orbitals from',i6,' to',i6,' are doubly occupied')") 1,nint(nbelec)
-        write(*,"(' Orbitals from',i6,' to',i6,' are singly occupied')") nint(nbelec)+1,nint(naelec)
-    else if (wfntype==3) then
-        write(*,"(' This is restricted post-HF wavefunction')")
-    else if (wfntype==4) then
-        write(*,"(' This is unrestricted open-shell wavefunction')")
-        write(*,"(' Orbitals from ',i6,' to',i6,' are alpha, from',i6,' to',i6,' are beta')") 1,nbasis,nbasis+1,nmo
-    end if
-end if
-
-!Find out index of HOMO, will be used in some cases, only for RHF
-if (wfntype==0) then
-    do idxHOMO=nmo,1,-1
-        if (nint(MOocc(idxHOMO))==2D0) exit
-    end do
-end if
-
-end subroutine
-
-!----- A routine used to read GAMESS-US LCAO matrix. One should first move pointer to the line containing "EIGENVECTORS"
-subroutine readgmsLCAO(fileid,n1,n2,mat,ene,sym)
-implicit real*8(a-h,o-z)
-real*8 :: mat(n1,n2)
-real*8 :: ene(n2)
-character*4 :: sym(n2)
-character c80tmp*80
-integer fileid
-read(fileid,*)
-read(fileid,*)
-ncol=5
-nt=ceiling(n2/float(ncol))
-do i=1,nt !Number of frames
-    read(fileid,*)
-    ns=(i-1)*ncol+1
-    if (i/=nt) ne=(i-1)*ncol+ncol
-    if (i==nt) ne=n2
-    read(fileid,*)
-    read(fileid,*) ene(ns:ne)
-    read(fileid,*) sym(ns:ne)
-    do k=1,n1 !Scan rows in each frame
-        read(fileid,"(15x)",advance='no') !Skip marker columns in each row
-        do j=ns,ne !Scan elements in each row
-!             write(*,*) i,nt,k,j
-            read(fileid,"(f11.6)",advance='no') mat(k,j)
-        end do
-        read(fileid,*)
-    end do
-end do
-end subroutine
-
-
 
 
 
@@ -3868,7 +3416,7 @@ end do
 end subroutine
 
 
-!!!------------------------- Output current wavefunction to a .wfn
+!!!------------------------- Output current wavefunction to new.wfn
 !If isortatmind==1, then any atom without GTF posited on it will not be output, and the index is filled to assure contiguous
 !Orbitals with zero occupiation will not be outputted
 !If ioutinfo==1, output information
@@ -3910,197 +3458,32 @@ if (isortatmind==1) then !Convert center of GTF to reordered index
     end do
 end if
 
+!Convert the g sequence to common sequence in .wfn, output, and then convert back
 write(ifileid,"('CENTRE ASSIGNMENTS  ',20i3)") b(1:nprims)%center
-
-!Convert the g sequence to common sequence in .wfn, output them, and then convert back. This make output easier
 do i=1,nprims
     if (b(i)%functype>=21.and.b(i)%functype<=35) b(i)%functype=convGmul2wfn(b(i)%functype)
 end do
-write(ifileid,"('TYPE ASSIGNMENTS    ',20i3)") b%functype
+write(ifileid,"('TYPE ASSIGNMENTS    ',20i3)") b(1:nprims)%functype
 do i=1,nprims
     if (b(i)%functype>=21.and.b(i)%functype<=35) b(i)%functype=convGwfn2mul(b(i)%functype)
 end do
 
-write(ifileid,"('EXPONENTS ',5D14.7)") b%exp
+write(ifileid,"('EXPONENTS ',5D14.7)") b(1:nprims)%exp
 imo=0
-nzeroocc=0
+izeroocc=0
 do i=1,nmo
     if (MOocc(i)==0D0) then
-        nzeroocc=nzeroocc+1
+        izeroocc=izeroocc+1
         cycle
     end if
-    imo=imo+1 !Use imo instead of i, this can make MO index contiguous
+    imo=imo+1 !Use i instead of imo, this can make MO index contiguous
     write(ifileid,"('MO',I5,'     MO 0.0        OCC NO = ',f12.7,'  ORB. ENERGY =', f12.6)") imo,MOocc(i),MOene(i)
     write(ifileid,"(5D16.8)") (co(i,j),j=1,nprims)
 end do
 write(ifileid,"('END DATA',/,' THE  HF ENERGY = ',f19.12,' THE VIRIAL(-V/T)= ',f12.8)") totenergy,virialratio
 close(ifileid)
-if (nzeroocc>0.and.ioutinfo==1) write(*,"(a,i10,a)") " Note: Found",nzeroocc," zero occupied orbitals and have discarded them"
+if (izeroocc>0.and.ioutinfo==1) write(*,"(a,i10,a)") " Note: Found",izeroocc," zero occupied orbitals and have discarded them"
 end subroutine
-
-
-
-!!!----------------- Output current wavefunction to a .wfx file
-!Orbitals with zero occupiation will not be outputted
-!If ioutinfo==1, output information
-subroutine outwfx(outwfxname,ioutinfo,ifileid)
-use defvar
-implicit real*8 (a-h,o-z)
-character(len=*) outwfxname
-character c10tmp*10
-integer ioutinfo,ifileid,indconv(ncenter)
-! convGseq is used to convert g used in internal sequence of Multiwfn to .wfx sequence
-! PS: spdfh sequence in .wfx is identical to Multiwfn
-integer :: convGseq(35)
-convGseq(21:35)=(/ 23,29,32,27,22,28,35,34,26,31,33,30,25,24,21 /) !g 21~35
-
-nzeroocc=count(MOocc==0D0)
-open(ifileid,file=outwfxname,status="replace")
-write(ifileid,"(a)") "<Title>"
-write(ifileid,*) "Generated by Multiwfn"
-write(ifileid,"(a)") "</Title>"
-write(ifileid,"(a)") "<Keywords>"
-write(ifileid,"(a)") " GTO"
-write(ifileid,"(a)") "</Keywords>"
-write(ifileid,"(a)") "<Number of Nuclei>"
-write(ifileid,"(i6)") ncenter
-write(ifileid,"(a)") "</Number of Nuclei>"
-write(ifileid,"(a)") "<Number of Occupied Molecular Orbitals>"
-write(ifileid,"(i6)") nmo-nzeroocc
-write(ifileid,"(a)") "</Number of Occupied Molecular Orbitals>"
-write(ifileid,"(a)") "<Number of Perturbations>"
-write(ifileid,"(i6)") 0
-write(ifileid,"(a)") "</Number of Perturbations>"
-write(ifileid,"(a)") "<Net Charge>"
-write(ifileid,"(i6)") sum(a%charge)-nint(nelec)
-write(ifileid,"(a)") "</Net Charge>"
-write(ifileid,"(a)") "<Number of Electrons>"
-write(ifileid,"(i6)") nint(nelec)
-write(ifileid,"(a)") "</Number of Electrons>"
-write(ifileid,"(a)") "<Number of Alpha Electrons>"
-write(ifileid,"(i6)") nint(naelec)
-write(ifileid,"(a)") "</Number of Alpha Electrons>"
-write(ifileid,"(a)") "<Number of Beta Electrons>"
-write(ifileid,"(i6)") nint(nbelec)
-write(ifileid,"(a)") "</Number of Beta Electrons>"
-write(ifileid,"(a)") "<Electronic Spin Multiplicity>"
-write(ifileid,"(i6)") nint(naelec-nbelec)+1
-write(ifileid,"(a)") "</Electronic Spin Multiplicity>"
-write(ifileid,"(a)") "<Number of Core Electrons>"
-write(ifileid,"(i6)") ninnerelec
-write(ifileid,"(a)") "</Number of Core Electrons>"
-write(ifileid,"(a)") "<Nuclear Names>"
-do iatm=1,ncenter
-    write(c10tmp,"(i6)") iatm
-    write(ifileid,"(1x,a)") trim(a(iatm)%name)//trim(adjustl(c10tmp))
-end do
-write(ifileid,"(a)") "</Nuclear Names>"
-write(ifileid,"(a)") "<Atomic Numbers>"
-do iatm=1,ncenter
-    write(ifileid,"(i3)") a(iatm)%index
-end do
-write(ifileid,"(a)") "</Atomic Numbers>"
-write(ifileid,"(a)") "<Nuclear Charges>"
-do iatm=1,ncenter
-    write(ifileid,"(E20.12)") a(iatm)%charge
-end do
-write(ifileid,"(a)") "</Nuclear Charges>"
-write(ifileid,"(a)") "<Nuclear Cartesian Coordinates>"
-do iatm=1,ncenter
-    write(ifileid,"(3E20.12)") a(iatm)%x,a(iatm)%y,a(iatm)%z
-end do
-write(ifileid,"(a)") "</Nuclear Cartesian Coordinates>"
-write(ifileid,"(a)") "<Number of Primitives>"
-write(ifileid,"(i6)") nprims
-write(ifileid,"(a)") "</Number of Primitives>"
-write(ifileid,"(a)") "<Primitive Centers>"
-write(ifileid,"(5i20)") b%center
-write(ifileid,"(a)") "</Primitive Centers>"
-write(ifileid,"(a)") "<Primitive Types>"
-icount=0
-do iprim=1,nprims
-    if (b(iprim)%functype>=21.and.b(iprim)%functype<=35) then
-        write(ifileid,"(i20)",advance="no") convGseq(b(iprim)%functype)
-    else
-        write(ifileid,"(i20)",advance="no") b(iprim)%functype
-    end if
-    icount=icount+1
-    if (icount==5.or.iprim==nprims) then
-        write(ifileid,*)
-        icount=0
-    end if
-end do
-write(ifileid,"(a)") "</Primitive Types>"
-write(ifileid,"(a)") "<Primitive Exponents>"
-write(ifileid,"(5E20.12)") b%exp
-write(ifileid,"(a)") "</Primitive Exponents>"
-if (allocated(b_EDF)) then
-    write(ifileid,"(a)") "<Additional Electron Density Function (EDF)>"
-    write(ifileid,"(a)") "<Number of EDF Primitives>"
-    write(ifileid,"(i6)") nEDFprims
-    write(ifileid,"(a)") "</Number of EDF Primitives>"
-    write(ifileid,"(a)") "<EDF Primitive Centers>"
-    write(ifileid,"(5i20)") b_EDF%center
-    write(ifileid,"(a)") "</EDF Primitive Centers>"
-    write(ifileid,"(a)") "<EDF Primitive Types>"
-    write(ifileid,"(5i20)") b_EDF%functype
-    write(ifileid,"(a)") "</EDF Primitive Types>"
-    write(ifileid,"(a)") "<EDF Primitive Exponents>"
-    write(ifileid,"(5E20.12)") b_EDF%exp
-    write(ifileid,"(a)") "</EDF Primitive Exponents>"
-    write(ifileid,"(a)") "<EDF Primitive Coefficients>"
-    write(ifileid,"(5E20.12)") CO_EDF
-    write(ifileid,"(a)") "</EDF Primitive Coefficients>"
-    write(ifileid,"(a)") "</Additional Electron Density Function (EDF)>"
-end if
-
-write(ifileid,"(a)") "<Molecular Orbital Occupation Numbers>"
-do imo=1,nmo
-    if (MOocc(imo)/=0D0) write(ifileid,"(E20.12)") MOocc(imo)
-end do
-write(ifileid,"(a)") "</Molecular Orbital Occupation Numbers>"
-
-write(ifileid,"(a)") "<Molecular Orbital Energies>"
-do imo=1,nmo
-    if (MOocc(imo)/=0D0) write(ifileid,"(E20.12)") MOene(imo)
-end do
-write(ifileid,"(a)") "</Molecular Orbital Energies>"
-
-write(ifileid,"(a)") "<Molecular Orbital Spin Types>"
-do imo=1,nmo
-    if (MOocc(imo)/=0D0) then
-        if (MOtype(imo)==0) write(ifileid,"(a)") " Alpha and Beta"
-        if (MOtype(imo)==1) write(ifileid,"(a)") " Alpha"
-        if (MOtype(imo)==2) write(ifileid,"(a)") " Beta"
-    end if
-end do
-write(ifileid,"(a)") "</Molecular Orbital Spin Types>"
-
-write(ifileid,"(a)") "<Molecular Orbital Primitive Coefficients>"
-i=0
-nzeroocc=0
-do imo=1,nmo
-    if (MOocc(imo)==0D0) cycle
-    i=i+1 !Use i instead of imo, this can make MO index contiguous
-    write(ifileid,"(a)") "<MO Number>"
-    write(ifileid,"(i6)") i
-    write(ifileid,"(a)") "</MO Number>"
-    write(ifileid,"(4E20.12)") CO(imo,:)
-end do
-write(ifileid,"(a)") "</Molecular Orbital Primitive Coefficients>"
-
-write(ifileid,"(a)") "<Energy = T + Vne + Vee + Vnn>"
-write(ifileid,"(E20.12)") totenergy
-write(ifileid,"(a)") "</Energy = T + Vne + Vee + Vnn>"
-
-write(ifileid,"(a)") "<Virial Ratio (-V/T)>"
-write(ifileid,"(E20.12)") virialratio
-write(ifileid,"(a)") "</Virial Ratio (-V/T)>"
-
-close(ifileid)
-if (nzeroocc>0.and.ioutinfo==1) write(*,"(a,i10,a)") " Note: Found",nzeroocc," zero occupied orbitals and have discarded them"
-end subroutine
-
 
 
 !!!------------------------- Output current wavefunction to Molden input file
@@ -4123,7 +3506,7 @@ do iatm=1,ncenter
     write(ifileid,"(2i6)") iatm,0
     do ish=1,nshell
         if (shcen(ish)==iatm) then
-            symbol=shtype2name(shtype(ish))
+            symbol=shelltype2name(shtype(ish))
             call struc2lc(symbol)
             write(ifileid,"(a,i4,' 1.0')") symbol,shcon(ish)
             if (ish==0) then
@@ -4199,7 +3582,7 @@ open(ifileid,file=outname,status="replace")
 write(ifileid,"(a)") "Generated by Multiwfn"
 write(ifileid,"(a10,a30,a30)") "SP        ","RB3LYP                        ","                      6-31G(d)"
 write(ifileid,"(A40,3X,A1,5X,I12)") "Number of atoms                         ","I",ncenter
-write(ifileid,"(A40,3X,A1,5X,I12)") "Charge                                  ","I",sum(a%charge)-nelec
+write(ifileid,"(A40,3X,A1,5X,I12)") "Charge                                  ","I",sum(a(:)%charge)-nelec
 write(ifileid,"(A40,3X,A1,5X,I12)") "Multiplicity                            ","I",nint(naelec-nbelec)+1
 write(ifileid,"(A40,3X,A1,5X,I12)") "Number of electrons                     ","I",nint(nelec)
 write(ifileid,"(A40,3X,A1,5X,I12)") "Number of alpha electrons               ","I",nint(naelec)
@@ -4252,224 +3635,4 @@ write(ifileid,"(5(1PE16.8))") ((Palpha(i,j)-Pbeta(i,j),j=1,i),i=1,nbasis)
 end if
 close(ifileid)
 write(*,*) "Exporting .fch file finished!"
-end subroutine
-
-
-!!!---------- Output current wavefunction to .47 file, which is input file of NBO program
-subroutine out47(outname,ifileid)
-use defvar
-use util
-implicit real*8 (a-h,o-z)
-character(len=*) outname
-character(80) c80tmp1,c80tmp2
-real*8 primshcoefftmp(nprimshell)
-real*8,allocatable :: halfmat(:)
-real*8,external :: normgau
-integer bastype2NBO(50),nptr(nshell)
-integer ifileid
-bastype2NBO(1 )=1   !s
-bastype2NBO(2 )=101 !x
-bastype2NBO(3 )=102 !y
-bastype2NBO(4 )=103 !z
-bastype2NBO(5 )=201 !xx
-bastype2NBO(8 )=202 !xy
-bastype2NBO(9 )=203 !xz
-bastype2NBO(6 )=204 !yy
-bastype2NBO(10)=205 !yz
-bastype2NBO(7 )=206 !zz
-bastype2NBO(11)=301 !xxx
-bastype2NBO(14)=302 !xxy
-bastype2NBO(15)=303 !xxz
-bastype2NBO(17)=304 !xyy
-bastype2NBO(20)=305 !xyz
-bastype2NBO(18)=306 !xzz
-bastype2NBO(12)=307 !yyy
-bastype2NBO(16)=308 !yyz
-bastype2NBO(19)=309 !yzz
-bastype2NBO(13)=310 !zzz
-!Below g sequence comes from line 47384 in NBO_5 src
-bastype2NBO(35)=401 !XXXX
-bastype2NBO(34)=402 !XXXY
-bastype2NBO(33)=403 !XXXZ
-bastype2NBO(32)=404 !XXYY
-bastype2NBO(31)=405 !XXYZ
-bastype2NBO(30)=406 !XXZZ
-bastype2NBO(29)=407 !XYYY
-bastype2NBO(28)=408 !XYYZ
-bastype2NBO(27)=409 !XYZZ
-bastype2NBO(26)=410 !XZZZ
-bastype2NBO(25)=411 !YYYY
-bastype2NBO(24)=412 !YYYZ
-bastype2NBO(23)=413 !YYZZ
-bastype2NBO(22)=414 !YZZZ
-bastype2NBO(21)=415 !ZZZZ
-
-if (any(shtype<0)) then
-    write(*,*) "Error: This function only works when all basis functions are Cartesian type!"
-    write(*,"(a)") " Hint: If you set ""iloadasCart"" in settings.ini to 1, then all spherical harmonic type of &
-    basis functions will be converted to Cartesian type when loading input file, and then this function will be usable"
-    write(*,*) "Press ENTER to return"
-    pause
-    return
-end if
-
-open(ifileid,file=outname,status="replace")
-write(c80tmp1,*) ncenter
-write(c80tmp2,*) nbasis
-if (wfntype==0.or.wfntype==3) then !Closed-shell
-    write(10,"(' $GENNBO NATOMS=',a,' NBAS=',a,' UPPER BODM $END')") trim(adjustl(c80tmp1)),trim(adjustl(c80tmp2))
-else !Open-shell
-    write(10,"(' $GENNBO NATOMS=',a,' NBAS=',a,' UPPER BODM OPEN $END')") trim(adjustl(c80tmp1)),trim(adjustl(c80tmp2))
-end if
-write(10,*) "$NBO $END"
-write(10,*) "$COORD"
-write(10,*) "Generated by Multiwfn"
-do iatm=1,ncenter
-    write(10,"(2i6,3f12.6)") a(iatm)%index,int(a(iatm)%charge),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
-end do
-write(10,*) "$END"
-
-!Basis function information
-write(10,*) "$BASIS"
-write(10,"(' CENTER =')")
-write(10,"(10i6)") bascen(:)
-write(10,"(' LABEL =')")
-write(10,"(10i6)") bastype2NBO(bastype(:))
-write(10,"(' $END')")
-
-!Shell information
-write(10,*) "$CONTRACT"
-write(10,"(' NSHELL =',i6)") nshell
-write(10,"('   NEXP =',i6)") nprimshell
-write(10,"('  NCOMP =')")
-write(10,"(10i6)") shtype2nbas(shtype(:))
-write(10,"('  NPRIM =')")
-write(10,"(10i6)") shcon(:)
-nptr(1)=1
-do ish=2,nshell
-    nptr(ish)=nptr(ish-1)+shcon(ish-1)
-end do
-write(10,"('   NPTR =')")
-write(10,"(10i6)") nptr(:)
-write(10,"('    EXP =')")
-write(10,"(4E16.7)") primshexp(:)
-!In standard .47 and .37 file, the shell contraction coefficients include normalization coefficients
-!For d, f, g, the normalization coefficients are for XX/YY/ZZ, XXX/YYY/ZZZ, XXXX/YYYY/ZZZZ, respectively
-do iang=0,maxval(abs(shtype))
-    primshcoefftmp=0
-    if (iang==0) then
-        write(10,"('     CS =')")
-        do ish=1,nshell
-            if (shtype(ish)==0) then
-                do icon=1,shcon(ish)
-                    iprimshnow=nptr(ish)+icon-1
-                    primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(1,primshexp(iprimshnow))
-                end do
-            end if
-        end do
-    else if (iang==1) then
-        write(10,"('     CP =')")
-        do ish=1,nshell
-            if (shtype(ish)==1) then
-                do icon=1,shcon(ish)
-                    iprimshnow=nptr(ish)+icon-1
-                    primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(2,primshexp(iprimshnow))
-                end do
-            end if
-        end do
-    else if (iang==2) then
-        write(10,"('     CD =')")
-        do ish=1,nshell
-            if (shtype(ish)==2) then
-                do icon=1,shcon(ish)
-                    iprimshnow=nptr(ish)+icon-1
-                    primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(5,primshexp(iprimshnow))
-                end do
-            end if
-        end do
-    else if (iang==3) then
-        write(10,"('     CF =')")
-        do ish=1,nshell
-            if (shtype(ish)==3) then
-                do icon=1,shcon(ish)
-                    iprimshnow=nptr(ish)+icon-1
-                    primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(11,primshexp(iprimshnow))
-                end do
-            end if
-        end do
-    else if (iang==4) then
-        write(10,"('     CG =')")
-        do ish=1,nshell
-            if (shtype(ish)==4) then
-                do icon=1,shcon(ish)
-                    iprimshnow=nptr(ish)+icon-1
-                    primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(21,primshexp(iprimshnow))
-                end do
-            end if
-        end do
-    end if
-    write(10,"(4E16.7)") primshcoefftmp(:)
-end do
-write(10,"(' $END')")
-
-allocate(halfmat(nbasis*(nbasis+1)/2))
-!Overlap matrix
-write(10,"(' $OVERLAP')")
-call mat2arr(Sbas,halfmat,2)
-write(10,"(5E15.7)") halfmat(:)
-write(10,"(' $END')")
-!Density matrix
-write(10,"(' $DENSITY')")
-if (wfntype==0.or.wfntype==3) then !Closed-shell
-    call mat2arr(Ptot,halfmat,2)
-    write(10,"(5E15.7)") halfmat(:)
-else !Open-shell
-    call mat2arr(Palpha,halfmat,2)
-    write(10,"(5E15.7)") halfmat(:)
-    call mat2arr(Pbeta,halfmat,2)
-    write(10,"(5E15.7)") halfmat(:)
-end if
-write(10,"(' $END')")
-
-!LCAOMO matrix. Note that if "iloadasCart" is set to 1, when loading .molden and .fch where spherical harmonic basis functions are presented, &
-!they will be converted to Cartesian type and retain this status. In this case some highest MOs have zero coefficients, but NBO can still work normally
-! if (nmo==nbasis.or.nmo==2*nbasis) then !The input file must only contain Cartesian basis functions
-write(10,"(' $LCAOMO')")
-if (wfntype==0.or.wfntype==2.or.wfntype==3) then !R or RO
-    do imo=1,nmo
-        write(10,"(5E15.7)") CObasa(:,imo)
-    end do
-    if (wfntype==2) then !RO, output orbitals twice
-        do imo=1,nmo
-            write(10,"(5E15.7)") CObasa(:,imo)
-        end do
-    end if
-else !U
-    do imo=1,nbasis
-        write(10,"(5E15.7)") CObasa(:,imo)
-    end do
-    do imo=1,nbasis
-        write(10,"(5E15.7)") CObasb(:,imo)
-    end do
-end if
-write(10,"(' $END')")
-
-!Dipole matrix
-if (allocated(Dbas)) then
-    write(10,"(' $DIPOLE')")
-    call mat2arr(Dbas(1,:,:),halfmat,2)
-    write(10,"(5E15.7)") halfmat(:)*(-b2a) !Must be converted from Bohr to Angstrom
-    call mat2arr(Dbas(2,:,:),halfmat,2)
-    write(10,"(5E15.7)") halfmat(:)*(-b2a)
-    call mat2arr(Dbas(3,:,:),halfmat,2)
-    write(10,"(5E15.7)") halfmat(:)*(-b2a)
-    write(10,"(' $END')")
-else
-    write(*,"(a)") " Note: If you want to write dipole moment matrix into .47 file so that you can use ""DIPOLE"" keyword in NBO, &
-    you should set ""igenDbas"" in settings.ini to 1 and reload input file, so that dipole moment matrix can be generated."
-    write(*,*)
-end if
-
-close(ifileid)
-write(*,*) "Exporting .47 file finished!"
 end subroutine

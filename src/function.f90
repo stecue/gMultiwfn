@@ -1517,7 +1517,7 @@ end subroutine
 
 
 !-------- Output local electron affinity at a point
-!Since virtual orbitals are involved, such as .fch, .molden must be used
+!Since virtual orbitals are involved, such as .fch/.molden/.gms must be used
 real*8 function loceleaff(x,y,z)
 real*8 x,y,z,wfnval(nmo)
 call orbderv(1,1,nmo,x,y,z,wfnval)

@@ -20,7 +20,7 @@ else
         write(*,*) "2 Voronoi deformation density (VDD) population"
     !         write(*,*) "3 Integrate electron density in voronoi cell"
     !         write(*,*) "4 Adjusted method 3 by Rousseau et al."
-        if (ifiletype==1.or.ifiletype==9) then
+        if (allocated(cobasa)) then
             write(*,*) "5 Mulliken atom & basis function population analysis"
             write(*,*) "6 Lowdin population analysis"
             write(*,*) "7 Modified Mulliken population defined by Ros & Schuit (SCPA)"
@@ -324,7 +324,7 @@ if (isel==1.or.isel==2) then
                             shellpop=shellpop+sum(tmpmat(ibas,:))
                         end if
                     end do
-                    write(*,"(' Shell',i6,' Type: ',a,'    in atom',i5,'(',a,') :',f9.5)") ish,shelltype2name(shtype(ish)),iatm,a(iatm)%name,shellpop
+                    write(*,"(' Shell',i6,' Type: ',a,'    in atom',i5,'(',a,') :',f9.5)") ish,shtype2name(shtype(ish)),iatm,a(iatm)%name,shellpop
                     iangtmp=abs(shtype(ish))
                     angorbpop(iatm,iangtmp)=angorbpop(iatm,iangtmp)+shellpop
                 end do
@@ -367,7 +367,7 @@ if (isel==1.or.isel==2) then
                             shellpopb=shellpopb+sum(tmpmat(ibas,:))
                         end if
                     end do
-                    write(*,"(i5,5x,a,i7,'(',a,')' ,4f12.5)") ish,shelltype2name(shtype(ish)),iatm,a(iatm)%name,shellpopa,shellpopb,shellpopa+shellpopb,shellpopa-shellpopb
+                    write(*,"(i5,5x,a,i7,'(',a,')' ,4f12.5)") ish,shtype2name(shtype(ish)),iatm,a(iatm)%name,shellpopa,shellpopb,shellpopa+shellpopb,shellpopa-shellpopb
                     iangtmp=abs(shtype(ish))
                     angorbpopa(iatm,iangtmp)=angorbpopa(iatm,iangtmp)+shellpopa
                     angorbpopb(iatm,iangtmp)=angorbpopb(iatm,iangtmp)+shellpopb

@@ -1,6 +1,6 @@
-!!----------------- Plot TDOS/PDOS/OPDOS
+!!----------------- plot TDOS/PDOS/OPDOS, works for Gaussian output file and .fch/.molden file, but not for .wfn
 !For .out or plain text file, only one type of spin MOs will be loaded and processed, and then we will not consider spin type
-!For .fch/.molden/.gms, etc., user can switch spin type anytime
+!For .fch/.molden, user can switch spin type anytime
 subroutine plotdos
 use defvar
 use util
@@ -123,7 +123,7 @@ if (ifiletype==0) then
     end if
     close(10)
     allocate(DOSlinex(3*nmo),TDOSliney(3*nmo))
-else if (allocated(CObasa)) then
+else if (ifiletype==1.or.ifiletype==9) then
     allocate(str(nbasis),FWHM(nbasis)) !I assume the number of MOs taken into account is equal to nbasis
     !Allocate all arrays that may be used, don't consider if they will actually be used, because memory consuming is very little
     allocate(DOSlinex(3*nbasis),TDOSliney(3*nbasis),PDOSliney(3*nbasis,nfragmax),OPDOSliney(3*nbasis),LDOSliney(3*nbasis))
@@ -133,9 +133,7 @@ else if (allocated(CObasa)) then
     str=1D0
     FWHM=defFWHM
 else
-    write(*,*) "Error: Your input file does not contain basis function information!"
-    write(*,*) "Press ENTER to return"
-    pause
+    write(*,*) "ERROR: This input file is unsupported!"
     return
 end if
 
@@ -160,7 +158,7 @@ write(*,*) "-10 Return to main menu"
 write(*,*) "-5 Customize energy levels, occupations, strengths and FWHMs for specific MOs"
 write(*,*) "-4 Show all orbital information"
 write(*,*) "-3 Export energy levels, occupations, strengths and FWHMs to plain text file"
-if (allocated(CObasa)) write(*,*) "-1 Define fragments"
+if (ifiletype==1.or.ifiletype==9) write(*,*) "-1 Define fragments"
 if (idoOPDOS==1) then
     write(*,*) "0 Draw TDOS+PDOS+OPDOS graph!"
 else if (idoPDOS==1) then
@@ -181,10 +179,8 @@ write(*,"(a,f10.5)") " 4 Set scale ratio for DOS curve, current:",scalecurve
 if (ibroadfunc==3) write(*,"(a,f10.5)") " 5 Set Gaussian-weighting coefficient, current:",gauweigh
 if (ispin==1) write(*,*) "6 Switch spin, current: Alpha"
 if (ispin==2) write(*,*) "6 Switch spin, current: Beta"
-if (allocated(CObasa)) then
-    if (ipopmethod==1) write(*,*) "7 Switch method for calculating PDOS, current: Mulliken"
-    if (ipopmethod==3) write(*,*) "7 Switch method for calculating PDOS, current: SCPA"
-end if
+if (ipopmethod==1.and.(ifiletype==1.or.ifiletype==9)) write(*,*) "7 Switch method for calculating PDOS, current: Mulliken"
+if (ipopmethod==3.and.(ifiletype==1.or.ifiletype==9)) write(*,*) "7 Switch method for calculating PDOS, current: SCPA"
 write(*,*) "8 Switch unit between a.u. and eV, current:"//unitstr
 write(*,*) "10 Draw local DOS for a point"
 write(*,*) "11 Draw local DOS along a line"

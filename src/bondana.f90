@@ -5,7 +5,7 @@ implicit real*8 (a-h,o-z)
 character c2000tmp*2000
 do while(.true.)
     write(*,*) "           ================ Bond order analysis ==============="
-    if (ifiletype==1.or.ifiletype==9) then
+    if (allocated(CObasa)) then
         if (allocated(frag1)) then
             write(*,*) "-1 Redefine fragment 1 and 2 for option 1,3,4,7,8"
         else
@@ -24,7 +24,7 @@ do while(.true.)
     write(*,*) "7 Fuzzy bond order analysis"
     write(*,*) "8 Laplacian bond order"
     read(*,*) ibondana
-    if (.not.allocated(shtype).and.(ibondana>=1.and.ibondana<=6)) then
+    if (.not.allocated(CObasa).and.(ibondana>=1.and.ibondana<=6)) then
         write(*,"(a)") " ERROR: The input file you used does not contain basis function information! Please check Section 2.5 of the manual for explanation"
         return
     else if (.not.allocated(b).and.(ibondana==7.or.ibondana==8)) then

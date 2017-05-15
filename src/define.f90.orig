@@ -45,7 +45,7 @@ character,allocatable :: custommapname(:)*80,customop(:) !Custom operation for c
 logical alive
 integer,allocatable :: fragatm(:),fragatmbackup(:) !Store the index of atoms in fragment, has no relationship with frag1/frag2. fragatmbackup is used to backup fragatm during custom operation
 integer,allocatable :: frag1(:),frag2(:) !These two fragments are only used for bond order analysis/composition analysis etc., store index of basis functions or atoms. Their size just fit their content
-integer :: ncustommap=0,imodwfn=0 !if 1, means occupation number or orbital type or basis function information have been modified
+integer :: ncustommap=0,imodwfn=0 !if 1, means original occupation number or orbital type have been modified. Modified GTF information is not taken into account
 integer :: iorbsel=1 !Which orbital is selected, and its value will be calculated by fmo and calchessmat_mo
 integer :: iorbsel2=0 !Which orbital will be plotted together with iorbsel in plane map
 
@@ -170,7 +170,7 @@ real*8 :: atmwei(0:nelesupp)=(/ 0D0,1.00794D0,4.0026D0,6.941D0,9.01218D0,10.811D
 integer :: Lebelist(32)=(/ 6,14,26,38,50,74,86,110,146,170,194,230,266,302,350,434,590,770,974,1202,1454,1730,2030,2354,2702,3074,3470,3890,4334,4802,5294,5810 /)
 integer :: fact(0:10)=(/ 1,1,2,6,24,120,720,5040,40320,362880,3628800 /) ! Store factorials from 0~10 
 integer :: isphergau=0 !By default, all basis functions are cartesian type, =1 means spherical (but some of them can be still cartesian type)
-character*5 :: GTFtype2name(-32:56)=(/ & !The definition of such as G-4, H+5 can be found in http://sobereva.com/97
+character*5 :: GTFtype2name(-32:56)=(/ &
 "H 0  ","H+1  ","H-1  ","H+2  ","H-2  ","H+3  ","H-3  ","H+4  ","H-4  ","H+5  ","H-5  ", & !-32:-22
 "G 0  ","G+1  ","G-1  ","G+2  ","G-2  ","G+3  ","G-3  ","G+4  ","G-4  ", & !-21:-13
 "F 0  ","F+1  ","F-1  ","F+2  ","F-2  ","F+3  ","F-3  ","D 0  ","D+1  ","D-1  ","D+2  ","D-2  ", & !-12:-6,-5:-1
@@ -178,11 +178,6 @@ character*5 :: GTFtype2name(-32:56)=(/ & !The definition of such as G-4, H+5 can
 "XXX  ","YYY  ","ZZZ  ","XXY  ","XXZ  ","YYZ  ","XYY  ","XZZ  ","YZZ  ","XYZ  ", & !f 11~20
 "ZZZZ ","YZZZ ","YYZZ ","YYYZ ","YYYY ","XZZZ ","XYZZ ","XYYZ ","XYYY ","XXZZ ","XXYZ ","XXYY ","XXXZ ","XXXY ","XXXX ", & !g 21~35
 "ZZZZZ","YZZZZ","YYZZZ","YYYZZ","YYYYZ","YYYYY","XZZZZ","XYZZZ","XYYZZ","XYYYZ","XYYYY","XXZZZ","XXYZZ","XXYYZ","XXYYY","XXXZZ","XXXYZ","XXXYY","XXXXZ","XXXXY","XXXXX" /) !h 36~56
-character*5 :: type2ang(56)=(/ &
-"S    ","P    ","P    ","P    ","D    ","D    ","D    ","D    ","D    ","D    ", & !0~10
-"F    ","F    ","F    ","F    ","F    ","F    ","F    ","F    ","F    ","F    ", & !f 11~20
-"G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ","G    ", & !g 21~35
-"H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    ","H    " /) !h 36~56
 !Here s,p,d sequences are identical to .wfn, .wfx, .fch, .molden  !Note: Sequence in .fch = sequence in Gaussian
 !Here f sequence is identical to .wfn, .wfx, but not identical to .fch and .molden
 !Here g sequence is identical to .fch, .wfn does not support higher than f function, not identical to .wfx and .molden
@@ -192,16 +187,16 @@ character*5 :: type2ang(56)=(/ &
 integer :: type2ix(56)=(/ 0, 1,0,0, 2,0,0,1,1,0, 3,0,0,2,2,0,1,1,0,1, 0,0,0,0,0,1,1,1,1,2,2,2,3,3,4, 0,0,0,0,0,0,1,1,1,1,1,2,2,2,2,3,3,3,4,4,5 /)
 integer :: type2iy(56)=(/ 0, 0,1,0, 0,2,0,1,0,1, 0,3,0,1,0,2,2,0,1,1, 0,1,2,3,4,0,1,2,3,0,1,2,0,1,0, 0,1,2,3,4,5,0,1,2,3,4,0,1,2,3,0,1,2,0,1,0 /)
 integer :: type2iz(56)=(/ 0, 0,0,1, 0,0,2,0,1,1, 0,0,3,0,1,1,0,2,2,1, 4,3,2,1,0,3,2,1,0,2,1,0,1,0,0, 5,4,3,2,1,0,4,3,2,1,0,3,2,1,0,2,1,0,1,0,0 /)
-!Negative value means the shell use spherical gauss function. -1=SP (also known as L in GAMESS), and impossible be used in Multiwfn (when detect it, split it as S and P)
-character :: shtype2name(-5:5)=(/ "H","G","F","D","L","S","P","D","F","G","H" /)
-!Convert shell type to the number of basis functions in the shell: 0=s,1=p,-1=sp,2=6d,-2=5d,3=10f,-3=7f,4=15g,-4=9g,5=21h,-5=11h
-integer :: shtype2nbas(-5:5)=(/ 11,9,7,5,4,1,3,6,10,15,21 /) 
+!Negative value means the shell use spherical gauss function. -1=SP, and impossible be used in Multiwfn (when detect it, split it as S and P)
+character :: shelltype2name(-5:5)=(/ "H","G","F","D"," ","S","P","D","F","G","H" /)
+!Convert shell type to the number of orbitals,0=s,1=p,-1=sp,2=6d,-2=5d,3=10f,-3=7f,4=15g,-4=9g,5=21h,-5=11h
+integer :: type2norb(-5:5)=(/ 11,9,7,5,4,1,3,6,10,15,21 /) 
 
 !-------- Variables for wfn information(_org means using for backuping the first loaded molecule)
 integer :: ibasmode=0 !0/1 = GTO/STO is used in current wavefunction
 integer :: nmo=0,nprims=0,ncenter=0,ncenter_org=0,nmo_org=0,nprims_org=0 !Number of orbitals, primitive functions, nuclei
 integer :: idxHOMO=0 !For fch and molden, record the index of original HOMO, this will be used to calculate linear response kernel for pi-electrons
-integer :: ifiletype=0 !unknown textfile=0, fch=1, wfn=2, wfx=3, chg=4, pdb/xyz=5, .31=6, cube=7, grd=8, molden=9, GAMESS-US=10
+integer :: ifiletype=0 !unknown textfile=0, fch=1, wfn=2, wfx=3, chg=4, pdb/xyz=5, .31=6, cube=7, grd=8, molden=9
 integer :: wfntype=0 !0/1/2/3/4 means R/U/ROHF /R/U-Post-HF wavefunction
 real*8 :: totenergy=0,virialratio=2,nelec=0,naelec=0,nbelec=0
 integer :: ninnerelec=0 !Electrons represented by EDF
@@ -210,7 +205,7 @@ type(atomtype),allocatable :: a(:),a_org(:),a_tmp(:)
 type(primtype),allocatable :: b(:),b_org(:),b_tmp(:)
 real*8,allocatable :: MOocc(:),MOocc_org(:),MOene(:) !Occupation number & energy of orbital
 integer,allocatable :: MOtype(:) !The type of orbitals, (alpha&beta)=0/alpha=1/beta=2, not read from .wfn directly
-character*4,allocatable :: MOsym(:) !The symmetry of orbitals, meaningful when .molden/.gms is used since it sometimes records irreducible representation
+character*4,allocatable :: MOsym(:) !The symmetry of orbitals, meaningful when .molden is used since it sometimes records irreducible representation
 real*8,allocatable :: CO(:,:),CO_org(:,:),CO_tmp(:,:) !Coefficient matrix of primitive basis functions, including both normalization and contraction coefficients
                                                         !Note: Row/column of CO denote MO/GTF respectively, in contrary to convention
 !-------- Describe inner electron density in EDF section in .wfx file
@@ -312,8 +307,7 @@ real*8 :: dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,sur_value=0.05D0
 !!! Other external parameter !!!
 integer :: iautointgrid=1,radpot=75,sphpot=434 !sphpot=230/302/434/590/770, low is 50*434, high is 100*590
 integer :: ispecial=0 !=0: Normal, =1 specific for Chunying Rong, =2 for Shubin's 2nd project
-integer :: isys=2 !isys=1/2/3: Windows/Linux/MacOS
-integer :: igenDbas=0,igenMagbas=0,igenP=1,iwfntmptype=1,outmedinfo=0,intmolcust=0,isilent=0,idelvirorb=1,ifchprog=1,iloadascart=0
+integer :: igenDbas=0,igenMagbas=0,igenP=1,iwfntmptype=1,outmedinfo=0,intmolcust=0,isilent=0,isys=2,idelvirorb=1,ifchprog=1 !isys=1/2/3: Windows/Linux/MacOS X
 integer :: iuserfunc=0,iDFTxcsel=84,ispheratm=1,ADCtransfer=0,SpherIVgroup=0,MCvolmethod=2,readEDF=1,ireadatmEDF=0,ishowptESP=1,imolsurparmode=1
 integer :: NICSnptlim=8000
 real*8 :: bndordthres=0.05D0,compthres=0.5D0,compthresCDA=1D0,expcutoff=-40D0,espprecutoff=0D0

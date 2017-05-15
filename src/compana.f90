@@ -6,7 +6,7 @@ do while(.true.)
     write(*,"(/,a,/)") " Citation of this module: Tian Lu, Feiwu Chen, Calculation of Molecular Orbital Composition, Acta Chim. Sinica, 69, 2393-2406"
     write(*,*) "      ================ Orbital composition analysis ==============="
     write(*,*) "-10 Return"
-    if (ifiletype==1.or.ifiletype==9) then
+    if (allocated(CObasa)) then
         write(*,*) "-2 Define fragment 2 (for option 4,5)"
         write(*,*) "-1 Define fragment 1 (for option 1~6)"
         write(*,*) "1 Orbital composition analysis with Mulliken partition"
@@ -467,7 +467,7 @@ do while(.true.)
                     iatm=bascen(j)
                 end if
             end do
-            if (abs(shellcom)*100>compthres) write(*,"(' Shell',i6,' Type: ',a,'    in atom',i5,'(',a,') :',f14.5,'%')") i,shelltype2name(shtype(i)),iatm,a(iatm)%name,shellcom*100
+            if (abs(shellcom)*100>compthres) write(*,"(' Shell',i6,' Type: ',a,'    in atom',i5,'(',a,') :',f14.5,'%')") i,shtype2name(shtype(i)),iatm,a(iatm)%name,shellcom*100
         end do
         write(*,*)
         write(*,*) "Composition of each atom:"

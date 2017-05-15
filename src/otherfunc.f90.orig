@@ -2036,7 +2036,7 @@ if (isel==1.or.isel==2.or.isel==3.or.isel==4) then
     imodwfn=1
     call updatenelec
     write(*,*) "Done!"
-    if (allocated(CObasa)) then
+    if (ifiletype==1.or.ifiletype==9) then
         write(*,*) "Updating density matrix..."
         call genP
         write(*,*) "Density matrix has been updated"

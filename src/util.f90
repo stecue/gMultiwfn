@@ -709,17 +709,6 @@ mat=0D0
 forall (i=1:isize) mat(i,i)=eigvalarr(i)
 end subroutine
 
-!!------------ Transform lower-trigonal part of symmetric matrix to one-dimension array
-function mat2arr(mat,nsize)
-implicit real*8 (a-h,o-z)
-real*8 mat(nsize,nsize),mat2arr(nsize*(nsize+1)/2)
-j=1
-do i=1,nsize
-    mat2arr(j:j+i-1)=mat(i,1:i)
-    j=j+i
-end do
-end function
-
 !!--------------- A function to output inverted matrix, inputted matrix will not be affected. Essentially is a warpper of KROUT
 function invmat(mat,N)
 integer N,ierr
@@ -923,7 +912,8 @@ end do
 if (MO == 0) deallocate( INDX, TEMP )
 end subroutine
 
-!-------Calculate how much is a matrix deviates from identity matrix
+
+!------- Calculate how much is a matrix deviates from identity matrix
 !error=¡Æ[i,j]abs( abs(mat(i,j))-¦Ä(i,j) )
 real*8 function identmaterr(mat)
 implicit real*8 (a-h,o-z)
@@ -942,8 +932,36 @@ end do
 end function
 
 
-
-
+!----- Convert a square matrix to an array. imode=1/2/3: full matrix; upper half matrix; lower half matrix
+!For mode=1,2, "arr" should be nsize*(nsize+1)/2
+subroutine mat2arr(mat,arr,imode)
+implicit real*8 (a-h,o-z)
+real*8 mat(:,:),arr(:)
+nsize=size(mat,1)
+itmp=0
+if (imode==1) then !Full matrix
+    do i=1,nsize
+        do j=1,nsize
+            itmp=itmp+1
+            arr(itmp)=mat(i,j)
+        end do
+    end do
+else if (imode==2) then !Upper half matrix
+    do i=1,nsize
+        do j=1,i
+            itmp=itmp+1
+            arr(itmp)=mat(i,j)
+        end do
+    end do
+else !Lower half matrix
+    do i=1,nsize
+        do j=i,nsize
+            itmp=itmp+1
+            arr(itmp)=mat(i,j)
+        end do
+    end do
+end if
+end subroutine
 
 
 !===============================================================!

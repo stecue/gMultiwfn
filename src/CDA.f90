@@ -36,7 +36,7 @@ real*8 :: eneplotlow=-20,eneplothigh=5,complabshift=0.5D0
 integer :: ilabelorbidx=1,ilabelcomp=1,labsize=40,ispinplot=1
 
 ifchmol=0 !By default the input file is Gaussian output file
-if (ifiletype==1.or.ifiletype==9) ifchmol=1 !The input file is .fch or .molden
+if (allocated(CObasa)) ifchmol=1 !The input file contains basis function information
 !First we find out how many atoms and nmo(=nbasis) in complex, so that we can allocate proper size of arrays
 if (ifchmol==0) then
     open(10,file=filename,status="old")
@@ -146,7 +146,7 @@ do ifrag=0,nCDAfrag !Here we first gather basic informations of complex(ifrag=0)
         close(10)
         if (iopsh(ifrag)==0.and.naelecCDA(ifrag)/=nbelecCDA(ifrag)) iRO(ifrag)=1 !This is a ROHF fragment
         
-    else !.fch or .molden
+    else !Containing basis function information
         call dealloall
         call readinfile(fragfilename(ifrag),1)
         natmCDA(ifrag)=ncenter
@@ -305,7 +305,7 @@ do ifrag=0,nCDAfrag
                 call loclabel(10,"Orbital Coefficients",ifound,0) !Beta
                 call readgauorbeig(occCDAb(1:nmotmp,ifrag),nmotmp,0)
             end if
-        else !.fch or .molden
+        else !Input file contains basis function information
             cobasCDA(istart:iend,istart:iend,ifrag)=cobasa
             cobasCDAb(istart:iend,istart:iend,ifrag)=cobasb
             eneCDA(1:nmotmp,ifrag)=MOene(1:nmotmp)*au2eV

@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-May-9"
+write(*,*) "Version 3.4(dev), release date: 2017-Apr-16"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -142,7 +142,7 @@ end if
 write(*,"(/,3a)") " Loaded ",trim(filename)," successfully!"
 ! call sys1eprop !Show some system 1e properties, only works when Cartesian basis functions are presented
 
-! call outwfx("new.wfx",1,10)
+! call parseGauPolar
 
 !!!--------------------- Now everything start ---------------------!!!
 !!!--------------------- Now everything start ---------------------!!!
@@ -254,7 +254,7 @@ if (infuncsel1==0) then !
     do i=1,ncenter
         write(*,"(i5,'(',a2,')',' --> Charge:',f10.6,'  x,y,z(Bohr):',3f11.6)") i,a(i)%name,a(i)%charge,a(i)%x,a(i)%y,a(i)%z
     end do
-    if (allocated(CObasa).and.imodwfn==0) then !fch and occupation number hasn't been modified
+    if ((ifiletype==1.or.ifiletype==9).and.imodwfn==0) then !fch and occupation number hasn't been modified
         if (wfntype==0) then
             write(*,"(' Note: Orbital',i6,' is HOMO, energy:',f12.6,' a.u.',f12.6,' eV')") nint(nelec/2),MOene(nint(nelec/2)),MOene(nint(nelec/2))*au2eV
             if (nint(nelec/2)+1<=nmo) then
@@ -2247,8 +2247,7 @@ else if (infuncsel1==10) then
     if (ifiletype/=0.or.ifiletype/=1.or.ifiletype/=9) then
         call plotdos
     else
-        write(*,"(a,/)") " Error: This function is only available for input file containing basis function information &
-        (e.g. .fch/.molden/.gms) and plain text file with energy levels!"
+        write(*,"(a,/)") " Error: This function only available for .fch, .molden and plain text file with energy levels!"
     end if
     
     
@@ -2339,7 +2338,7 @@ else if (infuncsel1==100) then
         write(*,*) "              ------------ Other functions (Part 1) ------------ "
         write(*,*) "0 Return"
         write(*,*) "1 Draw scatter graph between two functions and generate their cube files"
-        write(*,*) "2 Export .pdb/.xyz/.wfn/.wfx/.molden/.fch/.47 or Gaussian/GAMESS-US input file"
+        write(*,*) "2 Output .pdb, .xyz, .wfn, .molden, .fch or Gaussian/GAMESS-US input file"
         write(*,*) "3 Calculate molecular van der Waals Volume"
         write(*,*) "4 Integrate a function in whole space"
         write(*,*) "5 Show overlap integral between alpha and beta orbitals"
@@ -2369,11 +2368,9 @@ else if (infuncsel1==100) then
         else if (infuncsel2==2) then
             write(*,*) "1 Output current structure to .pdb file"
             write(*,*) "2 Output current structure to .xyz file"
-            write(*,*) "4 Output current wavefunction as .wfx file"
             write(*,*) "5 Output current wavefunction as .wfn file"
             write(*,*) "6 Output current wavefunction as Molden input file (.molden)"
             write(*,*) "7 Output current wavefunction as .fch file"
-            write(*,*) "8 Output current wavefunction as .47 file"
             write(*,*) "10 Output current structure to Gaussian input file"
             write(*,*) "11 Output current structure to GAMESS-US input file"
             read(*,*) itmp
@@ -2385,15 +2382,6 @@ else if (infuncsel1==100) then
                 write(*,*) "Input the path for xyz file, e.g. c:\ltwd.xyz"
                 read(*,"(a)") c200tmp
                 call outxyz(c200tmp,10)
-            else if (itmp==4) then
-                if (.not.allocated(b)) then
-                    write(*,*) "Error: The input file you used does not contain GTF information!"
-                else
-                    write(*,*) "Input the path, e.g. c:\ltwd.wfx"
-                    read(*,"(a)") c200tmp
-                    call outwfx(c200tmp,1,10)
-                    write(*,*) "Done!"
-                end if
             else if (itmp==5) then
                 if (.not.allocated(b)) then
                     write(*,*) "Error: The input file you used does not contain GTF information!"
@@ -2404,28 +2392,20 @@ else if (infuncsel1==100) then
                     write(*,*) "Done!"
                 end if
             else if (itmp==6) then
-                if (.not.allocated(CObasa)) then
-                    write(*,*) "Error: This function works only when input file contains basis function information"
+                if (.not.allocated(shtype)) then
+                    write(*,*) "Error: This function works only when .fch/.molden was used as input file"
                 else
                     write(*,*) "Input the path, e.g. c:\ltwd.molden"
                     read(*,"(a)") c200tmp
                     call outmolden(c200tmp,10)
                 end if
             else if (itmp==7) then
-                if (.not.allocated(CObasa)) then
-                    write(*,*) "Error: This function works only when input file contains basis function information"
+                if (.not.allocated(shtype)) then
+                    write(*,*) "Error: This function works only when .fch/.molden was used as input file"
                 else
                     write(*,*) "Input the path, e.g. c:\ltwd.fch"
                     read(*,"(a)") c200tmp
                     call outfch(c200tmp,10)
-                end if
-            else if (itmp==8) then
-                if (.not.allocated(CObasa)) then
-                    write(*,*) "Error: This function works only when input file contains basis function information"
-                else
-                    write(*,*) "Input the path, e.g. c:\ltwd.47"
-                    read(*,"(a)") c200tmp
-                    call out47(c200tmp,10)
                 end if
             else if (itmp==10) then
                 write(*,*) "Input the path, e.g. c:\ltwd.gjf"
