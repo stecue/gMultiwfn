@@ -1,6 +1,7 @@
 #!/bin/bash
 # Written by Xing (stecue@gmail) to do some "porting" work for gMultiwfn.
 srcDir=$1
+dos2unix ${srcDir}/*F
 for srcF in ${srcDir}/*f90
 do
 ##Fix tab using blanks

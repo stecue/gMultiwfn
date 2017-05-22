@@ -305,6 +305,11 @@ integer :: ishowlocminlab=0,ishowlocmaxlab=0,ishowlocminpos=0,ishowlocmaxpos=0 !
 integer :: ishow3n3=0,ishow3n1=0,ishow3p1=0,ishow3p3=0
 real*8 :: bondcrit=1.15D0,textheigh=30.0D0,ratioatmsphere=1.0D0,ratioCPsphere=0.8D0,bondradius=0.2D0,attsphsize=0.1D0
 real*8 :: XVU=150.0D0,YVU=30.0D0,ZVU=6.0D0 !3D view angle
+!Parameter for drawing domain defined by isosurfaces as grids
+integer :: idrawdomainidx=0,idrawdomain=0,ndomain=0
+real*8,allocatable :: gridxyz(:,:) !XYZ coordinate of grid that statisfied criterion
+integer,allocatable :: domainsize(:) !The number of grids contained in each domain
+integer,allocatable :: domaingrid(:,:) !The grid indices contained in each domain
 !For passing ploting parameter from GUI routine to their call-back routine
 !sur_value: The value of isosurface will be plot by drawmol routine when idrawisosur=1
 real*8 :: dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,sur_value=0.05D0

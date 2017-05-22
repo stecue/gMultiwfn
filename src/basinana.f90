@@ -100,9 +100,6 @@ do while(.true.)
                 write(*,*) "Input the attractors you want to cluster, e.g. 4,5,8,9,22,21"
                 read(*,"(a)") c1000tmp
                 call str2arr(c1000tmp,ntobeclus) !Find how many terms
-!                 do iatt=1,numatt
-!                     write(*,*) iatt,attconv(iatt)
-!                 end do
                 if (allocated(attconvold)) deallocate(attconvold,realattconv,usercluslist)
                 allocate(attconvold(-2:numatt),realattconv(-2:numrealatt),usercluslist(ntobeclus))
                 realattconv(-2)=-2
@@ -119,9 +116,6 @@ do while(.true.)
                         attconv(iatt)=idesrealatt
                     end do
                 end do
-!                 do iatt=1,numatt
-!                     write(*,*) iatt,attconv(iatt)
-!                 end do
                 call clusdegenatt(1)
                 realattconv(1)=1
                 do itmp=1,numatt !Build conversion relationship between previous real attractors and new real attractors
@@ -669,7 +663,7 @@ nthreads=getNThreads()
                             gradmax=gradtmp
                         end if
                     end do
-                    !Test if this is an attractor, is yes, assign all grid in this trajectory
+                    !Test if this is an attractor, if yes, assign all grid in this trajectory
                     if (gradmax<=0) then !Equal sign is important, because when system has symmetry, adjacent grid may be degenerate about mirrow plane, now the ascent should be terminated
                         if (valnow==0D0) exit !The region far beyond system, the value may be exactly zero due to cutoff of exponent, these grids shouldn't be regarded as attractors
 !$OMP CRITICAL
@@ -1375,7 +1369,7 @@ do while(.true.)
     write(*,*) "5 Only input grid spacing, automatically set other parameters"
     write(*,*) "6 Only input the number of points in X,Y,Z, automatically set other parameters"
     write(*,*) "7 Input original point, translation vector and the number of points"
-    write(*,*) "8 Input center coordinate, grid spacing and box length"
+    write(*,*) "8 Set center position, grid spacing and box length"
     write(*,*) "9 Use grid setting of another cube file"
     
     read(*,*) igridsel

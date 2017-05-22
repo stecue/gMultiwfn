@@ -3227,3 +3227,603 @@ deallocate(donorMO,bridgeMO,acceptorMO)
 
 goto 130
 end subroutine
+
+
+
+!---------- Perform Pipek-Mezey orbital localization
+!The algorithm can be found in J. Comput. Chem., 14, 736 (1993)
+!Performing E2 analysis based on LMO oribtal is not appropriate, the non-diagonal elements of Fock matrix are almost zero, &
+!this phenonmenon can also be seen in NLMO Fock matrix ($NBO FNLMO $END). This is because we don't allow mixure between occupied and unoccupied MOs
+subroutine pipek_mezey
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer :: maxcyc=80,ireload=1,idoene=0,domark(4)
+real*8 :: arrayi(nbasis),arrayj(nbasis),crit=1D-4,tmpbasarr(nbasis),tmpprimarr(nprims)
+real*8,pointer :: Cmat(:,:)
+real*8,allocatable :: FmatA(:,:),FmatB(:,:),FLMOA(:,:),FLMOB(:,:)
+character c200tmp*200,typestr*4
+if (wfntype==2.or.wfntype==3.or.wfntype==4) then
+write(*,*) "Error: This function only works for restricted or unrestricted SCF wavefunction!"
+    write(*,*) "Press ENTER to return"
+    pause
+    return
+end if
+
+! open(10,file="C:\fock2.txt",status="old")
+! if (.not.allocated(FmatA)) allocate(FmatA(nbasis,nbasis))
+! read(10,*) ((FmatA(i,j),j=1,i),i=1,nbasis)
+! do i=1,nbasis !Fill upper triangular part
+!     do j=i+1,nbasis
+!         FmatA(i,j)=FmatA(j,i)
+!     end do
+! end do
+! if (.not.allocated(FmatB)) allocate(FmatB(nbasis,nbasis))
+! read(10,*) ((FmatB(i,j),j=1,i),i=1,nbasis)
+! do i=1,nbasis
+!     do j=i+1,nbasis
+!         FmatB(i,j)=FmatB(j,i)
+!     end do
+! end do
+! close(10)
+! idoene=1
+
+do while(.true.)
+    if (idoene==1) write(*,*) "-4 If print orbital energies, current: Yes"
+    if (idoene==0) write(*,*) "-4 If print orbital energies, current: No"
+    if (ireload==1) write(*,*) "-3 If finally reload newly generated .molden file, current: Yes"
+    if (ireload==0) write(*,*) "-3 If finally reload newly generated .molden file, current: No"
+    write(*,"(a,f12.8)") " -2 Set criterion of convergence, current:",crit
+    write(*,"(a,i4)") " -1 Set maximum cycles, current:",maxcyc
+    write(*,*) "0 Return"
+    write(*,*) "1 Localizing occupied orbitals only"
+    write(*,*) "2 Localizing both occupied and unoccupied orbitals separately"
+    read(*,*) isel
+    if (isel==0) then
+        return
+    else if (isel==-1) then
+        write(*,*) "Input maximum cycles, e.g. 30"
+        read(*,*) maxcyc
+    else if (isel==-2) then
+        write(*,*) "Input criterion of convergence, e.g. 0.0001"
+        read(*,*) crit
+    else if (isel==-3) then
+        if (ireload==1) then
+            ireload=0
+        else if (ireload==0) then
+            ireload=1
+        end if
+    else if (isel==-4) then
+        if (idoene==1) then
+            idoene=0
+        else if (idoene==0) then
+            write(*,"(a)") " Input the file recording Fock matrix in original basis functions in lower triangular form, e.g. C:\fock.txt"
+            read(*,"(a)") c200tmp
+            inquire(file=c200tmp,exist=alive)
+            if (alive.eqv. .false.) then
+                write(*,*) "Error: Unable to find this file!"
+                cycle
+            end if
+            open(10,file=c200tmp,status="old")
+            if (.not.allocated(FmatA)) allocate(FmatA(nbasis,nbasis))
+            read(10,*) ((FmatA(i,j),j=1,i),i=1,nbasis)
+            do i=1,nbasis !Fill upper triangular part
+                 do j=i+1,nbasis
+                     FmatA(i,j)=FmatA(j,i)
+                 end do
+            end do
+            if (wfntype==1) then
+                if (.not.allocated(FmatB)) allocate(FmatB(nbasis,nbasis))
+                read(10,*) ((FmatB(i,j),j=1,i),i=1,nbasis)
+                do i=1,nbasis
+                     do j=i+1,nbasis
+                         FmatB(i,j)=FmatB(j,i)
+                     end do
+                end do
+            end if
+            close(10)
+            write(*,*) "Fock matrix loaded successfully!"
+            write(*,*)
+            idoene=1
+        end if
+    else if (isel==1.or.isel==2) then
+        exit
+    end if
+end do
+
+call walltime(iwalltime1)
+CALL CPU_TIME(time_begin)
+
+domark=0
+if (wfntype==0) then
+    domark(1)=1
+    if (isel==2) domark(2)=1
+else if (wfntype==1) then
+    domark(1)=1
+    domark(3)=1
+    if (isel==2) domark=1
+end if
+
+!Alpha-occ,Alpha-vir,Beta-occ,Beta-vir
+do itime=1,4
+    if (domark(itime)==0) cycle
+    if (itime<=2) then
+        Cmat=>CObasa
+    else
+        Cmat=>CObasb
+    end if
+    if (itime==1) then
+        nmobeg=1
+        nmoend=naelec
+    else if (itime==2) then
+        nmobeg=naelec+1
+        nmoend=nbasis
+    else if (itime==3) then
+        nmobeg=1
+        nmoend=nbelec
+    else if (itime==4) then
+        nmobeg=nbelec+1
+        nmoend=nbasis
+    end if
+    
+    if (wfntype==0) then
+        if (itime==1) write(*,"(/,a)") " Localizing occupied orbitals..."
+        if (itime==2) write(*,"(/,a)") " Localizing unoccupied orbitals..."
+    else if (wfntype==1) then
+        if (itime==1) write(*,"(/,a)") " Localizing alpha occupied orbitals..."
+        if (itime==2) write(*,"(/,a)") " Localizing alpha unoccupied orbitals..."
+        if (itime==3) write(*,"(/,a)") " Localizing beta occupied orbitals..."
+        if (itime==4) write(*,"(/,a)") " Localizing beta unoccupied orbitals..."
+    end if
+
+    Pvalold=0
+    do icyc=1,maxcyc
+        do imo=nmobeg,nmoend-1
+            do jmo=imo+1,nmoend
+                Aval=0
+                Bval=0
+                !$OMP parallel shared(Aval,Bval) private(Avalpriv,Bvalpriv,Qij,Qii,Qjj) num_threads(nthreads)
+                Avalpriv=0
+                Bvalpriv=0
+                !$OMP do schedule(DYNAMIC)
+                do iatm=1,ncenter
+                    Qij=Qval(Cmat,imo,jmo,iatm)
+                    Qii=Qval(Cmat,imo,imo,iatm)
+                    Qjj=Qval(Cmat,jmo,jmo,iatm)
+                    Avalpriv=Avalpriv+( Qij**2-(Qii-Qjj)**2/4D0 )
+                    Bvalpriv=Bvalpriv+( Qij*(Qii-Qjj) )
+                end do
+                !$OMP END DO
+                !$OMP CRITICAL
+                Aval=Aval+Avalpriv
+                Bval=Bval+Bvalpriv
+                !$OMP END CRITICAL
+                !$OMP END PARALLEL
+                if (Aval==0.and.Bval==0) cycle
+                gamma=sign(1D0,Bval)*acos(-Aval/dsqrt(Aval**2+Bval**2))/4D0
+                arrayi=cos(gamma)*Cmat(:,imo)+sin(gamma)*Cmat(:,jmo)
+                arrayj=-sin(gamma)*Cmat(:,imo)+cos(gamma)*Cmat(:,jmo)
+                Cmat(:,imo)=arrayi
+                Cmat(:,jmo)=arrayj
+    !             write(*,*) imo,jmo,gamma,Aval,Bval
+    !             pause
+            end do
+        end do
+        Pval=0
+        do imo=nmobeg,nmoend
+            do iatm=1,ncenter
+                Pval=Pval+Qval(Cmat,imo,imo,iatm)**2
+            end do
+        end do
+        deltaPval=Pval-Pvalold
+        write(*,"(' Cycle:',i5,'  P:',f16.8,'  Delta P:',f16.8)") icyc,Pval,deltaPval
+        if (abs(deltaPval)<crit) exit
+        Pvalold=Pval
+    end do
+    if (icyc==maxcyc+1) then
+        write(*,*) "Warning: Convergence failed!"
+    else
+        write(*,"(a)") " Successfully converged!"
+    end if
+end do
+
+CALL CPU_TIME(time_end)
+call walltime(iwalltime2)
+write(*,"(/,' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,iwalltime2-iwalltime1
+
+!Print orbital energies, sort orbital according to energies and do E2 analysis
+if (idoene==1) then
+    !Yield orbital energies
+    allocate(FLMOA(nbasis,nbasis))
+    FLMOA=matmul(matmul(transpose(CObasa),FmatA),CObasa)
+    if (isel==1) nmoend=naelec
+    if (isel==2) nmoend=nbasis
+    do iorb=1,nmoend
+        MOene(iorb)=FLMOA(iorb,iorb)
+    end do
+    do iorb=1,nmoend
+        do jorb=iorb+1,nmoend
+            if (MOene(iorb)>MOene(jorb)) then    
+                tmpbasarr=CObasa(:,iorb)
+                CObasa(:,iorb)=CObasa(:,jorb)
+                CObasa(:,jorb)=tmpbasarr
+                tmpprimarr=CO(iorb,:)
+                CO(iorb,:)=CO(jorb,:)
+                CO(jorb,:)=tmpprimarr
+                tmpene=MOene(iorb)
+                MOene(iorb)=MOene(jorb)
+                MOene(jorb)=tmpene
+            end if
+        end do
+    end do
+    !Do beta part
+    if (wfntype==1) then
+        allocate(FLMOB(nbasis,nbasis))
+        FLMOB=matmul(matmul(transpose(CObasb),FmatB),CObasb)
+        if (isel==1) nmoend=nbelec
+        if (isel==2) nmoend=nbasis
+        do iorb=1,nmoend
+            MOene(nbasis+iorb)=FLMOB(iorb,iorb)
+        end do
+        do iorb=1,nmoend
+            do jorb=iorb+1,nmoend
+                if (MOene(nbasis+iorb)>MOene(nbasis+jorb)) then    
+                    tmpbasarr=CObasb(:,iorb)
+                    CObasb(:,iorb)=CObasb(:,jorb)
+                    CObasb(:,jorb)=tmpbasarr
+                    tmpprimarr=CO(nbasis+iorb,:)
+                    CO(nbasis+iorb,:)=CO(nbasis+jorb,:)
+                    CO(nbasis+jorb,:)=tmpprimarr
+                    tmpene=MOene(nbasis+iorb)
+                    MOene(nbasis+iorb)=MOene(nbasis+jorb)
+                    MOene(nbasis+jorb)=tmpene
+                end if
+            end do
+        end do
+    end if
+    write(*,*) "Orbitals after localization:"
+    do iorb=1,nmo
+        if (MOtype(iorb)==0) typestr="A+B"
+        if (MOtype(iorb)==1) typestr="A"
+        if (MOtype(iorb)==2) typestr="B"
+        write(*,"(i6,'   Energy (a.u.):',f16.8,'    Type: ',a,'  Occ:',f4.1)") iorb,MOene(iorb),typestr,MOocc(iorb)
+    end do
+    
+    !Second-order perturbation analysis between occupied and virtual orbitals, this only works when both of them have been localized
+    !This part is commented since it don't print any useful E(2), because Fock element between occupied and virtual orbitals are always nearly zero
+!     if (isel==1) then
+!         write(*,*) " Note: E(2) analysis is skipped since virtual orbitals were not localized"
+!     else if (isel==2) then
+!         write(*,*) "Second-order perturbation theory analysis of interaction energy:"
+!         !Regenerated Fock matrix in LMO, since they have been sorted
+!         FLMOA=matmul(matmul(transpose(CObasa),FmatA),CObasa)
+!         call showmatgau(FLMOA)
+!         pause
+!         coeff=2
+!         do iocc=1,naelec
+!             do ivir=naelec+1,nbasis
+!                 E2val=-coeff* FLMOA(iocc,ivir)**2/(MOene(ivir)-MOene(iocc))
+!                 qCT=coeff* ( FLMOA(iocc,ivir)/(MOene(ivir)-MOene(iocc)) )**2
+!                 if (abs(E2val*au2kcal)>0.2D0) then
+!                     write(*,"(' Donor:',i5,'  -  Acceptor:',i5,'   E(2):',f7.2,' kcal/mol   q_CT:',f10.5)") iocc,ivir,E2val*au2kcal,qCT
+!                     write(*,"(3f16.10)") FLMOA(iocc,ivir),MOene(ivir)-MOene(iocc)
+!                 end if
+!             end do
+!         end do
+!     end if
+end if
+
+call outmolden("new.molden",10)
+if (ireload==1) then
+    call dealloall
+    write(*,*) "Loading new.molden..."
+    call readmolden("new.molden",1)
+    write(*,"(a)") " Loading finished, now you can use main function 0 to visualize them as isosurface"
+end if
+end subroutine
+
+!------ Calculate Q value used in Pipek-Mezey localization
+real*8 function Qval(Cmat,imo,jmo,iatm)
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 Cmat(nbasis,nbasis)
+Qval=0
+do ibas=basstart(iatm),basend(iatm)
+    Qval=Qval+sum( (Cmat(:,imo)*Cmat(ibas,jmo)+Cmat(ibas,imo)*Cmat(:,jmo)) *Sbas(ibas,:) )
+end do
+Qval=Qval/2D0
+end function
+
+
+
+
+
+!!------------ Integrate any real space function within isosurface of a real space function
+!I use the same data structure as basin analysis to illustrate definition of isosurfaces
+subroutine intisosurface
+use defvar
+use util
+use function
+use basinintmod !Use its vec26 array
+implicit real*8 (a-h,o-z)
+integer :: ifunciso=13,ifuncint=1
+integer,allocatable :: mergelist(:),grididx(:,:,:),dogrid(:,:)
+character :: defdomain*20="<0.5",c1000tmp*1000
+
+if (allocated(gridxyz)) deallocate(gridxyz,domainsize,domaingrid)
+do while(.true.)
+    write(*,*)
+    if (allocated(cubmat)) write(*,*) "-1 Directly use the grid data in memory to yield domains"
+    write(*,*) "0 Return"
+    write(*,*) "1 Calculate grid data and yield domains"
+    write(*,"(a,i5)") " 2 Select real space function to be calculated, current:",ifunciso
+    write(*,"(a,a)") " 3 Set criterion for defining domain, current: ",trim(defdomain)
+    read(*,*) isel
+    if (isel==0) then
+        return
+    else if (isel==1.or.isel==-1) then
+        exit
+    else if (isel==2) then
+        call selfunc_interface(ifunciso)
+    else if (isel==3) then
+        write(*,*) "Input the definition, e.g. <0.05"
+        write(*,*) "Note: The first character must be < or >"
+        read(*,"(a)") defdomain
+    end if
+end do
+
+!Set grid and generate grid data
+if (isel==1) then
+    call setgridfixspc
+    dvol=dx*dy*dz
+    if (allocated(cubmat)) deallocate(cubmat)
+    allocate(cubmat(nx,ny,nz))
+    call savecubmat(ifunciso,0,iorbsel)
+end if
+
+!Count the number of grids satisfying the criterion
+read(defdomain(2:),*) valiso
+if (defdomain(1:1)=='<') then
+    ngrid=count(cubmat<valiso)
+else if (defdomain(1:1)=='>') then
+    ngrid=count(cubmat>valiso)
+else
+    write(*,*) "Error: Parsing of the domain definition failed!"
+    return
+end if
+write(*,"(/,' The number of grids satisfied the criterion:',i10)") ngrid
+
+!Clustering grids that satisfied criterion to domain
+!The idea is very clever: I assign each grid with a different index, and frequently perform iteration, in each cycle all grids (that meets isovalue criterion) &&
+!are run over, and index of each grid is set to that of one of the nearest 26 grids as long as its index is larger than current grid. Finally, &
+!grids in each domian will have identical indices
+write(*,*) "Clustering domains..."
+call walltime(iwalltime1)
+CALL CPU_TIME(time_begin)
+!dogrid: XYZ index of useful grids
+!gridxyz: XYZ coordinate of useful grids
+!grididx: currently records initial index of all gris
+allocate(dogrid(ngrid,3),grididx(nx,ny,nz),gridxyz(ngrid,3))
+grididx=-1 !Irrelevant grids have very small value
+idx=0
+do iz=1,nz
+    do iy=1,ny
+        do ix=1,nx
+            if ((defdomain(1:1)=='<'.and.cubmat(ix,iy,iz)<valiso).or.(defdomain(1:1)=='>'.and.cubmat(ix,iy,iz)>valiso)) then
+                idx=idx+1
+                dogrid(idx,1)=ix
+                dogrid(idx,2)=iy
+                dogrid(idx,3)=iz
+                grididx(ix,iy,iz)=idx
+                gridxyz(idx,1)=orgx+(ix-1)*dx
+                gridxyz(idx,2)=orgy+(iy-1)*dy
+                gridxyz(idx,3)=orgz+(iz-1)*dz
+            end if
+        end do
+    end do
+end do
+
+call setupmovevec
+icyc=0
+do while(.true.)
+    iupdate=0
+    icyc=icyc+1
+!     write(*,*) icyc
+    do itmp=1,ngrid
+        ix=dogrid(itmp,1)
+        iy=dogrid(itmp,2)
+        iz=dogrid(itmp,3)
+        do imove=1,26
+            ixtmp=ix+vec26x(imove)
+            iytmp=iy+vec26y(imove)
+            iztmp=iz+vec26z(imove)
+            if (ixtmp<1.or.ixtmp>nx.or.iytmp<1.or.iytmp>ny.or.iztmp<1.or.iztmp>nz) then
+                write(*,"(a)") " Error: Some domains may be truncated! You should enlarge extension size or completely re-defined grid to avoid this circumstance!"
+                write(*,*) "Press Enter to exit"
+                pause
+                return
+            end if
+            if (grididx(ix,iy,iz)<grididx(ixtmp,iytmp,iztmp)) then
+                grididx(ix,iy,iz)=grididx(ixtmp,iytmp,iztmp)
+                iupdate=1
+                exit
+            end if
+        end do
+    end do
+    if (iupdate==0) exit
+end do
+!     do itmp=1,ngrid
+!         ix=dogrid(itmp,1)
+!         iy=dogrid(itmp,2)
+!         iz=dogrid(itmp,3)
+!         write(*,*) itmp,grididx(ix,iy,iz)
+!     end do
+!     pause
+ndone=0
+ndomain=0
+do while(.true.)
+    ndomain=ndomain+1
+    mintmp=1000000
+    do itmp=1,ngrid
+        idxtmp=grididx(dogrid(itmp,1),dogrid(itmp,2),dogrid(itmp,3))
+        if (idxtmp<ndomain) cycle
+        if (idxtmp<mintmp) mintmp=idxtmp
+    end do
+    do itmp=1,ngrid
+        idxtmp=grididx(dogrid(itmp,1),dogrid(itmp,2),dogrid(itmp,3))
+        if (idxtmp==mintmp) then
+            grididx(dogrid(itmp,1),dogrid(itmp,2),dogrid(itmp,3))=ndomain
+            ndone=ndone+1
+        end if
+    end do
+    if (ndone==ngrid) exit
+!     write(*,*) ndomain,ndone
+end do
+!Generate domainsize and domaingrid (grid index that contained in each domain)
+allocate(domainsize(ndomain),domaingrid(ndomain,ngrid))
+do idom=1,ndomain
+    j=0
+    do itmp=1,ngrid
+        if (grididx(dogrid(itmp,1),dogrid(itmp,2),dogrid(itmp,3))==idom) then
+            j=j+1
+            domaingrid(idom,j)=itmp
+        end if
+    end do
+    domainsize(idom)=j
+end do
+
+write(*,*) "Clustering domains finished!"
+CALL CPU_TIME(time_end)
+call walltime(iwalltime2)
+write(*,"(' Clustering took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,iwalltime2-iwalltime1
+
+do idom=1,ndomain
+    write(*,"(' Domain:',i6,'     Grids:',i8)") idom,domainsize(idom)
+end do
+
+do while(.true.)
+    write(*,*)
+    write(*,*) "-1 Merge specific domains"
+    write(*,*) "0 Exit"
+    write(*,*) "1 Perform integration for a domain"
+    write(*,*) "2 Perform integration for all domains"
+    write(*,*) "3 Visualize domains"
+    write(*,"(a,i5)") " 4 Select the real space function to be integrated, current:",ifuncint
+    write(*,*) "5 Calculate q_bind index for a domain"
+    read(*,*) isel2
+    if (isel2==0) then
+        return
+    else if (isel2==-1) then
+        if (ndomain<2) then
+            write(*,*) "Error: At least two domains must be presented!"
+            cycle
+        end if
+        write(*,*) "Input indices of the domains you want to merge, e.g. 4,5,8-10"
+        read(*,"(a)") c1000tmp
+        call str2arr(c1000tmp,nmerge) !Find how many terms
+        allocate(mergelist(nmerge))
+        call str2arr(c1000tmp,nmerge,mergelist)
+        call sorti4(mergelist)
+        idom=mergelist(1)
+        do jdx=nmerge,2,-1
+            jdom=mergelist(jdx)
+            nsizei=domainsize(idom)
+            nsizej=domainsize(jdom)
+            domainsize(idom)=nsizei+nsizej
+            domaingrid(idom,nsizei+1:nsizei+nsizej)=domaingrid(jdom,1:nsizej)
+            ndomain=ndomain-1
+            domainsize(jdom:ndomain)=domainsize(jdom+1:ndomain+1)
+            domaingrid(jdom:ndomain,:)=domaingrid(jdom+1:ndomain+1,:)
+        end do
+        deallocate(mergelist)
+        write(*,"(a,i6)") " Done! The domains you selected have been merged as domain",idom
+        write(*,*) "Size of current domains:"
+        do idom=1,ndomain
+            write(*,"(' Domain:',i6,'     Grids:',i8)") idom,domainsize(idom)
+        end do
+    else if (isel2==1) then
+        write(*,*) "Input the index of the domain to be integrated, e.g. 3"
+        read(*,*) intdom
+        if (intdom<1.or.intdom>ndomain) then
+            write(*,"(a)") " Error: The index of the domain to be integrated is incorrect"
+            cycle
+        end if
+        valint=0
+        volint=0
+        do igrd=1,domainsize(intdom)
+            idx=domaingrid(intdom,igrd)
+            valint=valint+calcfuncall(ifuncint,gridxyz(idx,1),gridxyz(idx,2),gridxyz(idx,3))
+            volint=volint+1
+        end do
+        avgval=valint/domainsize(intdom)
+        valint=valint*dvol
+        volint=volint*dvol
+        write(*,"(' Integration result:',E20.10,' a.u.')") valint
+        write(*,"(' Volume:',f12.6,' Bohr^3  ',f12.6,' Angstrom^3')") volint,volint*b2a**3
+        write(*,"(' Average:',E20.10)") avgval
+    else if (isel2==2) then
+        write(*,*) "Domain    Integral (a.u.)     Volume (Bohr^3)      Average"
+        valinttot=0
+        volinttot=0
+        do intdom=1,ndomain
+            valint=0
+            volint=0
+            do igrd=1,domainsize(intdom)
+                idx=domaingrid(intdom,igrd)
+                valint=valint+calcfuncall(ifuncint,gridxyz(idx,1),gridxyz(idx,2),gridxyz(idx,3))
+                volint=volint+1
+            end do
+            avgval=valint/domainsize(intdom)
+            valint=valint*dvol
+            volint=volint*dvol
+            write(*,"(i6,E20.10,f17.6,E20.10)") intdom,valint,volint,avgval
+            valinttot=valinttot+valint
+            volinttot=volinttot+volint
+        end do
+        write(*,"(' Integration result of all domains:',E20.10,' a.u.')") valinttot
+        write(*,"(' Volume of all domains:',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volinttot,volinttot*b2a**3
+    else if (isel2==3) then
+        idrawdomain=1
+        aug3Dold=aug3D
+        if (aug3D<3) aug3D=3 !Often we set extension distance to zero, e.g. RDG, in this case the molecule will be truncated, therefore here temporarily augment it
+        aug3D=aug3Dold
+        idrawdomain=0
+    else if (isel2==4) then
+        call selfunc_interface(ifuncint)
+    else if (isel2==5) then
+        write(*,*) "Input the index of the domain to be integrated, e.g. 3"
+        read(*,*) intdom
+        if (intdom<1.or.intdom>ndomain) then
+            write(*,"(a)") " Error: The index of the domain to be integrated is incorrect"
+            cycle
+        end if
+        qatt=0
+        qrep=0
+        expfac=4D0/3D0
+        volneg=0
+        volpos=0
+        do igrd=1,domainsize(intdom)
+            idx=domaingrid(intdom,igrd)
+            call signlambda2rho_RDG(gridxyz(idx,1),gridxyz(idx,2),gridxyz(idx,3),sl2r,RDG,rho)
+            if (sl2r<0) then
+                qatt=qatt+rho**expfac
+                volneg=volneg+1
+            else
+                qrep=qrep+rho**expfac
+                volpos=volpos+1
+            end if
+        end do
+        qatt=qatt*dvol
+        qrep=qrep*dvol
+        qbind=-(qatt-qrep)
+        volneg=volneg*dvol
+        volpos=volpos*dvol
+        write(*,"(' q_att: 'f16.8,' a.u.')") qatt
+        write(*,"(' q_rep: 'f16.8,' a.u.')") qrep
+        write(*,"(' q_bind:'f16.8,' a.u.')") qbind
+        write(*,"(' Volume (lambda2<0):',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volneg
+        write(*,"(' Volume (lambda2>0):',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volpos
+        write(*,"(' Volume (Total):    ',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volneg+volpos
+    end if
+end do
+end subroutine

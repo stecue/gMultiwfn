@@ -1,5 +1,8 @@
 #!/bin/bash
 dirdiff=vdiff
+function clean_noGUI {
+    rm GUI.f90 plot.f90 && rm *.a
+}
 #First let's generate the patch
 if [ -d $dirdiff ];then
     rm -rf $dirdiff
@@ -13,14 +16,14 @@ unzip current_src.zip
 cd Mult*
 find . -name '* *' -print0|xargs -0 rm -f
 #rm file not mentioned in the noGUI Makefile
-rm GUI.f90 plot.f90 && rm *.a
+clean_noGUI
 sed -i -e 's/grep/grep -a/g' noGUI.sh
 sh noGUI.sh && mv noGUI ../src_old
 popd && mv Multi*src_Linux src_full_old
 ../gnuize.sh src_old
 pushd .
 #Get my patch for current src
-if [ -d src.orig ]; then
+if [ -d ../src.orig ]; then
     cp -pr ../src.orig src_gnu
 else
     cp -pr ../src src_gnu
@@ -31,7 +34,7 @@ ln -s ../latest_src.zip ./
 unzip latest_src.zip
 cd Mult*
 find . -name '* *' -print0|xargs -0 rm -f
-rm GUI.f90 && rm *.a
+clean_noGUI
 sed -i -e 's/grep/grep -a/g' noGUI.sh
 sh noGUI.sh && mv noGUI ../src_new
 popd && mv Multi*src_Linux src_full_new
@@ -48,10 +51,12 @@ diff -uNr src_old src_new > src_update.diff
 # #apply the patch
 # cd src
 # patch -p1 < ../$dirdiff/src_update.diff
-cd src_new patch -p1 < ../patch_gnu.diff
+cd src_new && patch -p1 --no-backup-if-mismatch < ../patch_gnu.diff
 cd .. #we are in $dirdiff
 rm -r ../src
 cp -r src_new ../src
 # rename .zip #should be down manually
 #mv current_src.zip previous_src.zip
 #mv latest_src.zip current_src.zip
+cd .. #go back to the project home folder
+echo "Number of rejected patches is: `ls -l src/*rej 2> /dev/null | wc -l`"

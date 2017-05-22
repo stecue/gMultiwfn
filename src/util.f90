@@ -932,7 +932,7 @@ end do
 end function
 
 
-!----- Convert a square matrix to an array. imode=1/2/3: full matrix; upper half matrix; lower half matrix
+!----- Convert a square matrix to an array. imode=1/2/3: Full matrix; Lower half matrix; Upper half matrix
 !For mode=1,2, "arr" should be nsize*(nsize+1)/2
 subroutine mat2arr(mat,arr,imode)
 implicit real*8 (a-h,o-z)
@@ -946,14 +946,14 @@ if (imode==1) then !Full matrix
             arr(itmp)=mat(i,j)
         end do
     end do
-else if (imode==2) then !Upper half matrix
+else if (imode==2) then !Lower half matrix
     do i=1,nsize
         do j=1,i
             itmp=itmp+1
             arr(itmp)=mat(i,j)
         end do
     end do
-else !Lower half matrix
+else !Upper half matrix
     do i=1,nsize
         do j=i,nsize
             itmp=itmp+1

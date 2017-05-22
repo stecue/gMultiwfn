@@ -484,12 +484,12 @@ do while(.true.)
                 if (motype(j)==2) exit
             end do
             MOocc(1:j+innerel/2-1)=0D0
-            write(*,"('The effect of ',i7,' lowest energy orbitals have been discarded')") innerel
+            write(*,"(' The effect of ',i7,' lowest energy orbitals have been discarded')") innerel
         else if (wfntype==0.or.wfntype==2.or.wfntype==3) then !restricted(=0) or RO(=2) or post-R(=3) wavefunction
             MOocc(1:innerel/2)=0D0
-            write(*,"('The effect of ',i7,' lowest energy orbitals have been discarded')") innerel/2
+            write(*,"(' The effect of ',i7,' lowest energy orbitals have been discarded')") innerel/2
         end if
-        if (wfntype==3.or.wfntype==4) write(*,"('Warning: Discarding inner orbitals for post-HF wavefunction will lead to unexpected result!')") 
+        if (wfntype==3.or.wfntype==4) write(*,"(' Warning: Discarding inner orbitals for post-HF wavefunction will lead to unexpected result!')") 
         imodwfn=1
     
     else if (iselect==35) then
@@ -602,6 +602,7 @@ do while(.true.)
     write(*,*) "Done!"
 end do
 end subroutine
+
 
 !!---------- Update the number of electrons
 subroutine updatenelec
@@ -872,7 +873,7 @@ use function
 implicit none
 integer walltime1,walltime2
 integer :: i,j,k,ii,infomode,functype,calcfunc,ifinish,iorb !Calculate which orbital wavefunction for fmo routine
-real*8 t,time_begin,time_end,time_endtmp,tmpx,tmpy,tmpz,xarr(nx),yarr(ny),zarr(nz)
+real*8 t,time_begin,time_end,time_endtmp,tmpx,tmpy,tmpz,tmprho,xarr(nx),yarr(ny),zarr(nz)
 character c80tmp*80
 iorbsel=iorb
 calcfunc=functype
@@ -900,7 +901,7 @@ end do
 call walltime(walltime1)
 CALL CPU_TIME(time_begin)
 nthreads=getNThreads()
-!$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads)
+!$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmprho) schedule(dynamic) NUM_THREADS(nthreads)
 do k=1,nz
     tmpz=zarr(k)
     do j=1,ny
@@ -908,7 +909,7 @@ do k=1,nz
         do i=1,nx
             tmpx=xarr(i)
             if (calcfunc==1513) then !Only involved by funcvsfunc routine, when RDG and signlambda2rho is combined
-                call signlambda2rho_RDG(tmpx,tmpy,tmpz,cubmat(i,j,k),cubmattmp(i,j,k))
+                call signlambda2rho_RDG(tmpx,tmpy,tmpz,cubmat(i,j,k),cubmattmp(i,j,k),tmprho)
             else if (calcfunc==1614) then !Only involved by funcvsfunc routine, when RDG and signlambda2rho is combined
                 call signlambda2rho_RDG_prodens(tmpx,tmpy,tmpz,cubmat(i,j,k),cubmattmp(i,j,k))
             else
@@ -2024,7 +2025,6 @@ do while(.true.)
     write(*,*) "8 Use grid setting of another cube file"
     if (ienableloadextpt==1) write(*,*) "100 Load a set of points from external file"
     read(*,*) igridsel
-    if ((igridsel==1.or.igridsel==2.or.igridsel==3).and.(isys==2.or.isys==3)) write(*,"(a)") "Note: Don't view isosurface after generating the grid, the graph will be total incorrect"
     if (igridsel/=-10) exit
     write(*,*) "Input extension distance (Bohr) e.g. 6.5"
     read(*,*) aug3D
@@ -2164,6 +2164,153 @@ else
     write(*,"(' Grid spacing in X,Y,Z is',3f12.6,' Bohr')") dx,dy,dz
     write(*,"(' The number of points in X,Y,Z is',3i5,'   Total:',i12)") nx,ny,nz,nx*ny*nz
 end if
+end subroutine
+
+
+
+!!---- Set up grid setting with fixed grid spacing, similar to setgridforbasin, but not so complicated, thus may be used for other subroutine
+subroutine setgridfixspc
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 :: molxlen,molylen,molzlen
+real*8 :: spclowqual=0.2D0,spcmedqual=0.1D0,spchighqual=0.06D0,spclunaqual=0.04D0
+character c80tmp*80,cubefilename*200
+do while(.true.)
+    orgx=minval(a%x)-aug3D
+    orgy=minval(a%y)-aug3D
+    orgz=minval(a%z)-aug3D
+    endx=maxval(a%x)+aug3D
+    endy=maxval(a%y)+aug3D
+    endz=maxval(a%z)+aug3D
+    molxlen=endx-orgx
+    molylen=endy-orgy
+    molzlen=endz-orgz
+    ntotlow=(nint(molxlen/spclowqual)+1)*(nint(molylen/spclowqual)+1)*(nint(molzlen/spclowqual)+1)
+    ntotmed=(nint(molxlen/spcmedqual)+1)*(nint(molylen/spcmedqual)+1)*(nint(molzlen/spcmedqual)+1)
+    ntothigh=(nint(molxlen/spchighqual)+1)*(nint(molylen/spchighqual)+1)*(nint(molzlen/spchighqual)+1)
+    ntotluna=(nint(molxlen/spclunaqual)+1)*(nint(molylen/spclunaqual)+1)*(nint(molzlen/spclunaqual)+1)
+    
+    write(*,*) "Please select a method for setting up grid"
+    write(*,"(a,f10.5,a)") " -10 Set grid extension distance for mode 1~6, current:",aug3D," Bohr"
+    write(*,"(a,f4.2,a,i14)") " 1 Low quality grid, spacing=",spclowqual," Bohr, number of grids:    ",ntotlow
+    write(*,"(a,f4.2,a,i14)") " 2 Medium quality grid, spacing=",spcmedqual," Bohr, number of grids: ",ntotmed
+    write(*,"(a,f4.2,a,i14)") " 3 High quality grid, spacing=",spchighqual," Bohr, number of grids:   ",ntothigh
+    write(*,"(a,f4.2,a,i14)") " 4 Lunatic quality grid, spacing=",spclunaqual," Bohr, number of grids:",ntotluna
+    write(*,*) "5 Only input grid spacing, automatically set other parameters"
+    write(*,*) "6 Only input the number of points in X,Y,Z, automatically set other parameters"
+    write(*,*) "7 Input original point, translation vector and the number of points"
+    write(*,*) "8 Set center position, grid spacing and box length"
+    write(*,*) "9 Use grid setting of another cube file"
+    read(*,*) igridsel
+    if (igridsel/=-10) then
+        exit
+    else
+        write(*,*) "Input extension distance (Bohr) e.g. 6.5"
+        read(*,*) aug3D
+    end if
+end do
+
+!Note: orgx,orgy,orgz,endx,endy,endz as well as molx/y/zlen for igridsel==1~6 have already been set above
+if (igridsel==1.or.igridsel==2.or.igridsel==3.or.igridsel==4.or.igridsel==5) then
+    if (igridsel==1) dx=spclowqual
+    if (igridsel==2) dx=spcmedqual
+    if (igridsel==3) dx=spchighqual
+    if (igridsel==4) dx=spclunaqual
+    if (igridsel==5) then
+        write(*,*) "Input the grid spacing (bohr)  e.g. 0.08"
+        read(*,*) dx
+    end if
+    dy=dx
+    dz=dx
+    nx=nint(molxlen/dx)+1
+    ny=nint(molylen/dy)+1
+    nz=nint(molzlen/dz)+1
+else if (igridsel==6) then
+    write(*,*) "Input the number of grid points in X,Y,Z direction   e.g. 139,59,80"
+    read(*,*) nx,ny,nz
+    dx=molxlen/(nx-1)
+    dy=molylen/(ny-1)
+    dz=molzlen/(nz-1)
+else if (igridsel==7) then
+    write(*,*) "Input X,Y,Z coordinate of original point (Bohr) e.g. 0.1,4,-1"
+    read(*,*) orgx,orgy,orgz
+    write(*,*) "Input X,Y,Z component of translation vector (Bohr) e.g. 0.1,0.1,0.15"
+    read(*,*) dx,dy,dz
+    write(*,*) "Input the number of points in X,Y,Z direction e.g. 139,59,80"
+    read(*,*) nx,ny,nz
+    endx=orgx+dx*(nx-1)
+    endy=orgy+dy*(ny-1)
+    endz=orgz+dz*(nz-1)
+else if (igridsel==8) then
+    write(*,*) "Input X,Y,Z coordinate of box center (in Angstrom)"
+    write(*,*) "or input such as a8 to take the coordinate of atom 8 as box center"
+    write(*,*) "or input such as a3,a7 to take the midpoint of atom 3 and atom 7 as box center"
+    read(*,"(a)") c80tmp
+    if (c80tmp(1:1)=='a') then
+        do ich=1,len_trim(c80tmp)
+            if (c80tmp(ich:ich)==',') exit
+        end do
+        if (ich==len_trim(c80tmp)+1) then
+            read(c80tmp(2:),*) itmp
+            cenx=a(itmp)%x
+            ceny=a(itmp)%y
+            cenz=a(itmp)%z
+        else
+            read(c80tmp(2:ich-1),*) itmp
+            read(c80tmp(ich+2:),*) jtmp            
+            cenx=(a(itmp)%x+a(jtmp)%x)/2D0
+            ceny=(a(itmp)%y+a(jtmp)%y)/2D0
+            cenz=(a(itmp)%z+a(jtmp)%z)/2D0
+        end if
+    else
+        read(c80tmp,*) cenx,ceny,cenz
+        cenx=cenx/b2a
+        ceny=ceny/b2a
+        cenz=cenz/b2a
+    end if
+    write(*,*) "Input the grid spacing (bohr)  e.g. 0.08"
+    read(*,*) dx
+    dy=dx
+    dz=dx
+    write(*,*) "Input the box lengths in X,Y,Z direction (Bohr) e.g. 8.0,8.0,13.5"
+    read(*,*) molxlen,molylen,molzlen
+    orgx=cenx-molxlen/2D0
+    orgy=ceny-molylen/2D0
+    orgz=cenz-molzlen/2D0
+    endx=orgx+molxlen
+    endy=orgy+molylen
+    endz=orgz+molzlen
+    nx=nint(molxlen/dx)+1
+    ny=nint(molylen/dy)+1
+    nz=nint(molzlen/dz)+1
+else if (igridsel==9) then
+    write(*,*) "Input filename of a cube file"
+    do while(.true.)
+        read(*,"(a)") cubefilename
+        inquire(file=cubefilename,exist=alive)
+        if (alive) then
+            open(10,file=cubefilename,status="old")
+            read(10,*)
+            read(10,*)
+            read(10,*) nouse,orgx,orgy,orgz
+            read(10,*) nx,dx
+            read(10,*) ny,rnouse,dy
+            read(10,*) nz,rnouse,rnouse,dz
+            close(10)
+            exit
+        else
+            write(*,*) "Error: File cannot be found, input again"
+        end if
+    end do
+    endx=orgx+dx*(nx-1)
+    endy=orgy+dy*(ny-1)
+    endz=orgz+dz*(nz-1)
+end if
+
+write(*,"(' Coordinate of origin in X,Y,Z is   ',3f12.6)") orgx,orgy,orgz
+write(*,"(' Coordinate of end point in X,Y,Z is',3f12.6)") endx,endy,endz
+write(*,"(' Spacing in X,Y,Z is',3f11.6)") dx,dy,dz
+write(*,"(' Number of points in X,Y,Z is',3i5,'   Total',i10)") nx,ny,nz,nx*ny*nz
 end subroutine
 
 

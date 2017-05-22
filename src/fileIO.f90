@@ -2770,7 +2770,7 @@ i10Flabel=0
 i9G=0
 i11H=0
 imaxL=maxval(shelltype)
-write(*,"(' The highest angular moment basis functions is ',a)") shtype2name(imaxL) 
+if (infomode==0) write(*,"(' The highest angular moment basis functions is ',a)") shtype2name(imaxL) 
 if (imaxL>=2) then
     rewind(10)
     do while(.true.)
@@ -4256,6 +4256,7 @@ end subroutine
 
 
 !!!---------- Output current wavefunction to .47 file, which is input file of NBO program
+!Notice that although "UPPER" keyword is used here, in fact the matrix recorded in .47 is lower-triangular matrix (i.e. NBO's rule is confusing!)
 subroutine out47(outname,ifileid)
 use defvar
 use util

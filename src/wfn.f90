@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-May-9"
+write(*,*) "Version 3.4(dev), release date: 2017-May-21"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -47,6 +47,7 @@ if (trim(filename)=="") then !Haven't defined filename variable
     do while(.true.)
         read(*,"(a)") filename
         ltmp=len_trim(filename)
+        if (ltmp==0) cycle
         if (filename=='o') then
             write(*,"(' The file last time used: ',a)") trim(lastfile)
             filename=lastfile
@@ -142,7 +143,8 @@ end if
 write(*,"(/,3a)") " Loaded ",trim(filename)," successfully!"
 ! call sys1eprop !Show some system 1e properties, only works when Cartesian basis functions are presented
 
-! call outwfx("new.wfx",1,10)
+! call intisosurface
+
 
 !!!--------------------- Now everything start ---------------------!!!
 !!!--------------------- Now everything start ---------------------!!!
@@ -1428,6 +1430,9 @@ nthreads=getNThreads()
             if (idrawplanevdwctr==1) write(*,*) "15 Don't draw a contour line of vdW surface"
             if (idrawplanevdwctr==1) write(*,*) "16 Set label size, style and color of the contour line of vdW surface" !When iorbsel2/=0, that means plot another orbital, cubmattmp will be pre-occupied
             if (iatom_on_contour==1) write(*,"(a,f7.3)") " 17 Set the distance criterion for showing atom labels, current:",disshowlabel
+            if (iatmlabtype==1) write(*,*) "18 Change style of atomic labels: Only plot element symbol"
+            if (iatmlabtype==2) write(*,*) "18 Change style of atomic labels: Only plot atomic index"
+            if (iatmlabtype==3) write(*,*) "18 Change style of atomic labels: Plot both element symbol and atomic index"
         else if (idrawtype==2.or.idrawtype==6.or.idrawtype==7) then !contour map, gradient line, vector field with/without contour
             if (iatom_on_contour==0) write(*,*) "1 Enable showing atom labels and reference point"
             if (iatom_on_contour==1) write(*,*) "1 Disable showing atom labels and reference point"
@@ -2110,8 +2115,10 @@ nthreads=getNThreads()
         else if (infuncsel2==12) then
             outcubfile="totesp.cub"
         else if (infuncsel2==13) then
+            sur_value=0.5
             outcubfile="RDG.cub"
         else if (infuncsel2==14) then
+            sur_value=0.4
             outcubfile="RDGprodens.cub"
         else if (infuncsel2==15) then
             outcubfile="signlambda2rho.cub"
@@ -2268,7 +2275,31 @@ else if (infuncsel1==12) then
 !13!!------------------- Process grid data
 else if (infuncsel1==13) then
     if (.not.allocated(cubmat)) then
-        write(*,"(a,/)") "Error: You need to use .cub file as input file, or generate grid data first (e.g. by main function 5) before using this function"
+        write(*,"(a)") " Error: Grid data was not loaded or generated! If you want to load a grid data now, input its path, e.g. C:\nico.cub, else input 0 to exit"
+        do while(.true.)
+            read(*,"(a)") c200tmp
+            if (c200tmp(1:1)=='0') then
+                exit
+            else
+                inquire(file=c200tmp,exist=alive)
+                if (alive) then
+                    inamelen=len_trim(c200tmp)
+                    !Only load grid data, do not pertube other variables
+                    if (c200tmp(inamelen-2:inamelen)=="grd") then
+                        call readgrd(c200tmp,1,1)
+                    else if (c200tmp(inamelen-2:inamelen)=="cub".or.c200tmp(inamelen-3:inamelen)=="cube") then
+                        call readcube(c200tmp,1,1)
+                    else
+                        write(*,*) "Error: Unknown file type, input again"
+                        cycle
+                    end if
+                    call procgriddata
+                    exit
+                else
+                    write(*,*) "Cannot find the file, input again"
+                end if
+            end if
+        end do
     else
         call procgriddata
     end if
@@ -2289,10 +2320,11 @@ else if (infuncsel1==15) then
 !!!---------------------------------------
 !16!!------------------- Charge decomposition analysis
 else if (infuncsel1==16) then
-    write(*,*) "Citation of original CDA and the GCDA used in Multiwfn, respectively:"
-    write(*,"(a)") " Stefan Dapprich, Gernot Frenking, J. Phys. Chem., 99, 9352-9362 (1995)"
+    write(*,*) "Citation of original GCDA and CDA used in Multiwfn, respectively:"
     write(*,"(a)") " Meng Xiao, Tian Lu, Generalized Charge Decomposition Analysis (GCDA) Method, J. Adv. Phys. Chem., 4, 111-124 (2015), http://dx.doi.org/10.12677/JAPC.2015.44013"
+    write(*,"(a)") " Stefan Dapprich, Gernot Frenking, J. Phys. Chem., 99, 9352-9362 (1995)"
     call CDA
+
 
 !!!---------------------------------------
 !17!!------------------- Basin integration
@@ -2331,6 +2363,7 @@ else if (infuncsel1==18) then
             call exctransdip
         end if
     end do
+    
     
 !!!---------------------------------------
 !100!!------------------- Misc and some not important functions, Part 1
@@ -2511,6 +2544,7 @@ else if (infuncsel1==100) then
         write(*,*)
     end do
     
+    
 !!!---------------------------------------
 !200!!------------------- Misc and not important functions, Part 2
 else if (infuncsel1==200) then
@@ -2529,7 +2563,9 @@ else if (infuncsel1==200) then
         write(*,*) "10 Output various kinds of integral between orbitals"
         write(*,*) "11 Calculate center, the first and second moments of a real space function"
         write(*,*) "12 Calculate energy index (EI) or bond polarity index (BPI)"
-        write(*,*) "13 Calculate electronic coupling matrix element by FCD or GMH method"
+        write(*,*) "13 Pipek-Mezey orbital localization"
+        write(*,*) "14 Perform integration within isosurfaces of a real space function"
+!         write(*,*) "20 Calculate electronic coupling matrix element by FCD or GMH method"
         read(*,*) infuncsel2
         if (infuncsel2==0) then
             goto 10
@@ -2558,6 +2594,10 @@ else if (infuncsel1==200) then
         else if (infuncsel2==12) then
             call calcEIBPI
         else if (infuncsel2==13) then
+            call pipek_mezey
+        else if (infuncsel2==14) then
+            call intisosurface
+        else if (infuncsel2==20) then
             call FCD
         end if
         write(*,*)
@@ -2567,6 +2607,8 @@ else if (infuncsel1==98) then
     call sphatmraddens
 ! else if (infuncsel1==99) then
 !     call AIMbasinint
+
+
 !!!---------------------------------------
 !1000!!------------------- Set special parameters
 else if (infuncsel1==1000) then

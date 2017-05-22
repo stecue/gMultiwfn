@@ -54,6 +54,7 @@ end if
 end subroutine
 
 !---- Standard interface for selecting real space function
+!Note that iorbsel is a global variable
 subroutine selfunc_interface(ifunc)
 use defvar
 integer ifunc
@@ -765,6 +766,7 @@ if (allocated(b_EDF)) then
     call EDFrho(1,x,y,z,EDFdens)
     fdens=fdens+EDFdens
 end if
+! if (fdens>0.5D0) fdens=0
 end function
 
 
@@ -1085,12 +1087,12 @@ end function
 
 !!!----- Calculate Sign(lambda2(r))*rho(r) function, this is a warpper used to convert subroutine to function form
 real*8 function signlambda2rho(x,y,z)
-real*8 x,y,z,sl2r,RDG
-call signlambda2rho_RDG(x,y,z,sl2r,RDG)
+real*8 x,y,z,sl2r,RDG,rho
+call signlambda2rho_RDG(x,y,z,sl2r,RDG,rho)
 signlambda2rho=sl2r
 end function
 !!!------ Calculate signlambda2rho and RDG at the same time
-subroutine signlambda2rho_RDG(x,y,z,sl2r,RDG)
+subroutine signlambda2rho_RDG(x,y,z,sl2r,RDG,elerho)
 use util
 real*8 x,y,z,elerho,sl2r,RDG
 real*8 eigvecmat(3,3),eigval(3),elehess(3,3),elegrad(3) !Hessian of electron density
@@ -1112,6 +1114,7 @@ else
     RDG=0.161620459673995D0*dsqrt(sumgrad2)/elerho**(4D0/3D0) !0.161620459673995D0=1/(2*(3*pi**2)**(1/3))
 end if
 end subroutine
+
 
 
 !!!-----Output ELF(Electron Localization Function) or LOL(Localized orbital locator) and similar function value at a point

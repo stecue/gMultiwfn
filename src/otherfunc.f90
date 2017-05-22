@@ -1149,6 +1149,11 @@ read(*,*) ifunc
 write(*,*)
 write(*,*) "Input the filename of another wavefunction file, e.g. C:\yuri.wfn"
 read(*,"(a)") filename2
+write(*,*)
+write(*,"(a)") " Input density cutoff (e.g. 0.5), if electron density of the firstly loaded wavefunction at a point is &
+larger than this value, then corresponding integration grid will be ignored"
+write(*,*) "If you don't want to enable this feature, input 0"
+read(*,*) denscut
 
 write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
 call gen1cintgrid(gridatmorg,iradcut)
@@ -1190,6 +1195,14 @@ do iatm=1,ncenter
     
     call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
     do i=1+iradcut*sphpot,radpot*sphpot
+        if (denscut/=0) then
+            if (ifunc==1) then
+                tmpdens=funcval1(i)
+            else
+                tmpdens=fdens(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
+            end if
+            if (tmpdens>denscut) cycle
+        end if
         intval=intval+(funcval1(i)-funcval2(i))**2 *gridatmorg(i)%value*beckeweigrid(i)
     end do
     write(*,"(' Accumulated value:',f20.10,'  Current center:',f20.10)") intval,intval-intvalold
