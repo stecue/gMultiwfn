@@ -51,3 +51,4 @@ autom4te.cache/
 **/config.log
 **/5unable
 *.swp
+*.orig
