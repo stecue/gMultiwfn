@@ -2893,8 +2893,8 @@ call loclabel(20,'MCvolmethod=')
 read(20,*) c80tmp,MCvolmethod
 call loclabel(20,'readEDF=')
 read(20,*) c80tmp,readEDF
-call loclabel(20,'ireadatmEDF=')
-read(20,*) c80tmp,ireadatmEDF
+call loclabel(20,'isupplyEDF=')
+read(20,*) c80tmp,isupplyEDF
 call loclabel(20,'idelvirorb=')
 read(20,*) c80tmp,idelvirorb
 call loclabel(20,'ifchprog=')

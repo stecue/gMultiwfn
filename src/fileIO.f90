@@ -35,9 +35,15 @@ else if (len_trim(thisfilename)>=6) then
 else
     ifiletype=0
 end if
-!Load EDF information from external atomic .wfx files for .fch/.wfn/.wfx/.molden/.gms
-if (ireadatmEDF==1.and.(.not.allocated(b_EDF)).and.(ifiletype==1.or.ifiletype==2.or.ifiletype==3.or.ifiletype==9.or.ifiletype==10)) then
-    call readatmEDF
+!How ot supply EDF information for the file containing GTF information when pseudopotential basis set is involved
+if (any(a%index/=nint(a%charge)).and.allocated(b).and.(.not.allocated(b_EDF))) then
+    if (isupplyEDF==0) then !Do nothing
+        continue
+    else if (isupplyEDF==1) then
+        call readEDFatmwfx
+    else if (isupplyEDF==2) then !Supply EDF
+        call readEDFlib
+    end if    
 end if
 end subroutine
 
@@ -2402,7 +2408,7 @@ if (ifound==1.and.readEDF==1) then
     call loclabel(10,"<Number of Core Electrons>")
     read(10,*)
     read(10,*) ninnerelec
-    if (infomode==0) write(*,"(a,i6,a)") "Note: Electron density functions (EDF) represent",ninnerelec," inner electrons"
+    if (infomode==0) write(*,"(a,i6,a)") " Note: Electron density functions (EDF) represent",ninnerelec," inner electrons"
 end if
 close(10)
 
@@ -2437,9 +2443,10 @@ end subroutine
 
 
 !!------- Load EDF information from external atomic .wfx files
-subroutine readatmEDF
+subroutine readEDFatmwfx
 use defvar
 use util
+implicit real*8 (a-h,o-z)
 character elewfxfilename(110)*200,c200tmp*200
 real*8,allocatable :: EDFCOtmp(:),EDFexptmp(:)
 integer,allocatable :: EDFtypetmp(:)
@@ -2530,10 +2537,53 @@ do iwfxtime=1,nwfxtime
     deallocate(EDFCOtmp,EDFexptmp,EDFtypetmp)
     close(10)
 end do
-! do iEDFprim=1,nEDFprims
-!     write(*,"(2i6,2f18.8)") b_EDF(iEDFprim)%center,b_EDF(iEDFprim)%functype,b_EDF(iEDFprim)%exp,CO_EDF(iEDFprim)
-! end do
 write(*,*) "The EDF information have been loaded"
+end subroutine
+
+
+!!------ Load EDF information from EDFlib provided by Zork
+!See http://bbs.keinsci.com/forum.php?mod=viewthread&tid=5354 for description
+subroutine readEDFlib
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 EDFcoeff(100),EDFexp(100)
+write(*,"(a)") " Loading electron density functions (EDF) information from built-in EDF library... The library is freely available at https://github.com/zorkzou/Molden2AIM"
+nEDFprims=0
+ninnerele=0
+!First time, find total number of EDF GTFs so that b_EDF and CO_EDF can be allocated
+do iatm=1,ncenter
+    natmcore=a(iatm)%index-nint(a(iatm)%charge)
+    if (natmcore==0) cycle
+    ninnerele=ninnerele+natmcore
+    call EDFLIB(a(iatm)%index,natmcore,nfun,EDFexp,EDFcoeff)
+    write(*,"(1x,a,'(',i5,')      Core electrons:',i3,'     EDF primitive GTFs:',i3)") a(iatm)%name,iatm,natmcore,nfun
+    if (nfun==0) then
+        write(*,*) "Warning: Unable to find proper EDF information for this atom!"
+        write(*,*) "Press Enter to skip loading EDF information for this atom"
+        pause
+    end if
+    nEDFprims=nEDFprims+nfun
+end do
+write(*,"(' The number of total inner-core electrons:',i6)") ninnerele
+write(*,"(' The number of total EDF primitive GTFs:',i6)") nEDFprims
+
+allocate(b_EDF(nEDFprims),CO_EDF(nEDFprims))
+ifun=0
+b_EDF%functype=0
+do iatm=1,ncenter
+    natmcore=a(iatm)%index-nint(a(iatm)%charge)
+    if (natmcore==0) cycle
+    call EDFLIB(a(iatm)%index,natmcore,nfun,EDFexp,EDFcoeff)
+    if (nfun==0) cycle !Didn't find corresponding EDF information
+    b_EDF(ifun+1:ifun+nfun)%exp=EDFexp(1:nfun)
+    b_EDF(ifun+1:ifun+nfun)%center=iatm
+    CO_EDF(ifun+1:ifun+nfun)=EDFcoeff(1:nfun)
+    ifun=ifun+nfun
+end do
+write(*,"(a,/)") " Loading EDF library finished!"
+! do iEDFprim=1,nEDFprims
+!     write(*,"(3i6,2f18.8)") iEDFprim,b_EDF(iEDFprim)%center,b_EDF(iEDFprim)%functype,b_EDF(iEDFprim)%exp,CO_EDF(iEDFprim)
+! end do
 end subroutine
 
 

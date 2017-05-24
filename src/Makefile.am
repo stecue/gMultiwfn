@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 Multiwfndir = $(pkglibdir)
 Multiwfn_PROGRAMS = Multiwfn
-Multiwfn_SOURCES = Lebedev-Laikov.F DFTxclib.F define.f90 util.f90 function.f90 sub.f90 fileIO.f90 spectrum.f90 DOS.f90 wfn.f90 population.f90 compana.f90 bondana.f90 topology.f90 excittransana.f90 otherfunc.f90 otherfunc2.f90 surfana.f90 procgriddata.f90 AdNDP.f90 fuzzyana.f90 CDA.f90 basinana.f90 atmraddens.f90
+Multiwfn_SOURCES = Lebedev-Laikov.F DFTxclib.F edflib.f90 define.f90 util.f90 function.f90 sub.f90 fileIO.f90 spectrum.f90 DOS.f90 wfn.f90 population.f90 compana.f90 bondana.f90 topology.f90 excittransana.f90 otherfunc.f90 otherfunc2.f90 surfana.f90 procgriddata.f90 AdNDP.f90 fuzzyana.f90 CDA.f90 basinana.f90 atmraddens.f90
 if IFORT
 Multiwfn_FCFLAGS = -O2 -qopenmp -threads -qopenmp-link=static
 Multiwfn_FFLAGS = -O2 -qopenmp -threads -qopenmp-link=static
@@ -22,7 +22,7 @@ Multiwfn-CDA.$(OBJEXT): Multiwfn-util.o
 Multiwfn-compana.$(OBJEXT): Multiwfn-function.o
 Multiwfn-DOS.$(OBJEXT): Multiwfn-util.o Multiwfn-function.o
 Multiwfn-excittransana.$(OBJEXT): Multiwfn-util.o Multiwfn-function.o
-Multiwfn-fileIO.$(OBJEXT): Multiwfn-util.o
+Multiwfn-fileIO.$(OBJEXT): Multiwfn-util.o Multiwfn-edflib.o
 Multiwfn-function.$(OBJEXT): Multiwfn-util.o
 Multiwfn-fuzzyana.$(OBJEXT): Multiwfn-util.o Multiwfn-topology.o
 Multiwfn-otherfunc2.$(OBJEXT): Multiwfn-util.o Multiwfn-function.o

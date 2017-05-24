@@ -319,7 +319,7 @@ integer :: iautointgrid=1,radpot=75,sphpot=434 !sphpot=230/302/434/590/770, low 
 integer :: ispecial=0 !=0: Normal, =1 specific for Chunying Rong, =2 for Shubin's 2nd project
 integer :: isys=2 !isys=1/2/3: Windows/Linux/MacOS
 integer :: igenDbas=0,igenMagbas=0,igenP=1,iwfntmptype=1,outmedinfo=0,intmolcust=0,isilent=0,idelvirorb=1,ifchprog=1,iloadascart=0
-integer :: iuserfunc=0,iDFTxcsel=84,ispheratm=1,ADCtransfer=0,SpherIVgroup=0,MCvolmethod=2,readEDF=1,ireadatmEDF=0,ishowptESP=1,imolsurparmode=1
+integer :: iuserfunc=0,iDFTxcsel=84,ispheratm=1,ADCtransfer=0,SpherIVgroup=0,MCvolmethod=2,readEDF=1,isupplyEDF=2,ishowptESP=1,imolsurparmode=1
 integer :: NICSnptlim=8000
 real*8 :: bndordthres=0.05D0,compthres=0.5D0,compthresCDA=1D0,expcutoff=-40D0,espprecutoff=0D0
 integer :: nthreads,ompstacksize=100000000
