@@ -3,6 +3,7 @@
 !IOp(9/40=4) or IOp(9/40=5) is recommended to use
 !itype=1 is normal mode
 !itype=2 is specifically used to calculate delta_r
+!itype=3 is specifically used to generate NTOs 
 subroutine hetransdipdens(itype)
 use defvar
 use util
@@ -21,8 +22,6 @@ integer walltime1,walltime2
 real*8 time_end,time_endtmp,orbval(nmo),wfnderv(3,nmo)
 real*8,allocatable :: tmparr1(:),tmparr2(:) !Arrays for temporary use
 real*8,allocatable :: tdmata(:,:),tdmatb(:,:) !Transition density matrix in basis function representation of alpha/total and beta electrons
-real*8,allocatable :: exccoefftot(:) !Store the coefficient combined from excitation and de-excitation of the same pair
-real*8,allocatable :: orbcenx(:),orbceny(:),orbcenz(:) !Store centroid of MOs
 real*8,allocatable :: bastrdip(:,:) !Contribution from each basis function to transition dipole moment, the first index 1/2/3=X/Y/Z
 real*8,allocatable :: trdipmatbas(:,:,:) !Transition dipole moment matrix in basis function representation, the first index 1/2/3=X/Y/Z
 real*8,allocatable :: bastrpopa(:),bastrpopb(:) !Transition population of each basis function
@@ -33,7 +32,9 @@ integer,allocatable :: orbleft2(:),orbright2(:),excdir2(:)
 real*8,allocatable :: exccoeff2(:)
 ! real*8 eigvecmat(nbasis,nbasis),eigvalarr(nbasis)
 
-! excitfilename="c:\gtest\N-phenylpyrrole.out"
+! excitfilename="examples\N-phenylpyrrole_ext.out"
+! excitfilename="C:\gtest\acrolein.out"
+
 if (excitfilename==" ") then
     write(*,"(a)") " Input the path of the Gaussian output file or plain text file containing excitation data, e.g. c:\a.out"
     do while(.true.)
@@ -103,7 +104,8 @@ else
 end if
 write(*,"(a,i8,a)") " There are",nexcitorb," orbital pairs in this transition mode"
 
-!Load transition detail
+!Load transition detail. Notice that for unrestricted case, A and B are separately recorded in input file, &
+!however after loading, they are combined as single index, namely if orbital index is larger than nbasis, then it is B, else A
 do itmp=1,nexcitorb
     read(10,"(a)") c80tmp
     excdir(itmp)=1 !means ->
@@ -154,6 +156,7 @@ close(10)
 exccoeffbackup=exccoeff
 
 
+
 1 do while(.true.)
     if (itype==1) then
         write(*,*)
@@ -166,10 +169,13 @@ exccoeffbackup=exccoeff
         write(*,*) "4 Generate and export transition density matrix"
         write(*,*) "5 Decompose transition dipole moment to basis function and atom contributions"
         write(*,*) "6 Calculate Mulliken atomic transition charges"
+        !Note: 7 is not utilized
         write(*,*) "10 Modify or check excitation coefficients"
         read(*,*) isel
     else if (itype==2) then
-        isel=9 !Directly go to the code used to calculate delta_r index
+        isel=8 !Directly go to the code used to calculate delta_r index
+    else if (itype==3) then
+        isel=9 !Directly go to the code used to generate NTOs
     end if
     
     if (isel==-1) then
@@ -182,6 +188,7 @@ exccoeffbackup=exccoeff
         return
     else if (isel==1) then
         exit
+    !Show contribution of MO pairs to transition dipole moment
     else if (isel==2) then
         write(*,"(a)") " Input the threshold for printing, e.g. 0.01 means the orbital pairs having contribution &
         to any component of transition dipole moment >= 0.01 will be shown"
@@ -298,6 +305,7 @@ nthreads=getNThreads()
         end if
         deallocate(xdipcontri,ydipcontri,zdipcontri)
     
+    !Show contribution of each MO to hole and electron distribution
     else if (isel==3) then
         write(*,*) "Input printing criterion"
         write(*,*) "e.g. 0.005 means only the MOs having contribution >=0.005 will be printed"
@@ -338,7 +346,9 @@ nthreads=getNThreads()
         write(*,"(' Sum of hole:',f9.5,'    Sum of electron:',f9.5)") sum(tmparr1),sum(tmparr2)
         deallocate(tmparr1,tmparr2)
     
-    !Generating transition density matrix (TDM), decompose transition electric/magnetic dipole moment as basis function and atom contributions, calculate Mulliken atomic transition charges
+    !==4: Generating transition density matrix (TDM)
+    !==5: Decompose transition electric/magnetic dipole moment as basis function and atom contributions
+    !==6: Calculate Mulliken atomic transition charges
     else if (isel==4.or.isel==5.or.isel==6) then
         if (isel==5) then
             write(*,*) "Decompose which type of transition dipole moment?"
@@ -465,7 +475,7 @@ nthreads=getNThreads()
                 write(*,"(a)") " Done! The alpha and beta transition density matrix has been outputted to tdmata.txt and tdmatb.txt in current folder, respectively"
                 write(*,"(a)") " Hint: You can use function 2 of main function 18 to plot the transition density matrix by using these files as input file"
             end if
-            
+        
         else if (isel==5) then !Decompose transition electric/magnetic dipole moment as basis function and atom contributions
             if (idecomptype==1.and.(.not.allocated(Dbas))) then
                 write(*,"(a)") " ERROR: Electric dipole moment integral matrix is not presented. You should set parameter ""igenDbas"" in settings.ini to 1, &
@@ -578,101 +588,18 @@ nthreads=getNThreads()
         end if
         deallocate(tdmata)
         if (wfntype==1.or.wfntype==4) deallocate(tdmatb)
+    
+    !Calculate delta_r index
+    else if (isel==8) then
+        call calcdelta_r(nexcitorb,orbleft,orbright,excdir,exccoeff)
+        return
             
-    else if (isel==9) then !Calculate delta_r index, see J. Chem. Theory Comput., 9, 3118 (2013)
-        write(*,*) "Calculating, please wait..."
-        allocate(exccoefftot(nexcitorb))
-        exccoefftot=exccoeff
-        coeffsumsqr=0D0
-        do itmp=1,nexcitorb
-            if (excdir(itmp)==1) then !->, find corresponding <- pair and sum its coefficient to here
-                do jtmp=1,nexcitorb
-                    if (excdir(jtmp)==2.and.orbleft(itmp)==orbleft(jtmp).and.orbright(itmp)==orbright(jtmp)) exccoefftot(itmp)=exccoefftot(itmp)+exccoeff(jtmp)
-                end do
-            end if
-            coeffsumsqr=coeffsumsqr+exccoefftot(itmp)**2
-        end do
-        !Calculate dipole moment integral matrix
-        nsize=nprims*(nprims+1)/2
-        allocate(GTFdipint(3,nsize))
-        call genGTFDmat(GTFdipint,nsize)
-        !Calculate centroid of MOs
-        allocate(orbcenx(nmo),orbceny(nmo),orbcenz(nmo))
-        orbcenx=0
-        orbceny=0
-        orbcenz=0
-nthreads=getNThreads()
-!$OMP PARALLEL DO SHARED(orbcenx,orbceny,orbcenz) PRIVATE(iGTF,jGTF,ides,imo) schedule(dynamic) NUM_THREADS(nthreads)
-        do imo=1,nmo
-            do iGTF=1,nprims
-                do jGTF=1,nprims
-                    if (iGTF>=jGTF) then
-                        ides=iGTF*(iGTF-1)/2+jGTF
-                    else
-                        ides=jGTF*(jGTF-1)/2+iGTF
-                    end if
-                    orbcenx(imo)=orbcenx(imo)+co(imo,iGTF)*co(imo,jGTF)*GTFdipint(1,ides)
-                    orbceny(imo)=orbceny(imo)+co(imo,iGTF)*co(imo,jGTF)*GTFdipint(2,ides)
-                    orbcenz(imo)=orbcenz(imo)+co(imo,iGTF)*co(imo,jGTF)*GTFdipint(3,ides)
-                end do
-            end do
-        end do
-!$OMP END PARALLEL DO
-        deallocate(GTFdipint)
-        delta_r=0
-        do itmp=1,nexcitorb
-            if (excdir(itmp)==2) cycle
-            imo=orbleft(itmp)
-            jmo=orbright(itmp)
-            delta_r=delta_r+exccoefftot(itmp)**2/coeffsumsqr *dsqrt((orbcenx(imo)-orbcenx(jmo))**2+(orbceny(imo)-orbceny(jmo))**2+(orbcenz(imo)-orbcenz(jmo))**2)
-        end do
-        write(*,"(' Delta_r=',f12.6,' Bohr,',f12.6,' Angstrom')") delta_r,delta_r*b2a
-        write(*,*)
-        write(*,*) "If print orbital pair contribution to delta_r? (y/n)"
-        read(*,*) selectyn
-        if (selectyn=='y'.or.selectyn=='Y') then
-            write(*,*) "Input threshold for printing e.g. 0.05"
-            write(*,"(a)") " Note: If input -1, then all contributions will be exported to delta_r.txt in curren folder"
-            read(*,*) printthres
-            iout=6
-            if (printthres==-1) then
-                iout=10
-                open(10,file="delta_r.txt",status="replace")
-            end if
-            write(iout,"(a)") " Note: The transition coefficients shown below have combined both excitation and de-excitation parts"
-            write(iout,"(' Sum of square of transition coefficient:',f12.6)") coeffsumsqr
-            write(iout,*) "   #Pair     Orbitals      Coefficient     Contribution (Bohr and Angstrom)"
-            do itmp=1,nexcitorb
-                if (excdir(itmp)==2) cycle
-                imo=orbleft(itmp)
-                jmo=orbright(itmp)
-                contrival=exccoefftot(itmp)**2/coeffsumsqr *dsqrt((orbcenx(imo)-orbcenx(jmo))**2+(orbceny(imo)-orbceny(jmo))**2+(orbcenz(imo)-orbcenz(jmo))**2)
-                if (contrival<printthres) cycle
-                if (wfntype==0.or.wfntype==3) then
-                    write(iout,"(i8,2i7,f16.7,3x,2f16.7)") itmp,imo,jmo,exccoefftot(itmp),contrival,contrival*b2a
-                else
-                    strtmp2="A"
-                    strtmp3="A"
-                    if (imo>nbasis) then
-                        imo=imo-nbasis
-                        strtmp2="B"
-                    end if
-                    if (jmo>nbasis) then
-                        jmo=jmo-nbasis
-                        strtmp3="B"
-                    end if
-                    write(iout,"(i8,i6,a,i6,a,f16.7,3x,2f16.7)") itmp,imo,trim(strtmp2),jmo,trim(strtmp3),exccoefftot(itmp),contrival,contrival*b2a
-                end if
-            end do
-            if (printthres==-1) then
-                close(10)
-                write(*,*) "Done, outputting finished"
-            end if
-        end if
-        deallocate(exccoefftot,orbcenx,orbceny,orbcenz)
-        write(*,*)
+    !Generate NTOs
+    else if (isel==9) then
+        call NTO(nexcitorb,orbleft,orbright,excdir,exccoeff)
         return
         
+    !Modify or check excitation coefficients    
     else if (isel==10) then
         write(*,"(' Note: There are',i7,' orbital pairs')") nexcitorb
         do while(.true.)
@@ -1369,6 +1296,268 @@ do while(.true.)
 end do
 end subroutine
 
+
+
+
+!!--- Calculate delta_r index, see J. Chem. Theory Comput., 9, 3118 (2013)
+subroutine calcdelta_r(nexcitorb,orbleft,orbright,excdir,exccoeff)
+use defvar
+implicit real*8 (a-h,o-z)
+integer nexcitorb,orbleft(nexcitorb),orbright(nexcitorb),excdir(nexcitorb)
+real*8 exccoeff(nexcitorb)
+real*8,allocatable :: exccoefftot(:) !Store the coefficient combined from excitation and de-excitation of the same pair
+real*8,allocatable :: orbcenx(:),orbceny(:),orbcenz(:) !Store centroid of MOs
+real*8,allocatable :: GTFdipint(:,:)
+character strtmp1,strtmp2,selectyn
+write(*,*) "Calculating, please wait..."
+allocate(exccoefftot(nexcitorb))
+exccoefftot=exccoeff
+coeffsumsqr=0D0
+do itmp=1,nexcitorb
+    if (excdir(itmp)==1) then !->, find corresponding <- pair and sum its coefficient to here
+        do jtmp=1,nexcitorb
+            if (excdir(jtmp)==2.and.orbleft(itmp)==orbleft(jtmp).and.orbright(itmp)==orbright(jtmp)) exccoefftot(itmp)=exccoefftot(itmp)+exccoeff(jtmp)
+        end do
+    end if
+    coeffsumsqr=coeffsumsqr+exccoefftot(itmp)**2
+end do
+!Calculate dipole moment integral matrix
+nsize=nprims*(nprims+1)/2
+allocate(GTFdipint(3,nsize))
+call genGTFDmat(GTFdipint,nsize)
+!Calculate centroid of MOs
+allocate(orbcenx(nmo),orbceny(nmo),orbcenz(nmo))
+orbcenx=0
+orbceny=0
+orbcenz=0
+nthreads=getNThreads()
+!$OMP PARALLEL DO SHARED(orbcenx,orbceny,orbcenz) PRIVATE(iGTF,jGTF,ides,imo) schedule(dynamic) NUM_THREADS(nthreads)
+do imo=1,nmo
+    do iGTF=1,nprims
+        do jGTF=1,nprims
+            if (iGTF>=jGTF) then
+                ides=iGTF*(iGTF-1)/2+jGTF
+            else
+                ides=jGTF*(jGTF-1)/2+iGTF
+            end if
+            orbcenx(imo)=orbcenx(imo)+co(imo,iGTF)*co(imo,jGTF)*GTFdipint(1,ides)
+            orbceny(imo)=orbceny(imo)+co(imo,iGTF)*co(imo,jGTF)*GTFdipint(2,ides)
+            orbcenz(imo)=orbcenz(imo)+co(imo,iGTF)*co(imo,jGTF)*GTFdipint(3,ides)
+        end do
+    end do
+end do
+!$OMP END PARALLEL DO
+deallocate(GTFdipint)
+delta_r=0
+do itmp=1,nexcitorb
+    if (excdir(itmp)==2) cycle
+    imo=orbleft(itmp)
+    jmo=orbright(itmp)
+    delta_r=delta_r+exccoefftot(itmp)**2/coeffsumsqr *dsqrt((orbcenx(imo)-orbcenx(jmo))**2+(orbceny(imo)-orbceny(jmo))**2+(orbcenz(imo)-orbcenz(jmo))**2)
+end do
+write(*,"(' Delta_r=',f12.6,' Bohr,',f12.6,' Angstrom')") delta_r,delta_r*b2a
+write(*,*)
+write(*,*) "If print orbital pair contribution to delta_r? (y/n)"
+read(*,*) selectyn
+if (selectyn=='y'.or.selectyn=='Y') then
+    write(*,*) "Input threshold for printing e.g. 0.05"
+    write(*,"(a)") " Note: If input -1, then all contributions will be exported to delta_r.txt in curren folder"
+    read(*,*) printthres
+    iout=6
+    if (printthres==-1) then
+        iout=10
+        open(10,file="delta_r.txt",status="replace")
+    end if
+    write(iout,"(a)") " Note: The transition coefficients shown below have combined both excitation and de-excitation parts"
+    write(iout,"(' Sum of square of transition coefficient:',f12.6)") coeffsumsqr
+    write(iout,*) "   #Pair     Orbitals      Coefficient     Contribution (Bohr and Angstrom)"
+    do itmp=1,nexcitorb
+        if (excdir(itmp)==2) cycle
+        imo=orbleft(itmp)
+        jmo=orbright(itmp)
+        contrival=exccoefftot(itmp)**2/coeffsumsqr *dsqrt((orbcenx(imo)-orbcenx(jmo))**2+(orbceny(imo)-orbceny(jmo))**2+(orbcenz(imo)-orbcenz(jmo))**2)
+        if (contrival<printthres) cycle
+        if (wfntype==0.or.wfntype==3) then
+            write(iout,"(i8,2i7,f16.7,3x,2f16.7)") itmp,imo,jmo,exccoefftot(itmp),contrival,contrival*b2a
+        else
+            strtmp1="A"
+            strtmp2="A"
+            if (imo>nbasis) then
+                imo=imo-nbasis
+                strtmp1="B"
+            end if
+            if (jmo>nbasis) then
+                jmo=jmo-nbasis
+                strtmp2="B"
+            end if
+            write(iout,"(i8,i6,a,i6,a,f16.7,3x,2f16.7)") itmp,imo,strtmp1,jmo,strtmp2,exccoefftot(itmp),contrival,contrival*b2a
+        end if
+    end do
+    if (printthres==-1) then
+        close(10)
+        write(*,*) "Done, outputting finished"
+    end if
+end if
+deallocate(exccoefftot,orbcenx,orbceny,orbcenz)
+write(*,*)
+end subroutine
+
+
+
+
+!!---- Generate NTOs, original paper of NTO: J. Chem. Phys., 118, 4775 (2003)
+!The NTO eigenvalues for unrestricted wavefunction is 1/2 of the ones outputted by Gaussian, &
+!which is incorrect (i.e. the sum is 2.0 rather than 1.0), the result must be Gaussian used incorrect factor
+subroutine NTO(nexcitorb,orbleft,orbright,excdir,exccoeff)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+real*8,allocatable :: T_MO(:,:),TT(:,:),NTOvec(:,:),NTOval(:)
+integer nexcitorb,orbleft(nexcitorb),orbright(nexcitorb),excdir(nexcitorb)
+real*8 exccoeff(nexcitorb),tmparr(nbasis)
+character c200tmp*200
+write(*,*)
+NTOvalcoeff=2
+if (allocated(CObasb)) then
+    NTOvalcoeff=1
+    write(*,*) "Result of Alpha part:"
+end if
+!*** Alpha part or restricted case
+nocc=nint(naelec)
+nvir=nbasis-nocc
+allocate(T_MO(nocc,nvir))
+T_MO=0
+do iexcitorb=1,nexcitorb
+    iocc=orbleft(iexcitorb)
+    ivir=orbright(iexcitorb)-nocc
+    if (iocc>nbasis) cycle !Here we only process alpha part, index of Beta orbitals are higher than nbasis
+    !Ignoring de-excitation, this treatment makes the result identical to that ouputted by Gaussian
+    if (excdir(iexcitorb)==1) T_MO(iocc,ivir)=T_MO(iocc,ivir)+exccoeff(iexcitorb)
+end do
+!Occupied part
+allocate(TT(nocc,nocc),NTOvec(nocc,nocc),NTOval(nocc))
+TT=matmul(T_MO,transpose(T_MO))
+call diagsymat(TT,NTOvec,NTOval,ierror)
+NTOval=NTOval*NTOvalcoeff
+MOene(1:nocc)=NTOval !By default, the diagsymat gives result from low to high
+CObasa(:,1:nocc)=matmul(CObasa(:,1:nocc),NTOvec)
+if (nocc>10) then
+    write(*,*) "The highest 10 eigenvalues of occupied NTOs:"
+    write(*,"(5f12.6)") MOene(nocc-9:nocc)
+else
+    write(*,*) "Eigenvalues of occupied NTOs:"
+    write(*,"(5f12.6)") MOene(1:nocc)
+end if
+deallocate(TT,NTOvec,NTOval)
+!Virtual part
+allocate(TT(nvir,nvir),NTOvec(nvir,nvir),NTOval(nvir))
+TT=matmul(transpose(T_MO),T_MO)
+call diagsymat(TT,NTOvec,NTOval,ierror)
+NTOval=NTOval*NTOvalcoeff
+MOene(nocc+1:nbasis)=NTOval
+CObasa(:,nocc+1:nbasis)=matmul(CObasa(:,nocc+1:nbasis),NTOvec)
+do itmp=1,int(nvir/2D0) !Exchange array, so that the sequence will be high->low rather than the default low->high
+    i=nocc+itmp
+    j=nbasis+1-itmp
+    tmpval=MOene(i)
+    MOene(i)=MOene(j)
+    MOene(j)=tmpval
+    tmparr=CObasa(:,i)
+    CObasa(:,i)=CObasa(:,j)
+    CObasa(:,j)=tmparr
+end do
+write(*,*)
+if (nvir>10) then
+    write(*,*) "The highest 10 eigenvalues of virtual NTOs:"
+    write(*,"(5f12.6)") MOene(nocc+1:nocc+10)
+else
+    write(*,*) "Eigenvalues of virtual NTOs:"
+    write(*,"(5f12.6)") MOene(nocc+1:nbasis)
+end if
+deallocate(TT,NTOvec,NTOval,T_MO)
+
+!*** Beta part
+if (allocated(CObasb)) then
+    write(*,*)
+    write(*,*) "Result of Beta part:"
+    nocc=nint(nbelec)
+    nvir=nbasis-nocc
+    allocate(T_MO(nocc,nvir))
+    T_MO=0
+    do iexcitorb=1,nexcitorb
+        iocc=orbleft(iexcitorb)
+        ivir=orbright(iexcitorb)-nocc
+        if (iocc>nbasis) then !Only process transition of Beta orbitals
+            iocc=iocc-nbasis
+            ivir=ivir-nbasis
+            if (excdir(iexcitorb)==1) T_MO(iocc,ivir)=T_MO(iocc,ivir)+exccoeff(iexcitorb)
+        end if
+    end do
+    !Occupied part
+    allocate(TT(nocc,nocc),NTOvec(nocc,nocc),NTOval(nocc))
+    TT=matmul(T_MO,transpose(T_MO))
+    call diagsymat(TT,NTOvec,NTOval,ierror)
+    NTOval=NTOval*NTOvalcoeff
+    MOene(nbasis+1:nbasis+nocc)=NTOval !By default, the diagsymat gives result from low to high
+    CObasb(:,1:nocc)=matmul(CObasb(:,1:nocc),NTOvec)
+    if (nocc>10) then
+        write(*,*) "The highest 10 eigenvalues of occupied NTOs:"
+        write(*,"(5f12.6)") MOene(nbasis+nocc-9:nbasis+nocc)
+    else
+        write(*,*) "Eigenvalues of occupied NTOs:"
+        write(*,"(5f12.6)") MOene(nbasis+1:nbasis+nocc)
+    end if
+    deallocate(TT,NTOvec,NTOval)
+    !Virtual part
+    allocate(TT(nvir,nvir),NTOvec(nvir,nvir),NTOval(nvir))
+    TT=matmul(transpose(T_MO),T_MO)
+    call diagsymat(TT,NTOvec,NTOval,ierror)
+    NTOval=NTOval*NTOvalcoeff
+    MOene(nbasis+nocc+1:nbasis+nbasis)=NTOval
+    CObasb(:,nocc+1:nbasis)=matmul(CObasb(:,nocc+1:nbasis),NTOvec)
+    do itmp=1,int(nvir/2D0) !Exchange array, so that the sequence will be high->low rather than the default low->high
+        i=nocc+itmp
+        j=nbasis+1-itmp
+        tmpval=MOene(nbasis+i)
+        MOene(nbasis+i)=MOene(nbasis+j)
+        MOene(nbasis+j)=tmpval
+        tmparr=CObasb(:,i)
+        CObasb(:,i)=CObasb(:,j)
+        CObasb(:,j)=tmparr
+    end do
+    write(*,*)
+    if (nvir>10) then
+        write(*,*) "The highest 10 eigenvalues of virtual NTOs:"
+        write(*,"(5f12.6)") MOene(nbasis+nocc+1:nbasis+nocc+10)
+    else
+        write(*,*) "Eigenvalues of virtual NTOs:"
+        write(*,"(5f12.6)") MOene(nbasis+nocc+1:nbasis+nbasis)
+    end if
+    deallocate(TT,NTOvec,NTOval,T_MO)
+end if
+write(*,*)
+write(*,*) "0 Return"
+write(*,*) "1 Output NTO orbitals to .molden file"
+write(*,*) "2 Output NTO orbitals to .fch file"
+read(*,*) iselNTO
+if (iselNTO==1) then
+    write(*,*) "Input the file path to output, e.g. C:\S1.molden"
+    read(*,"(a)") c200tmp
+    call outmolden(c200tmp,10)
+    write(*,*) "Now you can load the newly generated .molden file to visualize NTOs"
+else if (iselNTO==2) then
+    write(*,*) "Input the file path to output, e.g. C:\S1.fch"
+    read(*,"(a)") c200tmp
+    call outfch(c200tmp,10)
+    write(*,*) "Now you can load the newly generated .fch file to visualize NTOs"
+end if
+write(*,*)
+write(*,*) "Reloading the initial file to recover status..."
+call dealloall
+call readinfile(firstfilename,1)
+write(*,*) "Loading finished!"
+write(*,*)
+end subroutine
 
 
 

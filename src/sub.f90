@@ -18,7 +18,7 @@ do while(.true.)
     write(*,*) "4 Print detail information of an orbital"
     if (allocated(CObasa)) write(*,*) "5 Print coefficient matrix in basis function"
     if (allocated(CObasa)) write(*,*) "6 Print density matrix in basis function"
-    if (allocated(CObasa)) write(*,*) "7 Print overlap matrix in basis function along with eigenvalues"
+    if (allocated(CObasa)) write(*,*) "7 Print various kinds of integral matrix between basis functions"
     write(*,*) "11 Swap some information of two primitive functions"
     write(*,*) "21 Set center of a primitive function"
     write(*,*) "22 Set type of a primitive function"
@@ -54,12 +54,12 @@ do while(.true.)
     
     else if (iselect==1) then
         do i=1,nprims
-            write(*,"(i6,' Center:',i5,'(',a2,')','   Type: ',a,' Exponent:',D16.7)") i,b(i)%center,a(b(i)%center)%name,GTFtype2name(b(i)%functype),b(i)%exp
+            write(*,"(i6,' Center:',i5,'(',a2,')','   Type: ',a,'   Exponent:',D16.7)") i,b(i)%center,a(b(i)%center)%name,GTFtype2name(b(i)%functype),b(i)%exp
         end do
     
     else if (iselect==2) then
         do i=1,nbasis
-            write(*,"(' Basis:',i5,' Shell:',i5,' Center:',i5,'(',a2,') Type:',a)")&
+            write(*,"(' Basis:',i5,'   Shell:',i5,'   Center:',i5,'(',a2,')   Type:',a)")&
              i,basshell(i),bascen(i),a(bascen(i))%name,GTFtype2name(bastype(i))
         end do
     
@@ -102,43 +102,157 @@ do while(.true.)
         end if
     
     else if (iselect==5) then
-        write(*,*) "(i,j) element means coefficient of ith basis function in jth orbital"
-        if (wfntype==0.or.wfntype==2.or.wfntype==3) then
-            call showmatgau(cobasa,"Coefficient matrix",0)
-        else if (wfntype==1.or.wfntype==4) then
-            call showmatgau(cobasa,"Alpha coefficient matrix",0)
-            call showmatgau(cobasb,"Beta coefficient matrix",0)
+        write(*,*) "0 Return"
+        write(*,*) "1 Print on screen"
+        write(*,*) "2 Print to Cmat.txt in current folder"
+        read(*,*) iseltmp
+        if (iseltmp==1.or.iseltmp==2) then
+            if (iseltmp==1) ides=6
+            if (iseltmp==2) then
+                ides=10
+                open(ides,file="Cmat.txt",status="replace")
+            end if
+            write(ides,*) "Note: (i,j) element means coefficient of ith basis function in jth orbital"
+            if (wfntype==0.or.wfntype==2.or.wfntype==3) then
+                call showmatgau(cobasa,"Coefficient matrix",0,fileid=ides)
+            else if (wfntype==1.or.wfntype==4) then
+                call showmatgau(cobasa,"Alpha coefficient matrix",0,fileid=ides)
+                call showmatgau(cobasb,"Beta coefficient matrix",0,fileid=ides)
+            end if
+            if (iseltmp==2) then
+                write(*,*) "Done! The matrix has been outputted to Cmat.txt in current folder"
+                close(ides)
+            end if
         end if
     
     else if (iselect==6) then
-        call showmatgau(Ptot,"Total density matrix",1)
-        sum=0
-        do i=1,nbasis
-            sum=sum+Ptot(i,i)
-        end do
-        write(*,"(' The trace of the density matrix:',f12.6)") sum
-        if (wfntype==1.or.wfntype==2.or.wfntype==4) then
-            suma=0
-            sumb=0
+        write(*,*) "0 Return"
+        write(*,*) "1 Print on screen"
+        write(*,*) "2 Print to Pmat.txt in current folder"
+        read(*,*) iseltmp
+        if (iseltmp==1.or.iseltmp==2) then
+            if (iseltmp==1) ides=6
+            if (iseltmp==2) then
+                ides=10
+                open(ides,file="Pmat.txt",status="replace")
+            end if
+            call showmatgau(Ptot,"Total density matrix",1,fileid=ides)
+            sum=0
             do i=1,nbasis
-                suma=suma+Palpha(i,i)
-                sumb=sumb+Pbeta(i,i)
+                sum=sum+Ptot(i,i)
             end do
-            call showmatgau(Palpha,"Alpha density matrix",1)
-            write(*,*)
-            call showmatgau(Pbeta,"Beta density matrix",1)
-            write(*,*)
-            write(*,"(' The trace of the alpha and beta density matrix:',2f12.6)") suma,sumb
+            write(ides,"(' The trace of the density matrix:',f12.6)") sum
+            if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+                suma=0
+                sumb=0
+                do i=1,nbasis
+                    suma=suma+Palpha(i,i)
+                    sumb=sumb+Pbeta(i,i)
+                end do
+                write(ides,*)
+                call showmatgau(Palpha-Pbeta,"Spin density matrix",1,fileid=ides)
+                write(ides,*)
+                call showmatgau(Palpha,"Alpha density matrix",1,fileid=ides)
+                write(ides,*)
+                call showmatgau(Pbeta,"Beta density matrix",1,fileid=ides)
+                write(ides,*)
+                write(ides,"(' The trace of the alpha and beta density matrix:',2f12.6)") suma,sumb
+            end if
+            if (iseltmp==2) then
+                write(*,*) "Done! The matrix has been outputted to Pmat.txt in current folder"
+                close(ides)
+            end if
         end if
     
+    !Print various kinds of integral matrix between basis functions
     else if (iselect==7) then
-        tmpmat=sbas
-        call showmatgau(Sbas,"Overlap matrix",1)
-        call diagsymat(tmpmat,eigvec,eigval,ierror)
-        write(*,*)
-        write(*,*) "Eigenvalues:"
-        write(*,"(6f12.8)") eigval
+        write(*,*) "Print which kind of integral matrix?"
+        write(*,*) "1 Overlap integral"
+        write(*,*) "2 Electric dipole moment integral"
+        write(*,*) "3 Magnetic dipole moment integral"
+        write(*,*) "4 Velocity integral"
+        write(*,*) "5 Kinetic energy integral"
+        read(*,*) imattype
+        write(*,*) "Select destination for output"
+        write(*,*) "1 Print on screen"
+        write(*,*) "2 Print to intmat.txt in current folder"
+        read(*,*) iout
+        if (iout==1) ides=6
+        if (iout==2) then
+            ides=10
+            open(ides,file="intmat.txt",status="replace")
+        end if
+        if (imattype==1) then
+            call showmatgau(Sbas,"Overlap matrix",1,fileid=ides)
+            call diagsymat(tmpmat,eigvec,eigval,ierror)
+            write(ides,*)
+            write(ides,*) "Eigenvalues:"
+            write(ides,"(6f12.8)") eigval
+        else if (imattype==2) then
+            if (allocated(Dbas)) then
+                write(ides,*)
+                call showmatgau(Dbas(1,:,:),"Electric dipole moment matrix (X component)",1,fileid=ides)
+                write(ides,*)
+                call showmatgau(Dbas(2,:,:),"Electric dipole moment matrix (Y component)",1,fileid=ides)
+                write(ides,*)
+                call showmatgau(Dbas(3,:,:),"Electric dipole moment matrix (Z component)",1,fileid=ides)
+            else
+                write(*,"(a)") " Error: Electric dipole moment integral matrix has not been calculated, please set ""igenDbas"" &
+                in settings.ini to 1, so that this matrix can be generated when loading input file"
+                write(*,*) "Press Enter to skip"
+                pause
+                cycle
+            end if
+        else if (imattype==3) then
+            if (allocated(Magbas)) then
+                write(ides,*)
+                call showmatgau(Magbas(1,:,:),"Magnetic dipole moment matrix (X component)",0,fileid=ides)
+                write(ides,*)
+                call showmatgau(Magbas(2,:,:),"Magnetic dipole moment matrix (Y component)",0,fileid=ides)
+                write(ides,*)
+                call showmatgau(Magbas(3,:,:),"Magnetic dipole moment matrix (Z component)",0,fileid=ides)
+            else
+                write(*,"(a)") " Error: Magnetic dipole moment integral matrix has not been calculated, please set ""igenMagbas"" &
+                in settings.ini to 1, so that this matrix can be generated when loading input file"
+                write(*,*) "Press Enter to skip"
+                pause
+                cycle
+            end if
+        else if (imattype==4.or.imattype==5) then
+            if (isphergau==1) then !If you want, you can generate the matrix and perform Cartesian->spherical transformation at file loading stage for Velbas
+                write(*,"(a)") " Error: Spherical-harmonic type of basis functions are found. This function only works when all basis functions are Cartesian type!"
+                write(*,*) "Press Enter to skip"
+                pause
+                cycle
+            end if
+            if (imattype==4) then
+                if (.not.allocated(Velbas)) then
+                    write(*,*) "Calculating velocity matrix..."
+                    allocate(Velbas(3,nbasis,nbasis))
+                    call genvelbas
+                end if
+                write(ides,*)
+                call showmatgau(Velbas(1,:,:),"Velocity matrix (X component)",0,fileid=ides)
+                write(ides,*)
+                call showmatgau(Velbas(2,:,:),"Velocity matrix (Y component)",0,fileid=ides)
+                write(ides,*)
+                call showmatgau(Velbas(3,:,:),"Velocity matrix (Z component)",0,fileid=ides)
+            else if (imattype==5) then
+                if (.not.allocated(Tbas)) then
+                    write(*,*) "Calculating Kinetic energy matrix..."
+                    allocate(Tbas(nbasis,nbasis))
+                    call genTbas
+                end if
+                write(ides,*)
+                call showmatgau(Tbas(:,:),"Kinetic energy matrix",1,fileid=ides)
+            end if
+        end if
     
+        if (iout==2) then
+            write(*,*) "Done! The matrix has been outputted to intmat.txt in current folder"
+            close(ides)
+        end if
+        
     else if (iselect==11) then
         write(*,*) "Swap information of which two GTFs? Input their indices  e.g. 18,21"
         read(*,*) i,j

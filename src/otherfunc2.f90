@@ -3750,17 +3750,23 @@ do while(.true.)
         end if
         valint=0
         volint=0
+        valmin=1D100
+        valmax=-1D100
         do igrd=1,domainsize(intdom)
             idx=domaingrid(intdom,igrd)
-            valint=valint+calcfuncall(ifuncint,gridxyz(idx,1),gridxyz(idx,2),gridxyz(idx,3))
+            tmpval=calcfuncall(ifuncint,gridxyz(idx,1),gridxyz(idx,2),gridxyz(idx,3))
+            valint=valint+tmpval
             volint=volint+1
+            if (tmpval<valmin) valmin=tmpval
+            if (tmpval>valmax) valmax=tmpval
         end do
         avgval=valint/domainsize(intdom)
         valint=valint*dvol
         volint=volint*dvol
         write(*,"(' Integration result:',E20.10,' a.u.')") valint
-        write(*,"(' Volume:',f12.6,' Bohr^3  ',f12.6,' Angstrom^3')") volint,volint*b2a**3
+        write(*,"(' Volume:',f12.6,' Bohr^3  (',f12.6,' Angstrom^3 )')") volint,volint*b2a**3
         write(*,"(' Average:',E20.10)") avgval
+        write(*,"(' Maximum:',E20.10,'   Minimum:',E20.10)") valmax,valmin
     else if (isel2==2) then
         write(*,*) "Domain    Integral (a.u.)     Volume (Bohr^3)      Average"
         valinttot=0

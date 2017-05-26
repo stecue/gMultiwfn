@@ -15,10 +15,12 @@ do
     sed -i -e 's/\t/    /g' "${srcF}"
     sed -i -e 's/\(^ *\)read *(\*,\*)\( *\)$/\1pause\2/g' "${srcF}"
 #Note that following will add too many "getNThreads". It should only work for _delta_ update!
-    sed -i -e '/^..OMP PARALLEL.*NUM_THREADS.nthreads./i\
+    sed -i -e 's/^[\t ]*\!\$/!$/' "${srcF}"
+    sed -i -e '/^..OMP PARALLEL.*nthreads/i\
 nthreads=getNThreads()' "${srcF}"
     sed -i -e 's/\([^=]\)==\.false\./\1.eqv. .false./g' "${srcF}"
     sed -i -e 's/\([^=]\)==\.true\./\1.eqv. .true./g' "${srcF}"
+    sed -i -e 's/^\(.*call KMP_SET_STACKSIZE_S.*\)/!\1/' "${srcF}"
     # Delete the unsupported domaingui for otherfunction2.f90
     sed -i -e  '/call drawdomaingui/d' "${srcF}"
 done

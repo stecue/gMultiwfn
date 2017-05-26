@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-May-24"
+write(*,*) "Version 3.4(dev), release date: 2017-May-26"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -28,7 +28,7 @@ write(*,*) "Multiwfn official forum (in Chinese): http://bbs.keinsci.com"
 write(*,*) "Bug reporting, question and suggestion, please contact: Sobereva@sina.com"
 
 !!!!!!!!
-!if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOSX version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
+!if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOS version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
 !!!!!!!!
 
 nthreads=getNThreads()
@@ -2343,6 +2343,7 @@ else if (infuncsel1==18) then
         write(*,*) "3 Analyze charge-transfer based on density difference grid data (JCTC,7,2498)"
         write(*,*) "4 Calculate delta_r index to measure charge-transfer length (JCTC,9,3118)"
         write(*,*) "5 Calculate transition dipole moments between all excited states"
+        write(*,*) "6 Generate natural transition orbitals (NTOs)"
         
         read(*,*) isel
         if (isel==0) then
@@ -2361,6 +2362,8 @@ else if (infuncsel1==18) then
             call hetransdipdens(2)
         else if (isel==5) then
             call exctransdip
+        else if (isel==6) then
+            call hetransdipdens(3)
         end if
     end do
     
