@@ -30,6 +30,8 @@ real*8,allocatable :: GTFdipint(:,:)
 !Store information of another excitation
 integer,allocatable :: orbleft2(:),orbright2(:),excdir2(:)
 real*8,allocatable :: exccoeff2(:)
+!Other
+real*8,allocatable :: cubx(:),cuby(:),cubz(:)
 ! real*8 eigvecmat(nbasis,nbasis),eigvalarr(nbasis)
 
 ! excitfilename="examples\N-phenylpyrrole_ext.out"
@@ -1095,6 +1097,7 @@ do while(.true.)
     write(*,*) "15 Output cube file of charge density difference to current folder"
     write(*,*) "16 Output cube file of Cele and Chole functions to current folder"
     write(*,*) "17 Output cube file of transition magnetic dipole moment density"
+    write(*,*) "18 Calculate hole-electron Coulomb attractive energy"
     read(*,*) isel
     if (isel==0) then
         goto 1
@@ -1292,6 +1295,58 @@ do while(.true.)
         if (ifac==3) call outcube(magtrdens(:,:,:,3),nx,ny,nz,orgx,orgy,orgz,dx,dy,dz,10)
         close(10)
         write(*,*) "Done!"
+     else if (isel==18) then
+        call walltime(iwalltime1)
+        CALL CPU_TIME(time_begin)
+        write(*,*) "Calculating, please wait..."
+        allocate(cubx(nx),cuby(ny),cubz(nz))
+        do i=1,nx
+            cubx(i)=orgx+(i-1)*dx
+        end do
+        do i=1,ny
+            cuby(i)=orgy+(i-1)*dy
+        end do
+        do i=1,nz
+            cubz(i)=orgz+(i-1)*dz
+        end do
+         coulene=0
+        do i=1,nx
+            do j=1,ny
+                do k=1,nz
+                    if (Cele(i,j,k)<1D-6) cycle !Typically leads to error at 0.001 magnitude
+nthreads=getNThreads()
+!$OMP parallel shared(coulene) private(ii,jj,kk,distx2,disty2,distz2,dist,coulenetmp) num_threads(nthreads)
+                    coulenetmp=0
+!$OMP do schedule(DYNAMIC)
+                    do ii=1,nx
+                        distx2=(cubx(i)-cubx(ii))**2
+                        do jj=1,ny
+                            disty2=(cuby(j)-cuby(jj))**2
+                            do kk=1,nz
+                                if (i==ii.and.j==jj.and.k==kk) cycle
+                                distz2=(cubz(k)-cubz(kk))**2
+                                dist=dsqrt(distx2+disty2+distz2)
+                                coulenetmp=coulenetmp+Cele(i,j,k)*Chole(ii,jj,kk)/dist
+                            end do
+                        end do
+                    end do
+!$OMP END DO
+!$OMP CRITICAL
+                    coulene=coulene+coulenetmp
+!$OMP END CRITICAL
+!$OMP END PARALLEL
+                end do
+            end do
+            write(*,"(' Finished:',i4,' /',i4)") i,nx
+        end do
+        dvol=dx*dy*dz
+        coulene=-coulene*dvol*dvol
+        CALL CPU_TIME(time_end)
+        call walltime(iwalltime2)
+        write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,iwalltime2-iwalltime1
+        write(*,*)
+        write(*,"(' Coulomb attractive energy:',f12.6,' a.u.  (',f12.6,' eV )')") coulene,coulene*au2eV
+        deallocate(cubx,cuby,cubz)
     end if
 end do
 end subroutine

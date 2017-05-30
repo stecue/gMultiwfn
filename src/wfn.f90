@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-May-26"
+write(*,*) "Version 3.4(dev), release date: 2017-May-30"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -2321,8 +2321,9 @@ else if (infuncsel1==15) then
 !16!!------------------- Charge decomposition analysis
 else if (infuncsel1==16) then
     write(*,*) "Citation of original GCDA and CDA used in Multiwfn, respectively:"
-    write(*,"(a)") " Meng Xiao, Tian Lu, Generalized Charge Decomposition Analysis (GCDA) Method, J. Adv. Phys. Chem., 4, 111-124 (2015), http://dx.doi.org/10.12677/JAPC.2015.44013"
-    write(*,"(a)") " Stefan Dapprich, Gernot Frenking, J. Phys. Chem., 99, 9352-9362 (1995)"
+    write(*,"(a)") " GCDA: Meng Xiao, Tian Lu, Generalized Charge Decomposition Analysis (GCDA) Method, J. Adv. Phys. Chem., 4, 111-124 (2015), http://dx.doi.org/10.12677/JAPC.2015.44013"
+    write(*,"(a)") " CDA: Stefan Dapprich, Gernot Frenking, J. Phys. Chem., 99, 9352-9362 (1995)"
+    write(*,*)
     call CDA
 
 

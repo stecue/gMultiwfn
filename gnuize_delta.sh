@@ -18,6 +18,8 @@ do
     sed -i -e 's/^[\t ]*\!\$/!$/' "${srcF}"
     sed -i -e '/^..OMP PARALLEL.*nthreads/i\
 nthreads=getNThreads()' "${srcF}"
+    sed -i -e '/^..OMP parallel.*nthreads/i\
+nthreads=getNThreads()' "${srcF}"
     sed -i -e 's/\([^=]\)==\.false\./\1.eqv. .false./g' "${srcF}"
     sed -i -e 's/\([^=]\)==\.true\./\1.eqv. .true./g' "${srcF}"
     sed -i -e 's/^\(.*call KMP_SET_STACKSIZE_S.*\)/!\1/' "${srcF}"
