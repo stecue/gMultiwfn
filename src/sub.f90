@@ -137,11 +137,12 @@ do while(.true.)
                 open(ides,file="Pmat.txt",status="replace")
             end if
             call showmatgau(Ptot,"Total density matrix",1,fileid=ides)
-            sum=0
+            sumt=0
             do i=1,nbasis
-                sum=sum+Ptot(i,i)
+                sumt=sumt+Ptot(i,i)
             end do
-            write(ides,"(' The trace of the density matrix:',f12.6)") sum
+            write(ides,"(' The trace of the density matrix:',f12.6)") sumt
+            write(ides,"(' The trace of the density matrix multiplied by overlap matrix:',f12.6)") sum(Ptot*Sbas)
             if (wfntype==1.or.wfntype==2.or.wfntype==4) then
                 suma=0
                 sumb=0
@@ -157,6 +158,7 @@ do while(.true.)
                 call showmatgau(Pbeta,"Beta density matrix",1,fileid=ides)
                 write(ides,*)
                 write(ides,"(' The trace of the alpha and beta density matrix:',2f12.6)") suma,sumb
+                write(ides,"(' The trace of the density matrix multiplied by overlap matrix:',/,' Alpha:',f12.6,'   Beta:',f12.6)") sum(Palpha*Sbas),sum(Pbeta*Sbas)
             end if
             if (iseltmp==2) then
                 write(*,*) "Done! The matrix has been outputted to Pmat.txt in current folder"

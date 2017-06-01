@@ -740,84 +740,14 @@ do ibasis=1,nbasis
 end do
 basend(ncenter)=nbasis
 
-!Generate or load one-particle density matrix for basis functions
+!Generate one-particle density matrix for basis functions
 if (igenP==1) then
-    if (ipostHF/=1) then
+    if (isaveNO==0) then
         if (infomode==0) write(*,*) "Generating SCF density matrix..."
-        call genP
-    else if (ipostHF==1.and.wfntype==3) then
-    !Cannot only use wfntype==3 as criteria directly, when pop=saveNBO, although wfntype==3, but post-HF density matrix is not presented.
-    !    For post-HF calculation, if "density" keyword was used, although orbital coefficients are still SCF's,
-    !however, post-HF density matrix is presented in .fch file. Read them, then analysis based on basis function
-    !will be post-HF's happily. 
-    !If not, we must fill MOocc(:) from .wfn or pop=NO result and then generate density matrix, because
-    !.fch itself doesn't contain natural orbital occupation information!
-        allocate(ptot(nbasis,nbasis))
-        Ptot=0D0
-        call loclabel(10,"Total SCF Density",ifoundSCFDM) !In rare case, even SCF density is missing!
-        if (ifoundSCFDM==1) then !Further find post-HF density matrix section
-            read(10,*)
-            call loclabel(10,"Total ",ifoundpostDM,0)
-        end if
-        if (ifoundpostDM==1) then
-            if (infomode==0) write(*,*) "Loading post-HF density matrix..."
-            read(10,*)
-            read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
-            ptot=ptot+transpose(ptot)
-            do i=1,nbasis
-                ptot(i,i)=ptot(i,i)/2D0
-            end do
-            if (infomode==0) write(*,"(a)") " Note: Post-HF density matrix is loaded from .fch file, all &
-            of the following analyses based on basis information will be for post-HF wavefunction"
-        else if (ifoundSCFDM==0.or.ifoundpostDM==0) then
-            if (isaveNO==0) then
-                if (infomode==0) write(*,"(a)") " Warning: Post-HF density matrix was not found and natural &
-                orbitals are seemingly not stored, so all of the following analyses based on basis information will be for HF wavefunction"
-                if (infomode==0) write(*,*) "Generating HF density matrix..."
-            else if (isaveNO==1) then
-                if (infomode==0) write(*,*) "Generating post-HF density matrix based on natural orbitals..."
-            end if
-            call genP
-        end if
-    else if (ipostHF==1.and.wfntype==4) then
-        allocate(ptot(nbasis,nbasis),palpha(nbasis,nbasis),pbeta(nbasis,nbasis))
-        Ptot=0D0
-        Palpha=0D0
-        Pbeta=0D0
-        call loclabel(10,"Total SCF Density",ifoundSCFDM)
-        if (ifoundSCFDM==1) then !Further find post-HF density matrix section
-            read(10,*)
-            call loclabel(10,"Total ",ifoundpostDM,0)
-        end if
-        if (ifoundpostDM==1) then
-            if (infomode==0) write(*,*) "Loading post-HF density matrix..."
-            read(10,*)
-            read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
-            read(10,*)
-            read(10,"(5(1PE16.8))") ((Palpha(i,j),j=1,i),i=1,nbasis) !Read spin density matrix, use Palpha as temporary store
-            Palpha=(Palpha+Ptot)/2D0
-            Pbeta=Ptot-Palpha
-            ptot=ptot+transpose(ptot)
-            Palpha=Palpha+transpose(Palpha)
-            Pbeta=Pbeta+transpose(Pbeta)
-            do i=1,nbasis
-                ptot(i,i)=ptot(i,i)/2D0
-                Palpha(i,i)=Palpha(i,i)/2D0
-                Pbeta(i,i)=Pbeta(i,i)/2D0
-            end do
-            if (infomode==0) write(*,"(a)") " Note: Post-HF density matrix is loaded from .fch file, all &
-            of the following analyses based on basis information will be for post-HF wavefunction"
-        else if (ifoundSCFDM==0.or.ifoundpostDM==0) then
-            if (isaveNO==0) then
-                if (infomode==0) write(*,"(a)") " Warning: Post-HF density matrix was not found and natural &
-                orbitals are seemingly not stored, so all of the following analyses based on basis information will be for HF wavefunction"
-                if (infomode==0) write(*,*) "Generating HF density matrix..."
-            else if (isaveNO==1) then
-                if (infomode==0) write(*,*) "Generating post-HF density matrix based on natural orbitals..."
-            end if
-            call genP
-        end if
+    else if (isaveNO==1) then
+        if (infomode==0) write(*,*) "Generating post-HF density matrix based on natural orbitals..."
     end if
+    call genP
 end if
 
 !Output summary of present wavefunction
@@ -2670,11 +2600,27 @@ allocate(a(ncenter))
 call loclabel(10,"[Atoms]",ifound) !Return to [Atoms]
 if (ifound==0) call loclabel(10,"[ATOMS]",ifound)
 read(10,"(a)") c80
+!NOTICE: molden input file has a severe drawback, namely atomic charge is not explicitly recorded, this will be problematic when ECP is used
+!In Multiwfn, atomic index is determined according to atomic name, while "atom number" column is read as atomic charge. Therefore, if you already konw
+!current file have used ECP, then you can open the file and manually change the atomic number to atomic charge.
 do iatm=1,ncenter
-    read(10,*) c80,nouse,a(iatm)%index,a(iatm)%x,a(iatm)%y,a(iatm)%z
+    read(10,*) c80,nouse,a(iatm)%charge,a(iatm)%x,a(iatm)%y,a(iatm)%z
+    call lc2uc(c80(1:1)) !Convert to upper case
+    call uc2lc(c80(2:2)) !Convert to lower case
+    do i=1,nelesupp
+        if ( c80(1:2)==ind2name(i) ) then
+            a(iatm)%index=i
+            a(iatm)%name=ind2name(i)
+            exit
+        end if
+    end do
+    if (i==nelesupp+1) then
+        write(*,"(' Error: Unable to recognize atom name ',a)") trim(c80)
+        write(*,*) "Please check your input file. Now press Enter to exit"
+        pause
+        stop
+    end if
 end do
-a%name=ind2name(a%index)
-a%charge=a%index
 if (ilenunit==2) then !Angstrom->a.u.
     a%x=a%x/b2a
     a%y=a%y/b2a

@@ -1271,9 +1271,9 @@ implicit real*8(a-h,o-z)
 integer npt,itype
 real*8 ptpos(npt),ptval(npt),r,val,der1,der2
 if (r<=ptpos(1)) then !Out of boundary
-    val=ptval(1)
     der1=(ptval(2)-ptval(1))/(ptpos(2)-ptpos(1))
     der2=0D0
+    val=ptval(1)-(ptpos(1)-r)*der1 !Use linear interpolation
     return
 else if (r>=ptpos(npt)) then
     val=0D0 !Because this function is mainly used to interpolate radial atomic density, at long distance the value must be zero

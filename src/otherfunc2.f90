@@ -3234,6 +3234,8 @@ end subroutine
 !The algorithm can be found in J. Comput. Chem., 14, 736 (1993)
 !Performing E2 analysis based on LMO oribtal is not appropriate, the non-diagonal elements of Fock matrix are almost zero, &
 !this phenonmenon can also be seen in NLMO Fock matrix ($NBO FNLMO $END). This is because we don't allow mixure between occupied and unoccupied MOs
+!
+!The final wavefunction can be exported as .fch, I don't select .molden because it doesn't record atomic charge, this will be problematic when ECP is used
 subroutine pipek_mezey
 use defvar
 use util
@@ -3269,10 +3271,10 @@ end if
 ! idoene=1
 
 do while(.true.)
-    if (idoene==1) write(*,*) "-4 If print orbital energies, current: Yes"
-    if (idoene==0) write(*,*) "-4 If print orbital energies, current: No"
-    if (ireload==1) write(*,*) "-3 If finally reload newly generated .molden file, current: Yes"
-    if (ireload==0) write(*,*) "-3 If finally reload newly generated .molden file, current: No"
+    if (idoene==1) write(*,*) "-4 If calculate and print orbital energies, current: Yes"
+    if (idoene==0) write(*,*) "-4 If calculate and print orbital energies, current: No"
+    if (ireload==1) write(*,*) "-3 If finally reload newly generated .fch file, current: Yes"
+    if (ireload==0) write(*,*) "-3 If finally reload newly generated .fch file, current: No"
     write(*,"(a,f12.8)") " -2 Set criterion of convergence, current:",crit
     write(*,"(a,i4)") " -1 Set maximum cycles, current:",maxcyc
     write(*,*) "0 Return"
@@ -3513,11 +3515,12 @@ if (idoene==1) then
 !     end if
 end if
 
-call outmolden("new.molden",10)
+call outfch("new.fch",10)
+write(*,*) "The localized orbitals have been exported as new.fch in current folder"
 if (ireload==1) then
     call dealloall
-    write(*,*) "Loading new.molden..."
-    call readmolden("new.molden",1)
+    write(*,*) "Loading new.fch..."
+    call readfch("new.fch",1)
     write(*,"(a)") " Loading finished, now you can use main function 0 to visualize them as isosurface"
 end if
 end subroutine
