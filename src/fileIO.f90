@@ -270,21 +270,16 @@ call loclabel(10,'Number of electrons')
 read(10,"(49x,f12.0)") nelec
 read(10,"(49x,f12.0)") naelec
 read(10,"(49x,f12.0)") nbelec
-if (naelec/=nbelec.and.wfntype==0) wfntype=1 !This is often redundant, but considering that sometimes U/RO is not properly recognized, this maybe useful
+if (naelec/=nbelec.and.wfntype==0) wfntype=1 !This is often redundant, but considering that sometimes U is not properly recognized, this maybe useful
 call loclabel(10,'Number of basis functions')
 read(10,"(49x,i12)") nbasis
 nindbasis=nbasis
-call loclabel(10,'Number of independant functions',ifound) !G03
-if (ifound==0) call loclabel(10,'Number of independent functions',ifound) !G09
+call loclabel(10,'Number of independent functions',ifound) !G09
 if (ifound==1) read(10,"(49x,i12)") nindbasis !Number of linear independant functions
-ipostHF=0
-call loclabel(10,"Post-SCF wavefunction",ipostHF) !If this sentence appears, regardless if "density" is used, the task of the .fch must be post-HF
-if (isaveNO==1) ipostHF=1 !When NOs are stored, "Post-SCF wavefunction" may not be present, so set ipostHF=1 explicltly in this case
-ibeta=0
-call loclabel(10,"Beta MO coefficients",ibeta) !Determine if this is unrestricted system
-if (isaveNBOocc==1.or.isaveNBOene==1.or.isaveNO==1.or.ipostHF==1) then
-    if (ibeta==0) wfntype=3
-    if (ibeta==1) wfntype=4
+if (ifound==0) call loclabel(10,'Number of independant functions',ifound) !G03
+if (isaveNBOocc==1.or.isaveNBOene==1.or.isaveNO==1) then
+    if (wfntype==0) wfntype=3
+    if (wfntype==1) wfntype=4
 end if
 
 virialratio=2D0
@@ -347,7 +342,7 @@ if (index(c80,"P(S=P) Contraction coefficients")/=0) then
 end if
 
 if (infomode==0) write(*,*) "Loading orbitals..."
-call loclabel(10,'Alpha Orbital Energies',ifound)
+call loclabel(10,'Alpha Orbital Energies')
 read(10,*)
 !Note: Some basis maybe removed by linear dependence checking, hence the number of orbitals in .fch may less than nbasis(always equals to nmo in Multiwfn)
 !Hence when reading information involving the number of orbitals in .fch, use nindbasis instead nmo
@@ -578,7 +573,7 @@ if (isphergau==1) then
         isphergau=0
         
     else !Commonly case, transform to spherical harmonic functions
-        if (infomode==0) write(*,*) "Converting basis function information from Cartesian to spherical type..."
+        if (infomode==0) write(*,*) "Back converting basis function information from Cartesian to spherical type..."
         !Map cartesian overlap matrix to spherical
         allocate(sbas5D(nbasis5D,nbasis5D))
         if (igenDbas==1) allocate(Dbas5D(3,nbasis5D,nbasis5D))
@@ -742,10 +737,9 @@ basend(ncenter)=nbasis
 
 !Generate one-particle density matrix for basis functions
 if (igenP==1) then
-    if (isaveNO==0) then
-        if (infomode==0) write(*,*) "Generating SCF density matrix..."
-    else if (isaveNO==1) then
-        if (infomode==0) write(*,*) "Generating post-HF density matrix based on natural orbitals..."
+    if (infomode==0) then
+        if (isaveNO==0) write(*,*) "Generating density matrix based on SCF orbitals..."
+        if (isaveNO==1) write(*,*) "Generating density matrix based on natural orbitals..."
     end if
     call genP
 end if
@@ -2154,7 +2148,7 @@ end if
 !Count electrons
 call updatenelec
 
-!Sort orbitals so that the orbitals with same spin-type are contiguous, because the wfn file outputted by molden2aim is not always in line with this convention
+!Sort orbitals so that the orbitals with same spin-type are contiguous, because the wfn file outputted by Molden2AIM is not always in line with this convention
 if (ifoundmospin==1.and.(wfntype==1.or.wfntype==4)) then
     allocate(tmpCO(nmo,nprims),tmpMOtype(nmo),tmpMOocc(nmo),tmpMOene(nmo))
     ipos=0
@@ -2202,7 +2196,7 @@ end subroutine
 
 
 !!-----------------------------------------------------------------
-!!------------------------- Read .wfx, mode=0 means output wfn property,=1 not
+!!-------- Read .wfx. mode=0 means output related information, =1 Do not output
 subroutine readwfx(name,infomode)
 use defvar
 use util
@@ -2276,44 +2270,6 @@ end do
 call loclabel(10,"<Primitive Exponents>")
 read(10,*)
 read(10,*) b%exp
-call loclabel(10,"<Molecular Orbital Occupation Numbers>")
-read(10,*)
-read(10,*) MOocc
-call loclabel(10,"<Molecular Orbital Energies>")
-read(10,*)
-read(10,*) MOene
-call loclabel(10,"<Molecular Orbital Spin Types>")
-read(10,*)
-do i=1,nmo
-    read(10,"(a20)") spintype
-    if (adjustl(spintype)=="Alpha and Beta") MOtype(i)=0 !adjustl is needed, because the wfx outputted by ORCA is non-standard
-    if (adjustl(spintype)=="Alpha") MOtype(i)=1
-    if (adjustl(spintype)=="Beta") MOtype(i)=2
-end do
-call loclabel(10,"<Molecular Orbital Primitive Coefficients>")
-read(10,*)
-do i=1,nmo
-    read(10,*)
-    read(10,*)
-    read(10,*)
-    read(10,*) CO(i,:)
-end do
-if (any(b%functype>56)) then !Angular moment of GTF should be no higher than h
-    write(*,"(' Warning: Angular moment of one or more GTFs exceeds h, Multiwfn is unable to deal with this case! Its/their contributions will be discarded')")
-    pause
-    do iGTF=1,nprims
-        if (b(iGTF)%functype>56) then
-            b(iGTF)%functype=1 !Assume it is S type
-            CO(:,iGTF)=0D0
-        end if
-    end do
-end if
-call loclabel(10,"<Energy = T + Vne + Vee + Vnn>")
-read(10,*)
-read(10,*) totenergy
-call loclabel(10,"<Virial Ratio (-V/T)>")
-read(10,*)
-read(10,*) virialratio
 !------ Process EDF information
 call loclabel(10,"<Number of EDF Primitives>",ifound)
 if (ifound==1.and.readEDF==1) then
@@ -2343,16 +2299,58 @@ if (ifound==1.and.readEDF==1) then
     read(10,*) ninnerelec
     if (infomode==0) write(*,"(a,i6,a)") " Note: EDF information represents",ninnerelec," inner-core electrons"
 end if
+call loclabel(10,"<Molecular Orbital Occupation Numbers>")
+read(10,*)
+read(10,*) MOocc
+call loclabel(10,"<Molecular Orbital Energies>")
+read(10,*)
+read(10,*) MOene
+call loclabel(10,"<Molecular Orbital Spin Types>")
+read(10,*)
+do i=1,nmo
+    read(10,"(a20)") spintype
+    if (adjustl(spintype)=="Alpha and Beta") MOtype(i)=0 !adjustl is needed, because the wfx outputted by ORCA is non-standard
+    if (adjustl(spintype)=="Alpha") MOtype(i)=1
+    if (adjustl(spintype)=="Beta") MOtype(i)=2
+end do
+call loclabel(10,"<Molecular Orbital Primitive Coefficients>")
+read(10,*)
+do i=1,nmo
+    read(10,*)
+    read(10,*)
+    read(10,*)
+    read(10,*) CO(i,:)
+end do
+call loclabel(10,"<Energy = T + Vne + Vee + Vnn>",ifound,0) !Don't rewind, otherwise Multiwfn will scan lots of information of MO field
+read(10,*)
+read(10,*) totenergy
+call loclabel(10,"<Virial Ratio (-V/T)>",ifound,0)
+read(10,*)
+read(10,*) virialratio
 close(10)
 
-if ( all(MOocc==int(MOocc)) ) then
+!Angular moment of GTF should be no higher than h
+if (any(b%functype>56)) then
+    write(*,"(' Warning: Angular moment of one or more GTFs exceeds h, Multiwfn is unable to deal with this case! Its/their contributions will be discarded')")
+    write(*,*) "Press ENTER to continue"
+    pause
+    do iGTF=1,nprims
+        if (b(iGTF)%functype>56) then
+            b(iGTF)%functype=1 !Assume it is S type
+            CO(:,iGTF)=0D0
+        end if
+    end do
+end if
+
+if ( all(MOocc==nint(MOocc)) ) then
     wfntype=2
-    if (nmo==nelec) wfntype=1
-    if (nmo==nelec/2) wfntype=0
+    if (nmo==nint(nelec)) wfntype=1
+    if (nmo==nint(nelec)/2) wfntype=0
 else !post-HF
     if (naelec==nbelec) wfntype=3
     if (naelec/=nbelec) wfntype=4
 end if
+
 if (infomode==0) then
     write(*,*)
     write(*,"(' Total energy:',f19.12,' Hartree,   Virial ratio:',f12.8)") totenergy,virialratio
@@ -2807,7 +2805,7 @@ do ishell=1,nshell
 end do
 if (infomode==0.and.iorca==1.and.imaxL>=4) then
     write(*,"(a)") " Warning! For the Molden input file generated by ORCA, when g angular moment basis functions are present, the result may be inaccurate!"
-    write(*,"(a)") " I suggest you use molden2aim program to standardize it before loading it into Multiwfn. If you really want to preceed, press ENTER button"
+    write(*,"(a)") " I suggest you use Molden2AIM program to standardize it before loading it into Multiwfn. If you really want to preceed, press ENTER button"
     pause
 end if
 
@@ -2815,8 +2813,19 @@ end if
 !Close shell orbitals are formally marked as "Alpha" spin. For singly occupied orbitals of ROHF, the spin marker are also Alpha
 if (infomode==0) write(*,*) "Loading orbitals..."
 nmo=nbasis
-call loclabel(10,"Beta",ibeta)
-! if (ibeta==0) call loclabel(10,"BETA",ibeta) !Some programs are strange, they don't follow standard molden format, use ALPHA/BETA instead of Alpha/Beta
+! Here I don't use call loclabel(10,"Beta",ibeta) to check if there are Beta orbitals, because for very large file, this will be quite expensive
+! I assume that when the first orbital has occupation number <1.05, then the wavefunction must be unrestricted
+ibeta=0
+call loclabel(10,"[MO]")
+do while(.true.)
+    read(10,"(a)") c80
+    if (index(c80,"OCCUP=")/=0.or.index(c80,"Occup=")/=0) then
+        read(c80,*) c80,occtmp
+        if (occtmp<1.05D0) ibeta=1
+        exit
+    end if
+end do
+!Allocate size for arrays
 if (ibeta==0) then
     nmo=nbasis
     allocate(amocoeff(nmo,nbasis),MOocc(nmo),MOene(nmo),MOtype(nmo),MOsym(nmo))
@@ -2830,14 +2839,15 @@ end if
 MOsym=" "
 MOocc=0D0
 MOene=0D0
-call loclabel(10,"[MO]",ifound)
+!Start to load orbitals
+call loclabel(10,"[MO]")
 read(10,*)
 iMOa=0
 iMOb=0
 itmp=0
 do while(.true.)
     itmp=itmp+1
-    read(10,"(a)") c80 !Test if it is "Sym="
+    read(10,"(a)") c80 !Test if it is "Sym=", some programs do not output this field
     backspace(10)
     if (index(c80,"Sym")/=0.or.index(c80,"SYM")/=0) then
         read(10,*) c80,symtmp
@@ -2861,7 +2871,6 @@ do while(.true.)
         MOene(iMOa)=enetmp
         MOsym(iMOa)=symtmp
         do ibasis=1,nbasis
-!             write(*,*) ibasis,nbasis
             read(10,*) nouse,amocoeff(iMOa,ibasis)
         end do
     else
@@ -2874,7 +2883,7 @@ do while(.true.)
         end do
     end if
     read(10,"(a)",iostat=ierror) c80 !Test if the ending of [MO] field is reached
-    if (ierror/=0.or.c80==" ".or.index(c80,"[")/=0) exit
+    if (ierror/=0.or.c80==" ".or.c80(1:1)=='[') exit
     backspace(10)
 end do
 
@@ -3130,7 +3139,7 @@ if (isphergau==1) then
         isphergau=0
         
     else !Commonly case, transform to spherical harmonic functions
-        if (infomode==0) write(*,*) "Converting basis function information from Cartesian to spherical type..."
+        if (infomode==0) write(*,*) "Back converting basis function information from Cartesian to spherical type..."
         !Map cartesian overlap matrix to spherical harmonic overlap matrix
         allocate(Sbas5D(nbasis5D,nbasis5D))
         if (igenDbas==1) allocate(Dbas5D(3,nbasis5D,nbasis5D))
@@ -3230,32 +3239,6 @@ if (isphergau==1) then
     end if
 end if
 
-!The orbitals in Molden input file may be not properly normalized, we normalize the coefficients here
-do imo=1,nbasis !For open-shell, only check alpha part
-    testnorm=0D0
-    do ibas=1,nbasis
-        do jbas=1,nbasis
-            testnorm=testnorm+sbas(ibas,jbas)*cobasa(ibas,imo)*cobasa(jbas,imo)
-        end do
-    end do
-!     write(*,*) imo,testnorm !If the orbitals are not normalized to 1, that means current Molden input file is problematic
-    ! For ORCA, we have warned users because of g functions. Sometimes the actual orbitals are more than nbasis, then that orbitals will be normalized to zero
-    if (abs(testnorm-nint(testnorm))>0.01.and.iorca==0) then
-        write(*,"(/,a)") " Warning: The normalization check of orbital wavefunctions failed! That means this Molden input file cannot be well supported by Multiwfn. &
-        (Because the Molden input files generated by many quantum chemistry programs are problematic)"
-        write(*,"(a)") " If you really want to proceed, press ENTER button, but notice that the analysis result may be not correct"
-        pause
-        exit
-    end if
-    !Artificially normalize orbitals
-!     if (imo>nbasis) then !beta part
-!         cobasb(:,imo-nbasis)=cobasb(:,imo-nbasis)/dsqrt(testnorm)
-!     else
-!         cobasa(:,imo)=cobasa(:,imo)/dsqrt(testnorm)
-!     end if
-!     co(imo,:)=co(imo,:)/dsqrt(testnorm)
-end do
-
 !Move local shell arrays to the global ones, they will be used in other functions
 allocate(shtype(nshell),shcen(nshell),shcon(nshell),primshexp(nprimshell),primshcoeff(nprimshell))
 shtype=shelltype
@@ -3281,6 +3264,18 @@ basend(ncenter)=nbasis
 if (igenP==1) then
     if (infomode==0) write(*,*) "Generating density matrix..."
     call genP
+end if
+
+!Check wavefunction sanity
+if (iorca==0) then !For ORCA with angular moment >f, warning has already been shown before"
+    devtmp=abs(sum(Sbas*Ptot)-nint(nelec))
+    write(*,"( ' Deviation of Tr(S*P) to the number of total electrons:',f12.6)") devtmp
+    if (devtmp>0.01D0) then
+        write(*,"(/,a)") " Warning: The wavefunction loaded is problematic! That means this Molden input file cannot be well supported by Multiwfn. &
+        I strongly suggest you use Molden2AIM program to standardize this file before loading into Multiwfn. Please check Section 5.1 of the manual for detail"
+        write(*,"(a)") " If you really want to proceed, press ENTER button, but notice that the result will not be correct"
+        pause
+    end if
 end if
 
 !Output summary of present wavefunction

@@ -3252,24 +3252,6 @@ write(*,*) "Error: This function only works for restricted or unrestricted SCF w
     return
 end if
 
-! open(10,file="C:\fock2.txt",status="old")
-! if (.not.allocated(FmatA)) allocate(FmatA(nbasis,nbasis))
-! read(10,*) ((FmatA(i,j),j=1,i),i=1,nbasis)
-! do i=1,nbasis !Fill upper triangular part
-!     do j=i+1,nbasis
-!         FmatA(i,j)=FmatA(j,i)
-!     end do
-! end do
-! if (.not.allocated(FmatB)) allocate(FmatB(nbasis,nbasis))
-! read(10,*) ((FmatB(i,j),j=1,i),i=1,nbasis)
-! do i=1,nbasis
-!     do j=i+1,nbasis
-!         FmatB(i,j)=FmatB(j,i)
-!     end do
-! end do
-! close(10)
-! idoene=1
-
 do while(.true.)
     if (idoene==1) write(*,*) "-4 If calculate and print orbital energies, current: Yes"
     if (idoene==0) write(*,*) "-4 If calculate and print orbital energies, current: No"
@@ -3435,7 +3417,7 @@ write(*,"(/,' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')"
 
 !Print orbital energies, sort orbital according to energies and do E2 analysis
 if (idoene==1) then
-    !Yield orbital energies
+    !Do Alpha part or closed-shell orbitals
     allocate(FLMOA(nbasis,nbasis))
     FLMOA=matmul(matmul(transpose(CObasa),FmatA),CObasa)
     if (isel==1) nmoend=naelec
@@ -3483,13 +3465,23 @@ if (idoene==1) then
             end do
         end do
     end if
-    write(*,*) "Orbitals after localization:"
+    !Print energies, those not localized are not printed
+    write(*,*) "Energies of localized orbitals:"
     do iorb=1,nmo
+        if (isel==1) then
+            if (wfntype==0) then
+                if (iorb>nint(naelec)) cycle
+            else if (wfntype==1) then
+                if (MOtype(iorb)==1.and.iorb>nint(naelec)) cycle
+                if (MOtype(iorb)==2.and.iorb>nbasis+nint(nbelec)) cycle
+            end if
+        end if
         if (MOtype(iorb)==0) typestr="A+B"
         if (MOtype(iorb)==1) typestr="A"
         if (MOtype(iorb)==2) typestr="B"
         write(*,"(i6,'   Energy (a.u.):',f16.8,'    Type: ',a,'  Occ:',f4.1)") iorb,MOene(iorb),typestr,MOocc(iorb)
     end do
+    if (isel==1) write(*,*) "Energies of unoccupied orbitals are not updated since they were not localized"
     
     !Second-order perturbation analysis between occupied and virtual orbitals, this only works when both of them have been localized
     !This part is commented since it don't print any useful E(2), because Fock element between occupied and virtual orbitals are always nearly zero
@@ -3515,6 +3507,7 @@ if (idoene==1) then
 !     end if
 end if
 
+write(*,*)
 call outfch("new.fch",10)
 write(*,*) "The localized orbitals have been exported as new.fch in current folder"
 if (ireload==1) then

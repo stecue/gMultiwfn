@@ -1413,38 +1413,35 @@ end subroutine
 !!!------------------------- Generate density matrix, currently only for .fch file
 subroutine genP
 use defvar
-use util
 implicit real*8 (a-h,o-z)
-integer i,j,imo
 if (allocated(Ptot)) deallocate(Ptot)
 if (allocated(Palpha)) deallocate(Palpha)
 if (allocated(Pbeta)) deallocate(Pbeta)
 allocate(Ptot(nbasis,nbasis))
+Ptot=0
 if (wfntype==1.or.wfntype==2.or.wfntype==4) then !open-shell
     allocate(Palpha(nbasis,nbasis))
     allocate(Pbeta(nbasis,nbasis))
+    Palpha=0D0
+    Pbeta=0D0
 end if
 
-if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,restricted post-HF
-    Ptot=0
+if (wfntype==0) then !RHF
+    Ptot=2*matmul(CObasa(:,1:nint(naelec)),transpose(CObasa(:,1:nint(naelec))))
+else if (wfntype==1) then !UHF
+    Palpha=matmul(CObasa(:,1:nint(naelec)),transpose(CObasa(:,1:nint(naelec))))
+    Pbeta=matmul(CObasb(:,1:nint(nbelec)),transpose(CObasb(:,1:nint(nbelec))))
+    Ptot=Palpha+Pbeta
+else if (wfntype==2) then !ROHF
+    Palpha=matmul(CObasa(:,1:nint(naelec)),transpose(CObasa(:,1:nint(naelec))))
+    Pbeta=matmul(CObasa(:,1:nint(nbelec)),transpose(CObasa(:,1:nint(nbelec))))
+    Ptot=Palpha+Pbeta
+else if (wfntype==3) then !Restricted post-HF
     do imo=1,nmo
         if (MOocc(imo)==0D0) cycle
         Ptot=Ptot+MOocc(imo)*matmul(CObasa(:,imo:imo),transpose(CObasa(:,imo:imo)))
     end do
-    if (wfntype==2) then !ROHF
-        Palpha=0D0
-!Add the singly occupied orbital contribution to Ptot, as if all orbital is doubled occupied, divided by 2 yielding Palpha
-        do imo=1,nmo
-            if (MOtype(imo)==1) then
-                Palpha=Palpha+MOocc(imo)*matmul(CObasa(:,imo:imo),transpose(CObasa(:,imo:imo)))
-            end if
-        end do
-        Palpha=(Palpha+Ptot)/2D0
-        Pbeta=Ptot-Palpha
-    end if
-else if (wfntype==1.or.wfntype==4) then
-    Palpha=0D0
-    Pbeta=0D0
+else if (wfntype==4) then
     do imo=1,nbasis
         if (MOocc(imo)==0D0) cycle
         Palpha=Palpha+MOocc(imo)*matmul(CObasa(:,imo:imo),transpose(CObasa(:,imo:imo)))
@@ -1455,6 +1452,7 @@ else if (wfntype==1.or.wfntype==4) then
     end do
     Ptot=Palpha+Pbeta
 end if
+
 end subroutine
 
 
@@ -2022,7 +2020,7 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
     if (pairfunctype==7) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for alpha, ref:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
     if (pairfunctype==8) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for beta, ref:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
     write(ifileid,"(' Source function, ref.:',3f10.5,' :',E18.10)") refx,refy,refz,srcfunc(inx,iny,inz,srcfuncmode)
-    write(ifileid,"(' Wavefunction value for orbital',i10,' :',E18.10)") iorbsel,fmo(inx,iny,inz,iorbsel)
+    if (nmo/=0) write(ifileid,"(' Wavefunction value for orbital',i10,' :',E18.10)") iorbsel,fmo(inx,iny,inz,iorbsel)
     if (iALIEdecomp==0) then
         write(ifileid,"(' Average local ionization energy:',E18.10)") avglocion(inx,iny,inz)
     else if (iALIEdecomp==1) then

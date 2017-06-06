@@ -188,7 +188,7 @@ character*5 :: type2ang(56)=(/ &
 !Here g sequence is identical to .fch, .wfn does not support higher than f function, not identical to .wfx and .molden
 !here h sequence is identical to .wfx and .fch, .molden doesn't support h
 !Notice: The .wfn produced by G09 B.01 and later supports g and h, the definition is identical to here, and thus can be normally loaded
-!Overall, spd: Multiwfn=wfn=wfx=fch=molden   f: Multiwfn=wfn=wfx!=fch=molden   g: Multiwfn=fch!=wfx=molden=molden2aim   h: Multiwfn=wfx=fch
+!Overall, spd: Multiwfn=wfn=wfx=fch=molden   f: Multiwfn=wfn=wfx!=fch=molden   g: Multiwfn=fch!=wfx=molden=Molden2AIM   h: Multiwfn=wfx=fch
 integer :: type2ix(56)=(/ 0, 1,0,0, 2,0,0,1,1,0, 3,0,0,2,2,0,1,1,0,1, 0,0,0,0,0,1,1,1,1,2,2,2,3,3,4, 0,0,0,0,0,0,1,1,1,1,1,2,2,2,2,3,3,3,4,4,5 /)
 integer :: type2iy(56)=(/ 0, 0,1,0, 0,2,0,1,0,1, 0,3,0,1,0,2,2,0,1,1, 0,1,2,3,4,0,1,2,3,0,1,2,0,1,0, 0,1,2,3,4,5,0,1,2,3,4,0,1,2,3,0,1,2,0,1,0 /)
 integer :: type2iz(56)=(/ 0, 0,0,1, 0,0,2,0,1,1, 0,0,3,0,1,1,0,2,2,1, 4,3,2,1,0,3,2,1,0,2,1,0,1,0,0, 5,4,3,2,1,0,4,3,2,1,0,3,2,1,0,2,1,0,1,0,0 /)

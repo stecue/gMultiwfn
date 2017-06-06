@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-Jun-1"
+write(*,*) "Version 3.4(dev), release date: 2017-Jun-3"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -2444,6 +2444,7 @@ else if (infuncsel1==100) then
                 else
                     write(*,*) "Input the path, e.g. c:\ltwd.molden"
                     read(*,"(a)") c200tmp
+                    write(*,*) "Exporting, please wait..."
                     call outmolden(c200tmp,10)
                 end if
             else if (itmp==7) then
@@ -2452,6 +2453,7 @@ else if (infuncsel1==100) then
                 else
                     write(*,*) "Input the path, e.g. c:\ltwd.fch"
                     read(*,"(a)") c200tmp
+                    write(*,*) "Exporting, please wait..."
                     call outfch(c200tmp,10)
                 end if
             else if (itmp==8) then
@@ -2460,6 +2462,7 @@ else if (infuncsel1==100) then
                 else
                     write(*,*) "Input the path, e.g. c:\ltwd.47"
                     read(*,"(a)") c200tmp
+                    write(*,*) "Exporting, please wait..."
                     call out47(c200tmp,10)
                 end if
             else if (itmp==10) then
