@@ -446,7 +446,8 @@ do iatm=1,ncenter !! Cycle each atom
     !For multipole moment integration (2), calculate electron density here
     !For AOM, LI/DI, FLU/PDI calculation, wavefunction value will be computed in integration stage rather than here
     if (isel==1.or.isel==2.or.isel==8.or.isel==102) then
-!$OMP parallel do shared(funcval) private(rnowx,rnowy,rnowz,i) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(funcval) private(rnowx,rnowy,rnowz,i) num_threads(nthreads)
         do i=1+iradcut*sphpot,radpot*sphpot
             if (ifunc==-2.or.isel==102) then
                 funcval(i)=fdens(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
@@ -461,7 +462,8 @@ do iatm=1,ncenter !! Cycle each atom
             do jatm=1,ncenter_org !Calc free atomic density
                 call dealloall
                 call readwfn(custommapname(jatm),1)
-!$OMP parallel do shared(atomdens) private(ipt) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
                 do ipt=1+iradcut*sphpot,radpot*sphpot
                     atomdens(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
                 end do
@@ -476,7 +478,7 @@ do iatm=1,ncenter !! Cycle each atom
     !Calculate atomic space weight at each point, which will be used later. Also integrate fuzzy overlap region here
     if (ipartition==1) then !Becke
 !$OMP parallel shared(atmspcweight,ovlpintpos,ovlpintneg) private(i,rnowx,rnowy,rnowz,smat,&
-!$OMP ii,ri,jj,rj,rmiu,chi,uij,aij,tmps,iter,Pvec,tmpval,tmpval2,ovlpintpostmp,ovlpintnegtmp) num_threads( nthreads  )
+!$OMP ii,ri,jj,rj,rmiu,chi,uij,aij,tmps,iter,Pvec,tmpval,tmpval2,ovlpintpostmp,ovlpintnegtmp) num_threads(nthreads)
         ovlpintpostmp=0D0
         ovlpintnegtmp=0D0
 !$OMP do schedule(dynamic)
@@ -539,7 +541,8 @@ do iatm=1,ncenter !! Cycle each atom
         do jatm=1,ncenter_org !Calc free atomic density of each atom and promolecular density
             call dealloall
             call readwfn(custommapname(jatm),1)
-!$OMP parallel do shared(atomdens) private(ipt) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
             do ipt=1+iradcut*sphpot,radpot*sphpot
                 atomdens(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
                 if ((isel==99.or.isel==100).and.jatm==iatm) selfdensgrad2(ipt)=&
@@ -561,7 +564,8 @@ do iatm=1,ncenter !! Cycle each atom
     else if (ipartition==3) then !Hirshfeld with interpolation of built-in atomic radius density
         promol=0D0
         do jatm=1,ncenter_org !Calc free atomic density of each atom and promolecular density
-!$OMP parallel do shared(atomdens) private(ipt) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
             do ipt=1+iradcut*sphpot,radpot*sphpot
                 atomdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
             end do
@@ -585,7 +589,8 @@ do iatm=1,ncenter !! Cycle each atom
         call dealloall
         call readwfn(specatmfilename,1)
         a=a_org(iatm) !Set atom position to actual atom position
-!$OMP parallel do shared(specrho,specrhograd2) private(ipt) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(specrho,specrhograd2) private(ipt) num_threads(nthreads)
         do ipt=1+iradcut*sphpot,radpot*sphpot
             specrho(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
             specrhograd2(ipt)=fgrad(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,'t')**2
@@ -604,7 +609,8 @@ do iatm=1,ncenter !! Cycle each atom
         !=99:  Calculate relative Shannon and Fisher entropy and 2nd-order term
         !=100: Calculate relative Shannon/Fisher entropy by taking Hirshfeld density as reference
         !=103: Calculate quadratic and cubic Renyi relative entropy
-!$OMP parallel shared(rintval) private(i,rnowx,rnowy,rnowz,rhow,rhograd2w,rintvalp) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel shared(rintval) private(i,rnowx,rnowy,rnowz,rhow,rhograd2w,rintvalp) num_threads(nthreads)
         rintvalp=0D0
 !$OMP do schedule(dynamic)
         do i=1+iradcut*sphpot,radpot*sphpot
@@ -757,7 +763,8 @@ do iatm=1,ncenter !! Cycle each atom
     else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
     
         if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
-!$OMP parallel shared(AOM) private(i,imo,jmo,AOMtmp,orbval) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel shared(AOM) private(i,imo,jmo,AOMtmp,orbval) num_threads(nthreads)
             AOMtmp=0D0
 !$OMP do schedule(dynamic)
             do i=1+iradcut*sphpot,radpot*sphpot
@@ -1708,7 +1715,8 @@ do iatm=1,ncenter !Cycle each atom
     gridatm%z=gridatmorg%z+a(iatm)%z
     
     !Calculate real space function value
-!$OMP parallel do shared(funcval) private(i) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(funcval) private(i) num_threads(nthreads)
     do i=1+iradcut*sphpot,radpot*sphpot
         funcval(i)=calcfuncall(ifunc,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
     end do
@@ -1721,7 +1729,8 @@ do iatm=1,ncenter !Cycle each atom
     do jatm=1,ncenter_org
         call dealloall
         call readwfn(custommapname(jatm),1)
-!$OMP parallel do shared(atmdens) private(ipt) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(atmdens) private(ipt) num_threads(nthreads)
         do ipt=1+iradcut*sphpot,radpot*sphpot
             atmdens(ipt,jatm)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
         end do

@@ -918,6 +918,7 @@ end do
 
 if (itype==1) then
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(ovlpmat) PRIVATE(iorba,iorbb,accum,ii,jj) schedule(dynamic) NUM_THREADS(nthreads)
     do iorba=1,numalphaMO !alpha orbitals
         write(*,"(' Finished:',i6,'    /',i6)") iorba,isplit-1
@@ -1005,7 +1006,8 @@ do iatm=1,ncenter
     gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
     gridatm%y=gridatmorg%y+a(iatm)%y
     gridatm%z=gridatmorg%z+a(iatm)%z
-!$OMP parallel do shared(funcval) private(i,rnowx,rnowy,rnowz) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(funcval) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
     do i=1+iradcut*sphpot,radpot*sphpot
         rnowx=gridatm(i)%x
         rnowy=gridatm(i)%y
@@ -1073,7 +1075,8 @@ do while(.true.)
         gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
         gridatm%y=gridatmorg%y+a(iatm)%y
         gridatm%z=gridatmorg%z+a(iatm)%z
-        !$OMP parallel do shared(funcval,cenval) private(i,vali,valj,vali2,valj2,rnowx,rnowy,rnowz) num_threads(nthreads)
+nthreads=getNThreads()
+!$OMP parallel do shared(funcval,cenval) private(i,vali,valj,vali2,valj2,rnowx,rnowy,rnowz) num_threads(nthreads)
         do i=1+iradcut*sphpot,radpot*sphpot
             rnowx=gridatm(i)%x
             rnowy=gridatm(i)%y
@@ -1091,7 +1094,7 @@ do while(.true.)
             cenval(i,2,2)=valj2*rnowy
             cenval(i,3,2)=valj2*rnowz
         end do
-        !$OMP end parallel do
+!$OMP end parallel do
         
         call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
         do i=1+iradcut*sphpot,radpot*sphpot
@@ -1169,26 +1172,28 @@ do iatm=1,ncenter
     gridatm%z=gridatmorg%z+a(iatm)%z
     
     !Calculate data for wfn1
-    !$OMP parallel do shared(funcval1) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
+nthreads=getNThreads()
+!$OMP parallel do shared(funcval1) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
     do i=1+iradcut*sphpot,radpot*sphpot
         rnowx=gridatm(i)%x
         rnowy=gridatm(i)%y
         rnowz=gridatm(i)%z
         funcval1(i)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
     end do
-    !$OMP end parallel do
+!$OMP end parallel do
     
     !Calculate data for wfn2
     call dealloall
     call readinfile(filename2,1)
-    !$OMP parallel do shared(funcval2) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
+nthreads=getNThreads()
+!$OMP parallel do shared(funcval2) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
     do i=1+iradcut*sphpot,radpot*sphpot
         rnowx=gridatm(i)%x
         rnowy=gridatm(i)%y
         rnowz=gridatm(i)%z
         funcval2(i)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
     end do
-    !$OMP end parallel do
+!$OMP end parallel do
     !Recover to wfn1
     call dealloall
     call readinfile(firstfilename,1)
@@ -1265,6 +1270,7 @@ if (imethod==1) then !I found if imethod=1 is parallelized too, the speed is muc
         end do
     end do
 else if (imethod==2) then
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL SHARED(in) PRIVATE(i,intmp,nowx,nowy,nowz) NUM_THREADS(nthreads)
     intmp=0

@@ -463,6 +463,7 @@ else if (isel==0.or.isel==10) then
         OPfrag12=0
         if (idoPDOS==1) then
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(compfrag,OPfrag12) PRIVATE(ifrag,imo,allsqr,i,j,ibas,jbas) schedule(dynamic) NUM_THREADS(nthreads)
             do imo=istart,iend !Cycle each orbital, don't use nmo, because for unrestricted wavefunction nmo=2*nbasis
                 if (ipopmethod==3) allsqr=sum(tmpmat(:,imo)**2)

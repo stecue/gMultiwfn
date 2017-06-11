@@ -208,6 +208,7 @@ exccoeffbackup=exccoeff
         fac=1
         if (wfntype==0.or.wfntype==3) fac=2
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(xdipcontri,ydipcontri,zdipcontri) PRIVATE(iGTF,jGTF,ides,iexcitorb,imo,jmo) schedule(dynamic) NUM_THREADS(nthreads)
         do iexcitorb=1,nexcitorb
             imo=orbleft(iexcitorb)
@@ -1315,6 +1316,7 @@ do while(.true.)
                 do k=1,nz
                     if (Cele(i,j,k)<1D-6) cycle !Typically leads to error at 0.001 magnitude
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP parallel shared(coulene) private(ii,jj,kk,distx2,disty2,distz2,dist,coulenetmp) num_threads(nthreads)
                     coulenetmp=0
 !$OMP do schedule(DYNAMIC)
@@ -1385,6 +1387,7 @@ allocate(orbcenx(nmo),orbceny(nmo),orbcenz(nmo))
 orbcenx=0
 orbceny=0
 orbcenz=0
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(orbcenx,orbceny,orbcenz) PRIVATE(iGTF,jGTF,ides,imo) schedule(dynamic) NUM_THREADS(nthreads)
 do imo=1,nmo
@@ -1784,6 +1787,7 @@ allocate(MOdipint(3,nmo,nmo))
 !MOdipint will record dipole moment integrals between all MOs, including all occ+vir alpha and occ+vir beta ones
 iprog=0
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(MOdipint,MOdipintb,iprog) PRIVATE(imo,jmo,iGTF,jGTF,ides,tmpvec) schedule(dynamic) NUM_THREADS(nthreads)
 do imo=1,nmo
     do jmo=imo,nmo
@@ -1858,6 +1862,7 @@ end if
 write(*,*) "Stage 3: Calculating transition dipole moment between excited states..."
 call walltime(iwalltime1)
 iprog=0
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(tdvecmat,iprog) PRIVATE(iexc,jexc,tdvec,imo,lmo,jmo,kmo,wei) schedule(dynamic) NUM_THREADS(nthreads)
 do iexc=1,nstates

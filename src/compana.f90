@@ -523,7 +523,8 @@ if (itype==1) then
     if (ihirshmode==1) then
         write(*,*) "Generating promolecular density from atom densities..."
         do iatm=1,ncenter
-!$OMP parallel do shared(allpotw) private(jatm,i) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(allpotw) private(jatm,i) num_threads(nthreads)
             do jatm=1,ncenter_org !Cycle points of every atom
                 do i=1+iradcut*sphpot,radpot*sphpot
                     allpotw(jatm,i)=allpotw(jatm,i)+calcatmdens(iatm,allpotx(jatm,i),allpoty(jatm,i),allpotz(jatm,i),0)
@@ -534,7 +535,8 @@ if (itype==1) then
         end do
         write(*,*) "Generating Hirshfeld weight..."
         do iatm=1,ncenter_org
-!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads(nthreads)
             do i=1+iradcut*sphpot,radpot*sphpot
                 if (allpotw(iatm,i)/=0D0) allpotw(iatm,i)=calcatmdens(iatm,allpotx(iatm,i),allpoty(iatm,i),allpotz(iatm,i),0)/allpotw(iatm,i)
             end do
@@ -548,7 +550,8 @@ if (itype==1) then
         do iatm=1,ncenter !Firstly, store promolecular density to allpotw, now calc the part from atom: iatm
             call dealloall
             call readwfn(custommapname(iatm),1)
-!$OMP parallel do shared(allpotw) private(jatm,i) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(allpotw) private(jatm,i) num_threads(nthreads)
             do jatm=1,ncenter_org !Cycle points of each atom, because current wfn file is atomic, so use _org
                 do i=1,iatmnumpot
                     !For faster calculation, distant points are cut, however leads results weird in individual cases, so it is disabled
@@ -564,7 +567,8 @@ if (itype==1) then
         do iatm=1,ncenter_org
             call dealloall
             call readwfn(custommapname(iatm),1)
-!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads(nthreads)
             do i=1,iatmnumpot
                 if (allpotw(iatm,i)/=0.0D0) allpotw(iatm,i)=fdens(allpotx(iatm,i),allpoty(iatm,i),allpotz(iatm,i))/allpotw(iatm,i)
             end do
@@ -637,7 +641,8 @@ do while(.true.)
             if (MOtype(imo)==2) orbtype="Beta      "
             if (ishowmo==-2) then !Calculate only on atom
                 tmp=0D0
-!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
                 tmpprivate=0D0
 !$OMP do schedule(dynamic)
                 do ipot=1+iradcut*sphpot,radpot*sphpot
@@ -654,7 +659,8 @@ do while(.true.)
                 tmp=0D0
                 do itmp=1,nfragorbcomp
                     iatm=fragorbcomp(itmp)
-!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
                     tmpprivate=0D0
 !$OMP do schedule(dynamic)
                     do ipot=1+iradcut*sphpot,radpot*sphpot
@@ -703,7 +709,8 @@ do while(.true.)
         accum=0D0
         do iatm=1,ncenter
             tmp=0D0
-!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
             tmpprivate=0
 !$OMP do schedule(dynamic)
             do ipot=1+iradcut*sphpot,radpot*sphpot

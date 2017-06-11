@@ -291,6 +291,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
             do iatm=1,ncenter
                 write(*,"(' Processing atom',i6,'(',a,') /',i6)") iatm,a_org(iatm)%name,ncenter_org
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(nthreads)
                 do k=1,nz
                     tmpz=orgz+(k-1)*dz
@@ -312,6 +313,7 @@ nthreads=getNThreads()
                 call dealloall
                 write(*,"(' Processing atom',i6,'(',a,') /',i6)") iatm,a_org(iatm)%name,ncenter_org
                 call readwfn(custommapname(iatm),1)
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(nthreads)
                 do k=1,nz
@@ -340,6 +342,7 @@ nthreads=getNThreads()
         cubmat=0D0
         ifinish=0
         !We calculate Becke weight for all atoms, but only summing up the value of we selected atoms to cubmat
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmat) PRIVATE(i,j,k,tmpx,rnowx,rnowy,rnowz,smat,ii,jj,tmprarr,rmiu,chi,uij,aij,tmps,iter,Pvec) schedule(dynamic) NUM_THREADS(nthreads)
         do k=1,nz
@@ -743,6 +746,7 @@ if (ireadextmapval==0) then
     ii=0
     iprog=0
     CALL CPU_TIME(time_begin)
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(survtx,indsurfmax,indsurfmin,iprog) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
     do icyc=1,nsurvtx

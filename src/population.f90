@@ -696,7 +696,8 @@ if (chgtype==1.or.chgtype==2.or.chgtype==6) then
         gridatm%y=gridatmorg%y+atmy
         gridatm%z=gridatmorg%z+atmz
         !Calculate molecular density first
-!$OMP parallel do shared(molrho) private(i) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(molrho) private(i) num_threads(nthreads)
         do i=1,radpot*sphpot
             molrho(i)=fdens(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
         end do
@@ -705,7 +706,8 @@ if (chgtype==1.or.chgtype==2.or.chgtype==6) then
         promol=0D0
         if (iatmdensmode==1) then
             do jatm=1,ncenter
-!$OMP parallel do shared(tmpdens) private(ipt) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
                 do ipt=1,radpot*sphpot
                     tmpdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
                 end do
@@ -717,7 +719,8 @@ if (chgtype==1.or.chgtype==2.or.chgtype==6) then
             do jatm=1,ncenter
                 call dealloall
                 call readwfn(custommapname(jatm),1)
-!$OMP parallel do shared(tmpdens) private(ipt) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
                 do ipt=1,radpot*sphpot
                     tmpdens(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
                 end do
@@ -851,7 +854,8 @@ else if (chgtype==5) then
         gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
         gridatm%y=gridatmorg%y+a(iatm)%y
         gridatm%z=gridatmorg%z+a(iatm)%z
-!$OMP parallel do shared(tmpdens) private(i) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(tmpdens) private(i) num_threads(nthreads)
         do i=1,radpot*sphpot !Calc molecular density first
             tmpdens(i)=fdens(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
         end do

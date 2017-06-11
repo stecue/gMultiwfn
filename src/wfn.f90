@@ -452,7 +452,8 @@ else if (infuncsel1==3) then
     curvey=0D0
     if (ipromol==1) goto 311
 310    continue
-!$OMP parallel do shared(curvex,curvey) private(i,rnowx,rnowy,rnowz) num_threads( nthreads  )
+nthreads=getNThreads()
+!$OMP parallel do shared(curvex,curvey) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
     do i=1,npointcurve  !Calculate data for line plot
         rnowx=orgx1D+i*transx
         rnowy=orgy1D+i*transy
@@ -1160,6 +1161,7 @@ else if (infuncsel1==4) then
         ncustommap=0
     else
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(nthreads)
         do i=1,ngridnum1
             do j=1,ngridnum2
@@ -1623,6 +1625,7 @@ nthreads=getNThreads()
                     idrawplanevdwctr=1
                     write(*,*) "Please wait..."
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO private(ipt,jpt,rnowx,rnowy,rnowz) shared(planemattmp) schedule(dynamic) NUM_THREADS(nthreads)
                     do ipt=0,ngridnum1-1
                         do jpt=0,ngridnum2-1
@@ -1757,6 +1760,7 @@ nthreads=getNThreads()
                             write(*,"(' Found',i8,' (3,-1) CPs in the plane')") nple3n1path
                             allocate(ple3n1path(3,n3n1plept,2,nple3n1path))
                             write(*,*) "Generating interbasin paths from (3,-1) CPs, Please wait..."
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(numcp) PRIVATE(icp) schedule(dynamic) NUM_THREADS(nthreads)
                             do icp=1,numcp
@@ -1912,6 +1916,7 @@ else if (infuncsel1==5) then
         CALL CPU_TIME(time_begin)
         if (ipromol==1) goto 509 !Calculate promolecular property, so skip the first time calculation (namely for the whole system)
     508 continue
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(extpt) PRIVATE(iextpt) schedule(dynamic) NUM_THREADS(nthreads)
         do iextpt=1,numextpt !Calculate function value

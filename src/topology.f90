@@ -829,6 +829,7 @@ do while(.true.)
             end do
         end do
 nthreads=getNThreads()
+nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm) schedule(dynamic) NUM_THREADS(nthreads)
         do iatm=1,ncenter
             do jatm=iatm+1,ncenter
@@ -866,6 +867,7 @@ nthreads=getNThreads()
                 end do
             end do
         end do
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm) schedule(dynamic) NUM_THREADS(nthreads)
         do iatm=1,ncenter
@@ -913,6 +915,7 @@ nthreads=getNThreads()
                 end do
             end do
         end do
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,katm,latm) schedule(dynamic) NUM_THREADS(nthreads)
         do iatm=1,ncenter !Test how many iterations will be done; ij,jk,kl,li,lj,ik
@@ -1001,6 +1004,7 @@ nthreads=getNThreads()
                     randptx(1)=sphcenx !The first try point is set to sphere center, this is faciliate to locate CP at nuclei
                     randpty(1)=sphceny
                     randptz(1)=sphcenz
+nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(itime) PRIVATE(i) schedule(dynamic) NUM_THREADS(nthreads)
                     do i=1,numsearchpt_tmp
