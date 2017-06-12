@@ -15,4 +15,7 @@ nthreads=getNThreads()' "${srcF}"
     sed -i -e 's/num_threads( nthreads  )/num_threads(nthreads)/g' "${srcF}"
     sed -i -e 's/\([^=]\)==\.false\./\1.eqv. .false./g' "${srcF}"
     sed -i -e 's/\(^ *write.*\)nthreads/\1 getNThreads()/g' "${srcF}"
+#The following will remove usefull lines.
+#    uniq "${srcF}" > "${srcF}.1"
+#    mv "${srcF}.1" "${srcF}"
 done

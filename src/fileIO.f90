@@ -35,14 +35,14 @@ else if (len_trim(thisfilename)>=6) then
 else
     ifiletype=0
 end if
-!How ot supply EDF information for the file containing GTF information when pseudopotential basis set is involved
+!Determine how to supply EDF information for the file containing GTF information when pseudopotential basis set is involved
 if (any(a%index/=nint(a%charge)).and.allocated(b).and.(.not.allocated(b_EDF))) then
     if (isupplyEDF==0) then !Do nothing
         continue
-    else if (isupplyEDF==1) then
+    else if (isupplyEDF==1) then !Supply EDF from .wfx file
         call readEDFatmwfx
-    else if (isupplyEDF==2) then !Supply EDF
-        call readEDFlib
+    else if (isupplyEDF==2) then !Supply EDF from bulit-in library
+        call readEDFlib(infomode)
     end if    
 end if
 end subroutine
@@ -2296,8 +2296,8 @@ if (ifound==1.and.readEDF==1) then
     read(10,*) CO_EDF
     call loclabel(10,"<Number of Core Electrons>")
     read(10,*)
-    read(10,*) ninnerelec
-    if (infomode==0) write(*,"(a,i6,a)") " Note: EDF information represents",ninnerelec," inner-core electrons"
+    read(10,*) nEDFelec
+    if (infomode==0) write(*,"(a,i6,a)") " Note: EDF information represents",nEDFelec," inner-core electrons"
 end if
 call loclabel(10,"<Molecular Orbital Occupation Numbers>")
 read(10,*)
@@ -2384,7 +2384,7 @@ integer,allocatable :: EDFtypetmp(:)
 integer atmsel(nelesupp,ncenter),natmsel(nelesupp)
 iwfxtime=1
 nEDFprims=0
-ninnerele=0
+nEDFelec=0
 do while(.true.)
     write(*,*) "Load the inner-core density (EDF information) for which element? e.g. Fe"
     write(*,*) "You can also input atomic indices, e.g. 5,8-10,31 means selecting 5,8,9,10,31"
@@ -2430,17 +2430,17 @@ do while(.true.)
         read(10,*) nEDFtmp
         call loclabel(10,"<Number of Core Electrons>")
         read(10,*)
-        read(10,*) ninnerelectmp
+        read(10,*) nEDFelectmp
         close(10)
         write(*,"(' The number of EDF primitives in this file is',i5,/)") nEDFtmp
         nEDFprims=nEDFprims+nEDFtmp*natmsel(iwfxtime)
-        ninnerele=ninnerele+ninnerelectmp*natmsel(iwfxtime)
+        nEDFelec=nEDFelec+nEDFelectmp*natmsel(iwfxtime)
         iwfxtime=iwfxtime+1
     end if
 end do
 nwfxtime=iwfxtime-1
 write(*,"(' The total number of EDF primitives is',i7)") nEDFprims
-write(*,"(' The total number of inner-core electrons represented by EDF is',i8)") ninnerele
+write(*,"(' The total number of inner-core electrons represented by EDF is',i8)") nEDFelec
 allocate(b_EDF(nEDFprims),CO_EDF(nEDFprims))
 ipos=1
 do iwfxtime=1,nwfxtime
@@ -2474,29 +2474,31 @@ end subroutine
 
 !!------ Load EDF information from EDFlib provided by Zork
 !See http://bbs.keinsci.com/forum.php?mod=viewthread&tid=5354 for description
-subroutine readEDFlib
+!infomode=0/1 show/don't show info
+subroutine readEDFlib(infomode)
 use defvar
 implicit real*8 (a-h,o-z)
 real*8 EDFcoeff(100),EDFexp(100)
-write(*,"(a)") " Loading electron density functions (EDF) information from built-in EDF library... The library is freely available at https://github.com/zorkzou/Molden2AIM"
+if (infomode==0) write(*,"(a)") " Loading electron density functions (EDF) information from &
+built-in EDF library... The library is freely available at https://github.com/zorkzou/Molden2AIM"
 nEDFprims=0
-ninnerele=0
+nEDFelec=0
 !First time, find total number of EDF GTFs so that b_EDF and CO_EDF can be allocated
 do iatm=1,ncenter
     natmcore=a(iatm)%index-nint(a(iatm)%charge)
     if (natmcore==0) cycle
-    ninnerele=ninnerele+natmcore
+    nEDFelec=nEDFelec+natmcore
     call EDFLIB(a(iatm)%index,natmcore,nfun,EDFexp,EDFcoeff)
-    write(*,"(1x,a,'(',i5,')      Core electrons:',i3,'     EDF primitive GTFs:',i3)") a(iatm)%name,iatm,natmcore,nfun
+    if (infomode==0) write(*,"(1x,a,'(',i5,')      Core electrons:',i3,'     EDF primitive GTFs:',i3)") a(iatm)%name,iatm,natmcore,nfun
     if (nfun==0) then
-        write(*,*) "Warning: Unable to find proper EDF information for this atom!"
-        write(*,*) "Press Enter to skip loading EDF information for this atom"
+        if (infomode==0) write(*,*) "Warning: Unable to find proper EDF information for this atom!"
+        if (infomode==0) write(*,*) "Press Enter to skip loading EDF information for this atom"
         pause
     end if
     nEDFprims=nEDFprims+nfun
 end do
-write(*,"(' The number of total inner-core electrons:',i6)") ninnerele
-write(*,"(' The number of total EDF primitive GTFs:',i6)") nEDFprims
+if (infomode==0) write(*,"(' The number of total inner-core electrons:',i6)") nEDFelec
+if (infomode==0) write(*,"(' The number of total EDF primitive GTFs:',i6)") nEDFprims
 
 allocate(b_EDF(nEDFprims),CO_EDF(nEDFprims))
 ifun=0
@@ -2511,10 +2513,7 @@ do iatm=1,ncenter
     CO_EDF(ifun+1:ifun+nfun)=EDFcoeff(1:nfun)
     ifun=ifun+nfun
 end do
-write(*,"(a,/)") " Loading EDF library finished!"
-! do iEDFprim=1,nEDFprims
-!     write(*,"(3i6,2f18.8)") iEDFprim,b_EDF(iEDFprim)%center,b_EDF(iEDFprim)%functype,b_EDF(iEDFprim)%exp,CO_EDF(iEDFprim)
-! end do
+if (infomode==0) write(*,"(a,/)") " Loading EDF library finished!"
 end subroutine
 
 
@@ -3982,7 +3981,7 @@ write(ifileid,"(a)") "<Electronic Spin Multiplicity>"
 write(ifileid,"(i6)") nint(naelec-nbelec)+1
 write(ifileid,"(a)") "</Electronic Spin Multiplicity>"
 write(ifileid,"(a)") "<Number of Core Electrons>"
-write(ifileid,"(i6)") ninnerelec
+write(ifileid,"(i6)") nEDFelec
 write(ifileid,"(a)") "</Number of Core Electrons>"
 write(ifileid,"(a)") "<Nuclear Names>"
 do iatm=1,ncenter

@@ -15,7 +15,7 @@ logical,allocatable :: skippair(:)
 integer,allocatable :: orbleft(:),orbright(:) !denote the actual MO (have already considered alpha/beta problem) at the left/right side in the excitation data
 real*8,allocatable :: exccoeff(:),exccoeffbackup(:) !Coefficient of an orbital pair transition. exccoeffbackup is used to backup, because users can modify the coefficients
 real*8,allocatable :: holegrid(:,:,:),elegrid(:,:,:),holeeleovlp(:,:,:),transdens(:,:,:),holecross(:,:,:),elecross(:,:,:),Cele(:,:,:),Chole(:,:,:),magtrdens(:,:,:,:)
-real*8,allocatable :: xdipcontri(:),ydipcontri(:),zdipcontri(:) !Contribution of orbital pairs to transition dipole moment in X/Y/Z
+real*8,allocatable :: dipcontri(:,:) !(1/2/3,iexc) contribution of orbital pairs "iexc" to transition dipole moment in X/Y/Z
 character c200tmp*200,c80tmp*80,transmodestr*200,leftstr*80,rightstr*80,strtmp1*10,strtmp2*10,strtmp3*10,selectyn
 character,save :: excitfilename*200=" "
 integer walltime1,walltime2
@@ -195,22 +195,23 @@ exccoeffbackup=exccoeff
         write(*,"(a)") " Input the threshold for printing, e.g. 0.01 means the orbital pairs having contribution &
         to any component of transition dipole moment >= 0.01 will be shown"
         read(*,*) printthres
-        write(*,*) "Calculating composition of transition dipole moment, please wait..."
-        !Calculate dipole moment integral matrix
+        write(*,"(a)") " Input the threshold for calculating contribution, e.g. 0.005 means the configurations with &
+        absolute value of coefficient smaller than 0.005 will be ignored. The smaller the value, the higher the computational cost"
+        read(*,*) calcthres
+        write(*,*) "Generating dipole moment integral matrix..."
         nsize=nprims*(nprims+1)/2
         allocate(GTFdipint(3,nsize))
         call genGTFDmat(GTFdipint,nsize)
-        !Calculate contribution of each orbital pair to transition dipole moment
-        allocate(xdipcontri(nexcitorb),ydipcontri(nexcitorb),zdipcontri(nexcitorb))
-        xdipcontri=0
-        ydipcontri=0
-        zdipcontri=0
+        allocate(dipcontri(3,nexcitorb))
+        dipcontri=0
         fac=1
         if (wfntype==0.or.wfntype==3) fac=2
+        write(*,*) "Calculating contribution to transition dipole moment, please wait..."
 nthreads=getNThreads()
-nthreads=getNThreads()
-!$OMP PARALLEL DO SHARED(xdipcontri,ydipcontri,zdipcontri) PRIVATE(iGTF,jGTF,ides,iexcitorb,imo,jmo) schedule(dynamic) NUM_THREADS(nthreads)
+!$OMP PARALLEL DO SHARED(dipcontri) PRIVATE(iGTF,jGTF,ides,iexcitorb,imo,jmo) schedule(dynamic) NUM_THREADS(nthreads)
         do iexcitorb=1,nexcitorb
+            if (abs(exccoeff(iexcitorb))<calcthres) cycle
+!             write(*,*) iexcitorb,nexcitorb
             imo=orbleft(iexcitorb)
             jmo=orbright(iexcitorb)
             do iGTF=1,nprims
@@ -220,44 +221,41 @@ nthreads=getNThreads()
                     else
                         ides=jGTF*(jGTF-1)/2+iGTF
                     end if
-                    xdipcontri(iexcitorb)=xdipcontri(iexcitorb)+co(imo,iGTF)*co(jmo,jGTF)*GTFdipint(1,ides)
-                    ydipcontri(iexcitorb)=ydipcontri(iexcitorb)+co(imo,iGTF)*co(jmo,jGTF)*GTFdipint(2,ides)
-                    zdipcontri(iexcitorb)=zdipcontri(iexcitorb)+co(imo,iGTF)*co(jmo,jGTF)*GTFdipint(3,ides)
+                    dipcontri(:,iexcitorb)=dipcontri(:,iexcitorb)+co(imo,iGTF)*co(jmo,jGTF)*GTFdipint(:,ides)
                 end do
             end do
-            xdipcontri(iexcitorb)=xdipcontri(iexcitorb)*exccoeff(iexcitorb)*fac
-            ydipcontri(iexcitorb)=ydipcontri(iexcitorb)*exccoeff(iexcitorb)*fac
-            zdipcontri(iexcitorb)=zdipcontri(iexcitorb)*exccoeff(iexcitorb)*fac
+            dipcontri(:,iexcitorb)=dipcontri(:,iexcitorb)*exccoeff(iexcitorb)*fac
         end do
 !$OMP END PARALLEL DO
         deallocate(GTFdipint)
-        xdipsum=sum(xdipcontri)
-        ydipsum=sum(ydipcontri)
-        zdipsum=sum(zdipcontri)
+        xdipsum=sum(dipcontri(1,:))
+        ydipsum=sum(dipcontri(2,:))
+        zdipsum=sum(dipcontri(3,:))
         ishownpair=0
         write(*,*) "   #Pair                  Coefficient   Transition dipole X/Y/Z (au)"
         do iexcitorb=1,nexcitorb
-            if (abs(xdipcontri(iexcitorb))<printthres.and.abs(ydipcontri(iexcitorb))<printthres.and.abs(zdipcontri(iexcitorb))<printthres) cycle
-            ishownpair=ishownpair+1
-            imo=orbleft(iexcitorb)
-            jmo=orbright(iexcitorb)
-            strtmp1=" ->"
-            if (excdir(iexcitorb)==2) strtmp1=" <-"
-            if (wfntype==0.or.wfntype==3) then
-                write(*,"(i8,i7,a,i7,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp1),jmo,exccoeff(iexcitorb),xdipcontri(iexcitorb),ydipcontri(iexcitorb),zdipcontri(iexcitorb)
-            else
-                strtmp2="A"
-                strtmp3="A"
-                if (imo>nbasis) then
-                    imo=imo-nbasis
-                    strtmp2="B"
+            if ( any(abs(dipcontri(:,iexcitorb))>printthres) ) then
+                ishownpair=ishownpair+1
+                imo=orbleft(iexcitorb)
+                jmo=orbright(iexcitorb)
+                strtmp1=" ->"
+                if (excdir(iexcitorb)==2) strtmp1=" <-"
+                if (wfntype==0.or.wfntype==3) then
+                    write(*,"(i8,i7,a,i7,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp1),jmo,exccoeff(iexcitorb),dipcontri(:,iexcitorb)
+                else
+                    strtmp2="A"
+                    strtmp3="A"
+                    if (imo>nbasis) then
+                        imo=imo-nbasis
+                        strtmp2="B"
+                    end if
+                    if (jmo>nbasis) then
+                        jmo=jmo-nbasis
+                        strtmp3="B"
+                    end if
+                    write(*,"(i8,i6,a,a,i6,a,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp2),trim(strtmp1),jmo,trim(strtmp3),exccoeff(iexcitorb),&
+                    dipcontri(:,iexcitorb)
                 end if
-                if (jmo>nbasis) then
-                    jmo=jmo-nbasis
-                    strtmp3="B"
-                end if
-                write(*,"(i8,i6,a,a,i6,a,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp2),trim(strtmp1),jmo,trim(strtmp3),exccoeff(iexcitorb),&
-                xdipcontri(iexcitorb),ydipcontri(iexcitorb),zdipcontri(iexcitorb)
             end if
         end do
         if (printthres==0) then
@@ -267,7 +265,7 @@ nthreads=getNThreads()
 !             write(*,"(i8,' orbital pairs are shown above')") ishownpair
         end if
         oscillstr=2D0/3D0*excenergy/au2eV*(xdipsum**2+ydipsum**2+zdipsum**2)
-        write(*,"(' Norm of transition dipole moment:',f12.7,' a.u.')") dsqrt(xdipsum**2+ydipsum**2+zdipsum**2)
+        write(*,"(' Norm of total transition dipole moment:',f11.6,' a.u.')") dsqrt(xdipsum**2+ydipsum**2+zdipsum**2)
         write(*,"(' Oscillator strength:',f12.7)") oscillstr
         if ((naelec==nbelec).and.iexcmulti==3) write(*,"(a)") " Note: Since the spin multiplicity between the ground state and excited state is different, &
         the transition dipole moment and thus oscillator strength should be exactly zero in principle"
@@ -284,7 +282,7 @@ nthreads=getNThreads()
                 strtmp1=" ->"
                 if (excdir(iexcitorb)==2) strtmp1=" <-"
                 if (wfntype==0.or.wfntype==3) then
-                    write(10,"(i8,i7,a,i7,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp1),jmo,exccoeff(iexcitorb),xdipcontri(iexcitorb),ydipcontri(iexcitorb),zdipcontri(iexcitorb)
+                    write(10,"(i8,i7,a,i7,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp1),jmo,exccoeff(iexcitorb),dipcontri(:,iexcitorb)
                 else
                     strtmp2="A"
                     strtmp3="A"
@@ -296,8 +294,7 @@ nthreads=getNThreads()
                         jmo=jmo-nbasis
                         strtmp3="B"
                     end if
-                    write(10,"(i8,i6,a,a,i6,a,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp2),trim(strtmp1),jmo,trim(strtmp3),exccoeff(iexcitorb),&
-                    xdipcontri(iexcitorb),ydipcontri(iexcitorb),zdipcontri(iexcitorb)
+                    write(10,"(i8,i6,a,a,i6,a,f12.6,3f11.6)") iexcitorb,imo,trim(strtmp2),trim(strtmp1),jmo,trim(strtmp3),exccoeff(iexcitorb),dipcontri(:,iexcitorb)
                 end if
             end do
             write(10,"(' Sum:                                ',3f11.6)") xdipsum,ydipsum,zdipsum
@@ -306,7 +303,7 @@ nthreads=getNThreads()
             close(10)
             write(*,*) "Done! Output finished"
         end if
-        deallocate(xdipcontri,ydipcontri,zdipcontri)
+        deallocate(dipcontri)
     
     !Show contribution of each MO to hole and electron distribution
     else if (isel==3) then
@@ -1316,7 +1313,6 @@ do while(.true.)
                 do k=1,nz
                     if (Cele(i,j,k)<1D-6) cycle !Typically leads to error at 0.001 magnitude
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP parallel shared(coulene) private(ii,jj,kk,distx2,disty2,distz2,dist,coulenetmp) num_threads(nthreads)
                     coulenetmp=0
 !$OMP do schedule(DYNAMIC)
@@ -1387,7 +1383,6 @@ allocate(orbcenx(nmo),orbceny(nmo),orbcenz(nmo))
 orbcenx=0
 orbceny=0
 orbcenz=0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(orbcenx,orbceny,orbcenz) PRIVATE(iGTF,jGTF,ides,imo) schedule(dynamic) NUM_THREADS(nthreads)
 do imo=1,nmo
@@ -1787,7 +1782,6 @@ allocate(MOdipint(3,nmo,nmo))
 !MOdipint will record dipole moment integrals between all MOs, including all occ+vir alpha and occ+vir beta ones
 iprog=0
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(MOdipint,MOdipintb,iprog) PRIVATE(imo,jmo,iGTF,jGTF,ides,tmpvec) schedule(dynamic) NUM_THREADS(nthreads)
 do imo=1,nmo
     do jmo=imo,nmo
@@ -1862,7 +1856,6 @@ end if
 write(*,*) "Stage 3: Calculating transition dipole moment between excited states..."
 call walltime(iwalltime1)
 iprog=0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(tdvecmat,iprog) PRIVATE(iexc,jexc,tdvec,imo,lmo,jmo,kmo,wei) schedule(dynamic) NUM_THREADS(nthreads)
 do iexc=1,nstates

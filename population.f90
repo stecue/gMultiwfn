@@ -18,7 +18,6 @@ else
         write(*,*) "0 Return"
         write(*,*) "1 Hirshfeld population"
         write(*,*) "2 Voronoi deformation density (VDD) population"
-        !Not available because integration error of below two methods by means of Becke integration are too large
     !         write(*,*) "3 Integrate electron density in voronoi cell"
     !         write(*,*) "4 Adjusted method 3 by Rousseau et al."
         if (allocated(cobasa)) then
@@ -33,7 +32,6 @@ else
         write(*,*) "12 CHELPG ESP fitting charge"
         write(*,*) "13 Merz-Kollmann (MK) ESP fitting charge"
         write(*,*) "14 AIM charge"
-        write(*,*) "15 Hirshfeld-I"
         read(*,*) ipopsel
         
         if (ipopsel==0) then
@@ -102,17 +100,8 @@ else
         else if (ipopsel==14) then
             write(*,"(a)") " NOTE: AIM charges cannot be calculated in present module but can be calculated in basin analysis module, &
             please check the example given in Section 4.17.1 of the manual on how to do this"
-        else if (ipopsel==15) then
-            if (iautointgrid==1) then
-                radpot=30
-                sphpot=170
-                if (any(a%index>18)) radpot=40
-                if (any(a%index>36)) radpot=50
-                if (any(a%index>54)) radpot=60
-            end if
-            call Hirshfeld_I_wrapper(1)
-        end if
-        if (imodwfnold==1.and.(ipopsel==1.or.ipopsel==2.or.ipopsel==6.or.ipopsel==11)) then !1,2,6,11 are the methods need to reload the initial wavefunction
+        end if        
+        if (imodwfnold==1.and.(ipopsel==1.or.ipopsel==2.or.ipopsel==6.or.ipopsel==11)) then !1,2,6,11 is the method needed to reload the initial wavefunction
             write(*,"(a)") " Note: The wavefunction file has been reloaded, your previous modifications on occupation number will be ignored"
         end if
     end do
@@ -126,7 +115,7 @@ subroutine Bickelhaupt
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-character selectyn,chgfilename*200
+character selectyn,chgfilename*80
 real*8,target :: atmeletot(ncenter),atmelea(ncenter)
 real*8,pointer :: tmpmat(:,:),tmpele(:)
 do itime=1,2
@@ -200,7 +189,7 @@ use defvar
 use util
 implicit real*8 (a-h,o-z)
 integer isel
-character selectyn,chgfilename*200
+character selectyn,chgfilename*80
 real*8,target :: atmelea(ncenter),atmeleb(ncenter)
 real*8,pointer :: tmpmat(:,:),tmpele(:)
 atmelea=0D0
@@ -281,8 +270,10 @@ implicit real*8 (a-h,o-z)
 real*8 MOcenmat(nbasis,ncenter),groatmmat(ncenter+1,ncenter),atmele(ncenter),charge(ncenter)
 real*8,pointer :: ptmat(:,:)
 real*8,allocatable :: tmpmat(:,:),basmata(:,:),angorbpop(:,:),angorbpopa(:,:),angorbpopb(:,:)
-character selectyn,corbnum*6,cOcc*12,chgfilename*200
+character selectyn,corbnum*6,cOcc*12,chgfilename*80
 integer isel
+! integer :: atmarr(38)=(/69,70,66,63,64,60,57,58,54,51,52,47,48,44,41,42,37,38,34,31,32,27,28,24,21,22,17,18,14,11,12,8,5,6,1,71,73,74/)
+! integer :: atmarrtype(38)=(/0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0/)
 
 if (isel==1.or.isel==2) then
     allocate(tmpmat(nbasis,nbasis),basmata(nbasis,nbasis)) !basmata stores basis gross population of alpha part
@@ -576,19 +567,21 @@ end subroutine
 
 
 !!-------------- Calculate charge based on space partition method
+subroutine spacecharge(chgtype)
 !1=Hirshfeld, 2=VDD, 3=Integrate electron density in voronoi cell
 !4=Adjusted method 3 by Rousseau et al., 5= Becke with/without ADC, 6= ADCH
-subroutine spacecharge(chgtype)
 use defvar
 use function
 use util
 implicit real*8(a-h,o-z)
+! integer :: atmarr(38)=(/69,70,66,63,64,60,57,58,54,51,52,47,48,44,41,42,37,38,34,31,32,27,28,24,21,22,17,18,14,11,12,8,5,6,1,71,73,74/)
+! integer :: atmarrtype(38)=(/0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0/)
 integer chgtype
 real*8 molrho(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),beckeweigrid(radpot*sphpot),selfdens(radpot*sphpot)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 real*8 atmdipx(ncenter),atmdipy(ncenter),atmdipz(ncenter),charge(ncenter)
 real*8 :: covr_becke(0:nelesupp) !covalent radii used for Becke population
-character selectyn,chgfilename*200
+character selectyn,chgfilename*800
 character radfilename*800
 integer :: nbeckeiter=3
 
@@ -753,8 +746,7 @@ nthreads=getNThreads()
                     dipz=dipz-(gridatm(i)%z-atmz)*tmpv
                 end if
             end do
-            if (nEDFelec==0) charge(iatm)=a(iatm)%charge+tmpcharge
-            if (nEDFelec>0) charge(iatm)=a(iatm)%index+tmpcharge !EDF is provided
+            charge(iatm)=a(iatm)%charge+tmpcharge
         else if (chgtype==2) then !VDD charge
             do i=1,radpot*sphpot !Cycle each grid point of iatm, if the distance between the grid point and other atom is shorter than iatm, weight=0
                 vddwei=1D0
@@ -880,8 +872,7 @@ nthreads=getNThreads()
             dipy=dipy-(gridatm(i)%y-a(iatm)%y)*tmpv
             dipz=dipz-(gridatm(i)%z-a(iatm)%z)*tmpv
         end do
-        if (nEDFelec==0) charge(iatm)=a(iatm)%charge+tmpcharge
-        if (nEDFelec>0) charge(iatm)=a(iatm)%index+tmpcharge !EDF is provided
+        charge(iatm)=tmpcharge+a(iatm)%charge
         atmdipx(iatm)=dipx
         atmdipy(iatm)=dipy
         atmdipz(iatm)=dipz
@@ -904,7 +895,11 @@ do i=1,ncenter
 end do
 write(*,*)
 write(*,"(' Summing up all charges:',f15.8)") sum(charge)
-
+if (allocated(b_EDF).and.sum(charge)<=-9.5) then
+    write(*,"(a)") " Warning: One or more atomic charges may be evidently incorrect. If you have used pseudopotential, &
+    set ""readEDF"" in settings.ini to 0, reboot Multiwfn and redo the calculation, then you will get correct result"
+    pause
+end if
 totdip=dsqrt(xmoldip**2+ymoldip**2+zmoldip**2)
 write(*,"(' Total dipole from atomic charges:',f12.6,' a.u.')") totdip
 write(*,"(' X/Y/Z of dipole from atomic charge:',3f12.6,' a.u.')") xmoldip,ymoldip,zmoldip
@@ -1057,7 +1052,7 @@ use defvar
 use function
 implicit real*8 (a-h,o-z)
 character*200 addcenfile,extptfile
-character selectyn,chgfilename*200
+character selectyn,chgfilename*80
 integer itype
 integer :: nlayer=4 !Number of layers of points for MK
 real*8 :: espfitvdwr(0:nelesupp)=-1D0,sclvdwlayer(100)=(/1.4D0,1.6D0,1.8D0,2.0D0,(0D0,i=5,100)/)
@@ -1483,676 +1478,3 @@ do ivert=0,numvert
 end do
 numpt=ipt
 end subroutine
-
-
-
-
-
-
-
-
-!!============================ Hirshfeld-I ============================!!
-!!============================ Hirshfeld-I ============================!!
-!!============================ Hirshfeld-I ============================!!
-!!============================ Hirshfeld-I ============================!!
-!!============================ Hirshfeld-I ============================!!
-!Wrapper of Hirshfeld-I module to automatically set radpot and sphpot to proper values
-!itype=1: Normal population analysis =2: Only used to generate proper atomic space (i.e. Don't do unnecessary things)
-subroutine Hirshfeld_I_wrapper(itype)
-use defvar
-implicit real*8 (a-h,o-z)
-radpotold=radpot
-sphpotold=sphpot
-if (iautointgrid==1) then
-    radpot=30
-    sphpot=170
-    if (any(a%index>18)) radpot=40
-    if (any(a%index>36)) radpot=50
-    if (any(a%index>54)) radpot=60
-end if
-call Hirshfeld_I(itype)
-if (iautointgrid==1) then
-    radpot=radpotold
-    sphpot=sphpotold
-end if
-end subroutine
-
-!!--------- Calculate Hirshfeld-I charge and yield final atomic radial density
-!I've compared this module with hipart, this module is faster than hipart, and the accuracy under default setting is at least never lower than hipart
-subroutine Hirshfeld_I(itype)
-use defvar
-use function
-use util
-implicit real*8 (a-h,o-z)
-integer itype
-type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
-real*8 molrho(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot),molrhoall(ncenter,radpot*sphpot)
-real*8 charge(ncenter),lastcharge(ncenter) !Atomic charge of current iter. and last iter.
-real*8 radrholow(200),radrhohigh(200)
-character sep,c80tmp*80,chgfilename*200,selectyn
-character*2 :: statname(-4:4)=(/ "-4","-3","-2","-1","_0","+1","+2","+3","+4" /)
-integer :: maxcyc=50,ioutmedchg=0
-real*8 :: crit=0.0002D0
-real*8,external :: fdens_rad
-!Used for mode 2. e.g. atmstatgrid(iatm,igrid,jatm,-1) means density of jatm with -1 charge state at igrid around iatm
-real*8,allocatable :: atmstatgrid(:,:,:,:)
-ntotpot=radpot*sphpot
-
-!Mode 1 use very low memory but expensive, because most data is computed every iteration
-!Mode 2 use large memory but fast, because most data is only computed once at initial stage
-!The result of the two modes differ with each other marginally, probably because in mode 1 radial density is related to max(npthigh,nptlow), which is not involved in mode 2
-!In principle, result of mode 2 is slightly better
-imode=2
-
-!Ignore jatm contribution to iatm centered grids if distance between iatm and jatm is larger than 1.5 times of sum of their vdwr
-!This can decrease lots of time for large system, the lose of accuracy can be ignored (error is ~0.0001 per atom)
-ignorefar=1
-
-write(*,*)
-if (itype==1) write(*,*) "     =============== Iterative Hirshfeld (Hirshfeld-I) ==============="
-if (itype==2) write(*,*) "     ============== Generate Hirshfeld-I atomic weights =============="
-do while(.true.)
-    if (imode==1) write(*,*) "-2 Switch algorithm, current: Slow & low memory requirement"
-    if (imode==2) write(*,*) "-2 Switch algorithm, current: Fast & large memory requirement"
-    if (itype==1) then
-        if (ioutmedchg==0) write(*,*) "-1 Switch if output intermediate results, current: No"
-        if (ioutmedchg==1) write(*,*) "-1 Switch if output intermediate results, current: Yes"
-        write(*,*) "0 Return"
-    end if
-    write(*,*) "1 Start calculation!"
-    write(*,"(a,i4)") " 2 Set the maximum number of iterations, current:",maxcyc
-    write(*,"(a,f10.6)") " 3 Set convergence criterion of atomic charges, current:",crit
-    read(*,*) isel
-    if (isel==-2) then
-        if (imode==1) then
-            imode=2
-        else
-            imode=1
-            crit=0.001 !mode 1 is more time-consuming, use loose criterion
-        end if
-    else if (isel==-1) then
-        if (ioutmedchg==1) then
-            ioutmedchg=0
-        else
-            ioutmedchg=1
-        end if
-    else if (isel==0) then
-        return
-    else if (isel==1) then
-        exit
-    else if (isel==2) then
-        write(*,*) "Input maximum number of iterations, e.g. 30"
-        read(*,*) maxcyc
-    else if (isel==3) then
-        write(*,*) "Input convergence criterion of atomic charges, e.g. 0.001"
-        read(*,*) crit
-    end if
-end do
-
-!Generate all needed .rad files
-call genatmradfile
-
-!====== Start calculation ======!
-call walltime(iwalltime1)
-CALL CPU_TIME(time_begin)
-
-!Currently all atoms share the same radial points
-nradpt=200
-itmp=0
-do irad=nradpt,1,-1
-    radx=cos(irad*pi/(nradpt+1))
-    itmp=itmp+1
-    atmradpos(itmp)=(1+radx)/(1-radx)
-end do
-
-!Generate single center integration grid
-call gen1cintgrid(gridatmorg,iradcut)
-write(*,*)
-write(*,"(' Radial grids:',i4,'  Angular grids:',i5,'  Total:',i7,'  After pruning:',i7)") radpot,sphpot,radpot*sphpot,radpot*sphpot-iradcut*sphpot
-
-!Calculate molecular density
-write(*,*) "Calculating density of actual molecule for all grids..."
-nthreads=getNThreads()
-!$OMP parallel do shared(molrhoall) private(iatm,ipt,gridatm) num_threads(nthreads)
-do iatm=1,ncenter
-    gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-    gridatm%y=gridatmorg%y+a(iatm)%y
-    gridatm%z=gridatmorg%z+a(iatm)%z
-    do ipt=1+iradcut*sphpot,ntotpot
-        molrhoall(iatm,ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
-    end do
-end do
-!$OMP end parallel do
-
-if (allocated(atmradnpt)) deallocate(atmradnpt)
-if (allocated(atmradrho)) deallocate(atmradrho)
-allocate(atmradnpt(ncenter),atmradrho(ncenter,200))
-sep='/' !Separation symbol of directory
-if (isys==1) sep='\'
-
-!Calculate contribution of all atoms in every state to each atomic centered grids
-if (imode==2) then
-    allocate(atmstatgrid(ncenter,ntotpot,ncenter,-2:2))
-    atmstatgrid=0
-    write(*,*) "Calculating atomic density contribution to grids..."
-    do iatm=1,ncenter !The center of grids
-        write(*,"(' Progress:',i5,' /',i5)") iatm,ncenter
-        gridatm%value=gridatmorg%value !Weight in this grid point
-        gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-        gridatm%y=gridatmorg%y+a(iatm)%y
-        gridatm%z=gridatmorg%z+a(iatm)%z
-        do istat=-2,2 !Charge state
-            do jatm=1,ncenter
-                if (ignorefar==1) then
-                    atmdist=dsqrt( (a(iatm)%x-a(jatm)%x)**2+(a(iatm)%y-a(jatm)%y)**2+(a(iatm)%z-a(jatm)%z)**2 )
-                    if (atmdist>(vdwr(iatm)+vdwr(jatm))*1.5D0) cycle
-                end if
-                if (a(jatm)%index==1.and.istat==1) cycle !H+ doesn't contains electron and cannot compute density
-                c80tmp="atmrad"//sep//trim(a(jatm)%name)//statname(istat)//".rad"
-                inquire(file=c80tmp,exist=alive)
-                if (alive.eqv. .false.) cycle
-                open(10,file=c80tmp,status="old")
-                read(10,*) atmradnpt(jatm)
-                do ipt=1,atmradnpt(jatm)
-                    read(10,*) rnouse,atmradrho(jatm,ipt)
-                end do
-                close(10)
-                do ipt=1+iradcut*sphpot,ntotpot
-                    atmstatgrid(iatm,ipt,jatm,istat)=fdens_rad(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
-                end do
-            end do
-        end do
-    end do
-end if
-
-!Set atomic initial radial density as neutral state, which is loaded from corresponding .rad file
-atmradrho=0
-do iatm=1,ncenter
-    open(10,file="atmrad"//sep//trim(a(iatm)%name)//"_0.rad",status="old")
-    read(10,*) atmradnpt(iatm)
-    do ipt=1,atmradnpt(iatm)
-        read(10,*) rnouse,atmradrho(iatm,ipt)
-    end do
-    close(10)
-end do
-
-write(*,*)
-write(*,*) "Performing Hirshfeld-I iteration to refine atomic spaces..."
-lastcharge=0
-!Cycle each atom to calculate their charges
-do icyc=1,maxcyc
-    if (ioutmedchg==1) write(*,*)
-    if (icyc==1) then
-        write(*,"(' Cycle',i5)") icyc
-    else
-        write(*,"(' Cycle',i5,'   Maximum change:',f10.6)") icyc,varmax
-    end if
-    
-    do iatm=1,ncenter
-        gridatm%value=gridatmorg%value !Weight in this grid point
-        gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-        gridatm%y=gridatmorg%y+a(iatm)%y
-        gridatm%z=gridatmorg%z+a(iatm)%z
-        
-        !Molecular density
-        molrho=molrhoall(iatm,:)
-        
-        !Calculate promolecular and proatomic density 
-        promol=0D0
-        do jatm=1,ncenter
-            if (ignorefar==1) then
-                atmdist=dsqrt( (a(iatm)%x-a(jatm)%x)**2+(a(iatm)%y-a(jatm)%y)**2+(a(iatm)%z-a(jatm)%z)**2 )
-                if (atmdist>(vdwr(iatm)+vdwr(jatm))*1.5D0) cycle
-            end if
-            if (imode==1) then
-nthreads=getNThreads()
-!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
-                do ipt=1+iradcut*sphpot,ntotpot
-                    tmpdens(ipt)=fdens_rad(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
-                end do
-!$OMP end parallel do
-            else if (imode==2) then
-                if (icyc==1) then
-                    tmpdens=atmstatgrid(iatm,:,jatm,0)
-                else
-                    ichglow=floor(lastcharge(jatm))    
-                    ichghigh=ceiling(lastcharge(jatm))
-                    tmpdens=(lastcharge(jatm)-ichglow)*atmstatgrid(iatm,:,jatm,ichghigh) + (ichghigh-lastcharge(jatm))*atmstatgrid(iatm,:,jatm,ichglow)
-                end if
-            end if
-            promol=promol+tmpdens
-            if (jatm==iatm) selfdens=tmpdens
-        end do
-        
-        !Calculate atomic charge
-        electmp=0D0
-        do ipt=1+iradcut*sphpot,ntotpot
-            if (promol(ipt)/=0D0) electmp=electmp+selfdens(ipt)/promol(ipt)*molrho(ipt)*gridatm(ipt)%value
-        end do
-        if (nEDFelec==0) charge(iatm)=a(iatm)%charge-electmp
-        if (nEDFelec>0) charge(iatm)=a(iatm)%index-electmp !Assume EDF information provides inner-core electrons for all atoms using ECP
-        if (ioutmedchg==1) write(*,"(' Charge of atom',i5,'(',a2,')',': ',f12.6,'  Delta:',f12.6)") &
-        iatm,a(iatm)%name,charge(iatm),charge(iatm)-lastcharge(iatm)
-    end do
-    
-    !Check convergence
-    varmax=maxval(abs(charge-lastcharge))
-    if (varmax<crit) then
-        if (itype==1) then
-            write(*,"(a,f10.6)") " All atomic charges have converged to criterion of",crit
-            write(*,"(' Sum of all charges:',f14.8)") sum(charge)
-            !Normalize to get rid of integration inaccuracy
-            totnumelec=sum(a%charge-charge)
-            facnorm=nelec/totnumelec
-            do iatm=1,ncenter
-                charge(iatm)=a(iatm)%charge-facnorm*(a(iatm)%charge-charge(iatm))
-            end do
-            write(*,*)
-            write(*,*) "Final atomic charges, after normalization to actual number of electrons"
-            do iatm=1,ncenter
-                write(*,"(' Atom',i5,'(',a2,')',': ',f12.6)") iatm,a(iatm)%name,charge(iatm)
-            end do
-            exit
-        else
-            write(*,*) "Hirshfeld-I atomic spaces converged successfully!"
-            write(*,*)
-            return
-        end if
-    else
-        if (icyc==maxcyc) then
-            write(*,"(/,' Convergence failed within',i4,' cycles!')") maxcyc
-            exit
-        end if
-    end if
-    
-    !Update atomic radial density by means of interpolation of adjacent charge state
-    do iatm=1,ncenter
-        !Read radial density of lower limit state
-        ichglow=floor(charge(iatm))
-        radrholow=0
-        c80tmp="atmrad"//sep//trim(a(iatm)%name)//statname(ichglow)//".rad"
-        inquire(file=c80tmp,exist=alive)
-        if (alive.eqv. .false.) then
-            write(*,"(' Error: ',a,' was not prepared!')") trim(c80tmp)
-            return
-        end if
-        open(10,file=c80tmp,status="old")
-        read(10,*) nptlow
-        do ipt=1,nptlow
-            read(10,*) rnouse,radrholow(ipt)
-        end do
-        close(10)
-        !Read radial density of upper limit state
-        ichghigh=ceiling(charge(iatm))
-        radrhohigh=0
-        c80tmp="atmrad"//sep//trim(a(iatm)%name)//statname(ichghigh)//".rad"
-        inquire(file=c80tmp,exist=alive)
-        if (alive.eqv. .false.) then
-            write(*,"(' Error: ',a,' was not prepared!')") trim(c80tmp)
-            return
-        end if
-        open(10,file=c80tmp,status="old")
-        read(10,*) npthigh
-        do ipt=1,npthigh
-            read(10,*) rnouse,radrhohigh(ipt)
-        end do
-        close(10)
-        !Update current radial density
-        atmradrho(iatm,:)=(charge(iatm)-ichglow)*radrhohigh(:) + (ichghigh-charge(iatm))*radrholow(:)
-        atmradnpt(iatm)=max(npthigh,nptlow)
-    end do
-    
-    lastcharge=charge
-end do
-
-if (allocated(frag1)) write(*,"(/,' Fragment charge:',f12.6)") sum(charge(frag1))
-CALL CPU_TIME(time_end)
-call walltime(iwalltime2)
-write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,iwalltime2-iwalltime1
-
-call path2filename(firstfilename,chgfilename)
-write(*,*)
-write(*,"(a)") " If output atoms with charges to "//trim(chgfilename)//".chg in current folder? (y/n)"
-read(*,*) selectyn
-if (selectyn=="y".or.selectyn=="Y") then
-    open(10,file=trim(chgfilename)//".chg",status="replace")
-    do i=1,ncenter
-        write(10,"(a4,4f12.6)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a,charge(i)
-    end do
-    close(10)
-    write(*,"(a)") " Result have been saved to "//trim(chgfilename)//".chg in current folder"
-    write(*,"(a)") " Columns ranging from 1 to 5 are name,X,Y,Z,charge respectively, unit is Angstrom"
-end if
-end subroutine
-
-
-!!------- Generate atomic radial density files at different states, used for such as Hirshfeld-I
-!"atmrad" in current folder is used as working directory
-!-2,-1,0,+1,+2 charge states of each element will be calculated to produce atomic .wfn file by Gaussian, predefined ground state multiplicity is used
-!After that, radial density file (.rad) is generated for each state of each element
-!If atomic wfn file is already existed, calculation will be skipped
-!Radial distance values are the same as built-in atomic density, i.e. those in atmraddens.f90
-subroutine genatmradfile
-use defvar
-use util
-implicit real*8 (a-h,o-z)
-character c80tmp*80,c200tmp*200,calclevel*80,radname*200,sep
-character*2 :: statname(-3:3)=(/ "-3","-2","-1","_0","+1","+2","+3" /)
-integer :: chgmulti(nelesupp,-3:3)=0 !Ground state multiplicity of each charge state of each element. If value=0, means undefined
-
-!Define chgmulti for elements for possible states
-!H,Li,Na,K,Rb,Cs
-chgmulti(1,0)=2
-chgmulti(1,1)=1
-chgmulti(1,-1)=1
-chgmulti(3,:)=chgmulti(1,:)
-chgmulti(11,:)=chgmulti(1,:)
-chgmulti(19,:)=chgmulti(1,:)
-chgmulti(37,:)=chgmulti(1,:)
-chgmulti(55,:)=chgmulti(1,:)
-!He,Ne,Ar,Kr,Xe,Rn
-chgmulti(2,0)=1
-chgmulti(2,1)=2
-chgmulti(2,-1)=2
-chgmulti(10,:)=chgmulti(2,:)
-chgmulti(18,:)=chgmulti(2,:)
-chgmulti(36,:)=chgmulti(2,:)
-chgmulti(54,:)=chgmulti(2,:)
-chgmulti(86,:)=chgmulti(2,:)
-!Be,Mg,Ca,Sr,Ba
-chgmulti(4,0)=1
-chgmulti(4,1)=2
-chgmulti(4,2)=1
-chgmulti(4,-1)=2
-chgmulti(12,:)=chgmulti(4,:)
-chgmulti(20,:)=chgmulti(4,:)
-chgmulti(38,:)=chgmulti(4,:)
-chgmulti(56,:)=chgmulti(4,:)
-!B,Al,Ga,In,Tl
-chgmulti(5,0)=2
-chgmulti(5,1)=1
-chgmulti(5,2)=2
-chgmulti(5,-1)=3
-chgmulti(5,-2)=4
-chgmulti(13,:)=chgmulti(5,:)
-chgmulti(31,:)=chgmulti(5,:)
-chgmulti(49,:)=chgmulti(5,:)
-chgmulti(81,:)=chgmulti(5,:)
-!C,Si,Ge,Sn,Pb
-chgmulti(6,0)=3
-chgmulti(6,1)=2
-chgmulti(6,2)=1
-chgmulti(6,-1)=4
-chgmulti(6,-2)=3
-chgmulti(14,:)=chgmulti(6,:)
-chgmulti(32,:)=chgmulti(6,:)
-chgmulti(50,:)=chgmulti(6,:)
-chgmulti(82,:)=chgmulti(6,:)
-!N,P,As,Sb,Bi
-chgmulti(7,0)=4
-chgmulti(7,1)=3
-chgmulti(7,2)=2
-chgmulti(7,-1)=3
-chgmulti(7,-2)=2
-chgmulti(15,:)=chgmulti(7,:)
-chgmulti(33,:)=chgmulti(7,:)
-chgmulti(51,:)=chgmulti(7,:)
-chgmulti(83,:)=chgmulti(7,:)
-!O,S,Se,Te,Po
-chgmulti(8,0)=3
-chgmulti(8,1)=4
-chgmulti(8,2)=3
-chgmulti(8,-1)=2
-chgmulti(8,-2)=1
-chgmulti(16,:)=chgmulti(8,:)
-chgmulti(34,:)=chgmulti(8,:)
-chgmulti(52,:)=chgmulti(8,:)
-chgmulti(84,:)=chgmulti(8,:)
-!F,Cl,Br,I,At
-chgmulti(9,0)=2
-chgmulti(9,1)=3
-chgmulti(9,2)=4
-chgmulti(9,-1)=1
-chgmulti(17,:)=chgmulti(9,:)
-chgmulti(35,:)=chgmulti(9,:)
-chgmulti(53,:)=chgmulti(9,:)
-chgmulti(85,:)=chgmulti(9,:)
-!Spin multiplicity of transition metal for each state is determined by chemical intuition as well as a few single point energy data
-!For simplicity, I assume that later elements in each row has identical configuration, of course this is incorrect but not too bad
-!Sc (3d1,4s2)
-chgmulti(21,0)=2
-chgmulti(21,1)=3
-chgmulti(21,2)=2
-chgmulti(21,-1)=3
-chgmulti(39,:)=chgmulti(21,:) !Y
-chgmulti(57,:)=chgmulti(21,:) !La
-!Ti (3d2,4s2)
-chgmulti(22,0)=3
-chgmulti(22,1)=4
-chgmulti(22,2)=3
-chgmulti(22,-1)=4
-chgmulti(40,:)=chgmulti(22,:) !Zr
-chgmulti(72,:)=chgmulti(22,:) !Hf
-!V  (3d3,4s2)
-chgmulti(23,0)=4
-chgmulti(23,1)=5
-chgmulti(23,2)=4
-chgmulti(23,-1)=5
-chgmulti(41,:)=chgmulti(23,:) !Nb
-chgmulti(73,:)=chgmulti(23,:) !Ta
-!Cr (3d5,4s1)
-chgmulti(24,0)=7
-chgmulti(24,1)=6
-chgmulti(24,2)=5
-chgmulti(24,-1)=6
-chgmulti(42,:)=chgmulti(24,:) !Mo
-chgmulti(74,:)=chgmulti(24,:) !W
-!Mn (3d5,4s2)
-chgmulti(25,0)=6
-chgmulti(25,1)=7
-chgmulti(25,2)=6
-chgmulti(25,-1)=5
-chgmulti(43,:)=chgmulti(25,:) !Tc
-chgmulti(75,:)=chgmulti(25,:) !Re
-!Fe (3d6,4s2)
-chgmulti(26,0)=5
-chgmulti(26,1)=6
-chgmulti(26,2)=7
-chgmulti(26,-1)=4
-chgmulti(44,:)=chgmulti(26,:) !Ru
-chgmulti(76,:)=chgmulti(26,:) !Os
-!Co (3d7,4s2)
-chgmulti(27,0)=4
-chgmulti(27,1)=5
-chgmulti(27,2)=4
-chgmulti(27,-1)=3
-chgmulti(45,:)=chgmulti(27,:) !Rh
-chgmulti(77,:)=chgmulti(27,:) !Ir
-!Ni (3d8,4s2)
-chgmulti(28,0)=3
-chgmulti(28,1)=4
-chgmulti(28,2)=3
-chgmulti(28,-1)=2
-chgmulti(46,:)=chgmulti(28,:) !Pd
-chgmulti(78,:)=chgmulti(28,:) !Pt
-!Cu (3d10,4s1)
-chgmulti(29,0)=2
-chgmulti(29,1)=1
-chgmulti(29,2)=2
-chgmulti(29,-1)=1
-chgmulti(47,:)=chgmulti(29,:) !Ag
-chgmulti(79,:)=chgmulti(29,:) !Au
-!Zn (3d10,4s2)
-chgmulti(30,0)=1
-chgmulti(30,1)=2
-chgmulti(30,2)=1
-chgmulti(30,-1)=2
-chgmulti(48,:)=chgmulti(30,:) !Cd
-chgmulti(80,:)=chgmulti(30,:) !Hg
-
-sep='/' !Separation symbol of directory
-if (isys==1) sep='\'
-calclevel=" "
-! calclevel="B3LYP/def2SVP"
-
-!Cycle each charge state of each atom. Each element is only calculated once. If the file is existing, don't recalculate again
-do iatm=1,ncenter
-    iele=a(iatm)%index
-    do istat=-3,3
-        if (chgmulti(iele,istat)==0) cycle !Undefined state
-        radname="atmrad"//sep//trim(a(iatm)%name)//statname(istat)//".wfn"
-        inquire(file=radname,exist=alive)
-        if (alive) cycle
-        
-        !Check Gaussian path
-        inquire(file=gaupath,exist=alive)
-        if (.not.alive) then
-            write(*,*) "Couldn't find Gaussian path defined in ""gaupath"" variable in settings.ini"
-            if (isys==1) write(*,*) "Input the path of Gaussian executable file, e.g. ""d:\study\g09w\g09.exe"""
-            if (isys==2.or.isys==3) write(*,*) "Input the path of Gaussian executable file, e.g. ""/sob/g09/g09"""
-            do while(.true.)
-                read(*,"(a)") gaupath
-                inquire(file=gaupath,exist=alive)
-                if (alive) exit
-                write(*,*) "Couldn't find Gaussian executable file, input again"
-            end do
-        end if
-        
-        !Input calculation level
-        if (calclevel==" ") then
-            write(*,*) "Some atomic .wfn files are not found in ""atmrad"" folder in current directory"
-            write(*,"(a)") " Now input the level for calculating these .wfn files, e.g. B3LYP/def2SVP"
-            write(*,"(a)") " You can also add other keywords at the same time, e.g. M062X/6-311G(2df,2p) scf=xqc int=ultrafine"
-            read(*,"(a)") calclevel
-        end if
-        
-        !Generate .gjf file 
-        inquire(file="./atmrad/.",exist=alive)
-        if (alive.eqv. .false.) call system("mkdir atmrad")
-        c200tmp="atmrad"//sep//trim(a(iatm)%name)//statname(istat)//".gjf"
-        open(10,file=c200tmp,status="replace")
-        write(10,"(a)") "# "//trim(calclevel)//" out=wfn"
-        write(10,*)
-        write(10,"(a)") trim(a(iatm)%name)//statname(istat)
-        write(10,*)
-        write(10,"(2i3)") istat,chgmulti(iele,istat)
-        write(10,"(a)") a(iatm)%name
-        write(10,*)
-        c200tmp="atmrad"//sep//trim(a(iatm)%name)//statname(istat)//".wfn"
-        write(10,"(a)") trim(c200tmp)
-        write(10,*)
-        write(10,*)
-        close(10)
-        
-        !Start calculation
-        c80tmp="atmrad"//sep//trim(a(iatm)%name)//statname(istat)
-        write(*,*) "Running: "//trim(Gaupath)//' "'//trim(c80tmp)//'.gjf" "'//trim(c80tmp)//'"'
-        call system(trim(Gaupath)//' "'//trim(c80tmp)//'.gjf" "'//trim(c80tmp)//'"')
-        
-        !Check if Gaussian task was successfully finished
-        if (isys==1) then
-            inquire(file=trim(c80tmp)//".out",exist=alive)
-        else
-            inquire(file=trim(c80tmp)//".log",exist=alive)
-        end if
-        if (alive) then
-            if (isys==1) then
-                open(10,file=trim(c80tmp)//".out",status="old")
-            else
-                open(10,file=trim(c80tmp)//".log",status="old")
-            end if
-            call loclabel(10,"Normal termination",igaunormal)
-            close(10)
-            if (igaunormal==0) then
-                write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in atmrad folder"
-                write(*,*) "Press ENTER to continue"
-                pause
-            end if
-        else
-            write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in atmrad folder"
-            write(*,*) "Press ENTER to continue"
-            pause
-        end if
-    end do
-end do
-
-!All element wfn files have been generated, now calculate corresponding radial density file (.rad)
-!Existing .rad file will not be re-calculated
-write(*,*)
-write(*,*) "Generating atomic radial density from atomic wfn file..."
-do iatm=1,ncenter
-    iele=a_org(iatm)%index
-    do istat=-3,3
-        if (chgmulti(iele,istat)==0) cycle !Undefined state
-        c80tmp="atmrad"//sep//trim(a_org(iatm)%name)//statname(istat)
-        inquire(file=trim(c80tmp)//".rad",exist=alive)
-        if (alive) cycle
-        inquire(file=trim(c80tmp)//".wfn",exist=alive)
-        if (alive.eqv. .false.) then
-            write(*,"(' Error: ',a,' was not found!')") trim(c80tmp)//".wfn"
-            write(*,*) "If you want to skip, press ENTER directly"
-            pause
-            cycle
-        end if
-        write(*,"(' Converting ',a,' to ',a)") trim(c80tmp)//".wfn",trim(c80tmp)//".rad"
-        call atmwfn2atmrad(trim(c80tmp)//".wfn",trim(c80tmp)//".rad")
-    end do
-end do
-
-!Recover to the firstly loaded file
-call dealloall
-call readinfile(firstfilename,1)
-end subroutine
-
-
-!!----- Generate atomic radial density from atomic wfn file
-!The code is adapted from sphatmraddens
-subroutine atmwfn2atmrad(infile,outfile)
-use defvar
-use function
-implicit real*8 (a-h,o-z)
-character(len=*) infile,outfile
-real*8,allocatable :: potx(:),poty(:),potz(:),potw(:),radpos(:),sphavgval(:)
-call dealloall
-call readinfile(infile,1)
-truncrho=1D-8
-rlow=0D0
-rhigh=12
-nsphpt=974
-nradpt=200 !Totally 200 radial points, but the number of point is truncated at truncrho (because the interpolation routine doesn't work well for very low value)
-allocate(potx(nsphpt),poty(nsphpt),potz(nsphpt),potw(nsphpt),radpos(nradpt),sphavgval(nradpt))
-sphavgval=0
-call Lebedevgen(nsphpt,potx,poty,potz,potw)
-nthreads=getNThreads()
-!$OMP PARALLEL DO SHARED(sphavgval,radpos) PRIVATE(irad,radx,radr,isph,rnowx,rnowy,rnowz) schedule(dynamic) NUM_THREADS(nthreads)
-do irad=1,nradpt
-    radx=cos(irad*pi/(nradpt+1))
-    radr=(1+radx)/(1-radx) !Becke transform
-    radpos(irad)=radr
-    do isph=1,nsphpt
-        rnowx=potx(isph)*radr
-        rnowy=poty(isph)*radr
-        rnowz=potz(isph)*radr
-        sphavgval(irad)=sphavgval(irad)+fdens(rnowx,rnowy,rnowz)*potw(isph)
-    end do
-end do
-!$OMP END PARALLEL DO
-open(10,file=outfile,status="replace")
-write(10,*) count(sphavgval>truncrho)
-do irad=nradpt,1,-1
-    if (sphavgval(irad)>truncrho) write(10,"(f20.12,E18.10)") radpos(irad),sphavgval(irad)
-end do
-close(10)
-end subroutine
-
-
-!!---- Calculate density at a point for iatm based on loaded atomic radial density
-real*8 function fdens_rad(iatm,x,y,z)
-use defvar
-use util
-integer iatm,npt
-real*8 x,y,z,r,rnouse
-npt=atmradnpt(iatm)
-r=dsqrt((a(iatm)%x-x)**2+(a(iatm)%y-y)**2+(a(iatm)%z-z)**2)
-call lagintpol(atmradpos(1:npt),atmradrho(iatm,1:npt),npt,r,fdens_rad,rnouse,rnouse,1)
-end function

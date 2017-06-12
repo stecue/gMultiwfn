@@ -1772,7 +1772,6 @@ intval=0D0
 basinvol=0D0
 ifinish=0
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL private(ix,iy,iz,irealatt,rnowx,rnowy,rnowz,tmpval,intvalpriv,basinvolpriv) shared(intval,basinvol,ifinish) NUM_THREADS(nthreads)
 intvalpriv=0D0
 basinvolpriv=0D0
@@ -1942,7 +1941,6 @@ do while(.true.)
         xyint=0D0
         yzint=0D0
         xzint=0D0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL private(ix,iy,iz,rnowx,rnowy,rnowz,tmpmul,rx,ry,rz,eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,yzintp,xzintp) NUM_THREADS(nthreads)
         eleintp=0D0
@@ -2130,7 +2128,6 @@ if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
     do ibas=1,numrealatt
         write(*,"(' Generating orbital overlap matrix for basin',i6,'  of',i6,' ......')") ibas,numrealatt
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP parallel shared(BOM) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,jmo,BOMtmp,orbval) num_threads(nthreads)
         BOMtmp=0D0
 !$OMP do schedule(DYNAMIC)
@@ -2165,7 +2162,6 @@ else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
     do ibas=1,numrealatt
         !Alpha part
         write(*,"(' Generating orbital overlap matrix for basin',i6,'  of',i6,' ......')") ibas,numrealatt
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP parallel shared(BOMa) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,jmo,BOMtmp,orbval) num_threads(nthreads)
         BOMtmp=0D0
@@ -2202,7 +2198,6 @@ nthreads=getNThreads()
             MOinit=iendalpha+1
             MOend=iendalpha+nmatsizeb
 !             write(*,*) MOinit,MOend,nmatsizeb
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP parallel shared(BOMb) private(ix,iy,iz,rnowx,rnowy,rnowz,imo,imotmp,jmo,jmotmp,BOMtmp,orbval) num_threads(nthreads)
             BOMtmp=0D0
@@ -3250,7 +3245,6 @@ if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and Fish
     write(*,*)
     write(*,*) "Calculating electron density and its gradient for actual system at each grid"
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(rhogrid,rhograd2grid,ifinish) PRIVATE(ix,iy,iz,ptx,pty,ptz) schedule(dynamic) NUM_THREADS(nthreads)
     do iz=2,nz-1
         ptz=zarr(iz)
@@ -3274,7 +3268,6 @@ nthreads=getNThreads()
         write(*,"(' Processing ',a)") trim(custommapname(att2atm(iatt)))
         call dealloall
         call readwfn(custommapname(att2atm(iatt)),1)
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL private(intvalp,ix,iy,iz,ptx,pty,ptz,rx,ry,rz,dist,tmps,switchwei,prodens,prodensgrad2,tmpval1,tmpval2) shared(intval) NUM_THREADS(nthreads)
         intvalp=0D0
@@ -3332,7 +3325,6 @@ else if (ifuncint==-1) then !Deformation density
         write(*,"(' Processing atom',i6,a,'...')") iatm,a_org(iatm)%name
         call dealloall
         call readwfn(custommapname(iatm),1)
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(prorhogrid) PRIVATE(ix,iy,iz) schedule(dynamic) NUM_THREADS(nthreads)
         do iz=2,nz-1
@@ -3392,7 +3384,7 @@ if (itype==1.or.itype==2.or.itype==3) then !Integrate specific real space functi
         if (any(gridbas(2:nx-1,2:ny-1,2:nz-1)==0)) write(*,"(' Integral of unassigned grids:',f20.8)") intval(0,1)
         if (any(gridbas(2:nx-1,2:ny-1,2:nz-1)==-1)) write(*,"(' Integral of the grids travelled to box boundary:',f20.8)") intval(-1,1)
         write(*,*)
-        rnormfac=sum(intval(1:numrealatt,1))/(nelec+ninnerelec) !The electrons represented by EDF must be taken into account!
+        rnormfac=sum(intval(1:numrealatt,1))/(nelec+nEDFelec) !The electrons represented by EDF must be taken into account!
         write(*,"(' Normalization factor of the integral of electron density is',f12.6)") rnormfac
         write(*,*) "The atomic charges after normalization and atomic volumes:"
         do iatm=0,ncenter
@@ -3400,7 +3392,7 @@ if (itype==1.or.itype==2.or.itype==3) then !Integrate specific real space functi
                 if (att2atm(iatt)==iatm.and.iatm==0) then
                     write(*,"(i7,' (NNA)   Charge:',f12.6,'     Volume:',f10.3,' Bohr^3')") iatt,-intval(iatt,1)/rnormfac,basinvdwvol(iatt)
                 else if (att2atm(iatt)==iatm.and.iatm/=0) then
-                    if (ninnerelec==0) then !Normal case, all electron basis or using pseudopotential but not accompanied by EDF
+                    if (nEDFelec==0) then !Normal case, all electron basis or using pseudopotential but not accompanied by EDF
                         write(*,"(i7,' (',a,')    Charge:',f12.6,'     Volume:',f10.3,' Bohr^3')") iatm,a(iatm)%name,a(iatm)%charge-intval(iatt,1)/rnormfac,basinvdwvol(iatt)
                     else !EDF is used, so using a(iatm)%index instead of a(iatm)%charge
                         write(*,"(i7,' (',a,')    Charge:',f12.6,'     Volume:',f10.3,' Bohr^3')") iatm,a(iatm)%name,a(iatm)%index-intval(iatt,1)/rnormfac,basinvdwvol(iatt)
@@ -3441,7 +3433,7 @@ if (itype==1.or.itype==2.or.itype==3) then !Integrate specific real space functi
             write(*,"(' Total Fisher information:',f23.8)") sum(intval(1:numrealatt,2))
             write(*,"(' Total steric energy:     ',f23.8)") sum(intval(1:numrealatt,3))
             write(*,"(' Sum of basin volumes (rho>0.001):',f12.3,' Bohr^3')") sum(basinvdwvol(1:numrealatt))
-            rnormfac=sum(intval(1:numrealatt,4))/(nelec+ninnerelec) !The electrons represented by EDF must be taken into account!
+            rnormfac=sum(intval(1:numrealatt,4))/(nelec+nEDFelec) !The electrons represented by EDF must be taken into account!
             write(*,"(/,' Normalization factor of the integral of electron density is',f12.6)") rnormfac
             write(*,*) "The atomic charges after normalization and atomic volumes:"
             do iatm=0,ncenter
@@ -3449,7 +3441,7 @@ if (itype==1.or.itype==2.or.itype==3) then !Integrate specific real space functi
                     if (att2atm(iatt)==iatm.and.iatm==0) then
                         write(*,"(i7,' (NNA)   Charge:',f12.6,'     Volume:',f10.3,' Bohr^3')") iatt,-intval(iatt,1)/rnormfac,basinvdwvol(iatt)
                     else if (att2atm(iatt)==iatm.and.iatm/=0) then
-                        if (ninnerelec==0) then !Normal case, all electron basis or using pseudopotential but not accompanied by EDF
+                        if (nEDFelec==0) then !Normal case, all electron basis or using pseudopotential but not accompanied by EDF
                             write(*,"(i7,' (',a,')    Charge:',f12.6,'     Volume:',f10.3,' Bohr^3')") iatm,a(iatm)%name,a(iatm)%charge-intval(iatt,4)/rnormfac,basinvdwvol(iatt)
                         else !EDF is used, so using a(iatm)%index instead of a(iatm)%charge
                             write(*,"(i7,' (',a,')    Charge:',f12.6,'     Volume:',f10.3,' Bohr^3')") iatm,a(iatm)%name,a(iatm)%index-intval(iatt,4)/rnormfac,basinvdwvol(iatt)
@@ -3574,7 +3566,6 @@ if (allocated(cubmatvec)) then
 end if
 allocate(cubmatvec(3,nx,ny,nz))
 ifinish=0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmatvec,ifinish) PRIVATE(ix,iy,iz,tmpx,tmpy,tmpz,wfnval,wfnderv,gradrho,imo) schedule(dynamic) NUM_THREADS(nthreads)
 do iz=1,nz

@@ -1,5 +1,5 @@
 !------ Integrate fuzzy atomic space
-!Normally iwork=0, if iwork=1, directly choose isel==4 to calculate delocalization index in fuzzy atomic spase (namely fuzzy bond order, see statement in JPCA,110,5108 below Eq.9) and then return
+!Normally iwork=0. If iwork=1, directly choose isel==4 to calculate delocalization index in fuzzy atomic spase (namely fuzzy bond order, see statement in JPCA,110,5108 below Eq.9) and then return
 !If iwork=2, directly choose isel==8 to calculate Laplacian bond order and then return
 !
 !The integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
@@ -31,6 +31,7 @@ integer :: iraddefine=-1 !-1= Specific for Laplacian bond order. 0=Custom 1=CSD 
 integer :: nbeckeiter=3,sphpotold,radpotold
 integer :: cenind(10) !Record atom index for multicenter DI
 character :: radfilename*200,selectyn,c80inp*80,specatmfilename*80,c200tmp*200
+real*8,external :: fdens_rad
 if (ispecial==2) then
     ipartition=2 !Use Hirshfeld for shubin's 2nd project
     expcutoff=1 !Full accuracy
@@ -58,9 +59,12 @@ end if
 radpotold=radpot
 sphpotold=sphpot
 
-do while(.true.) !Interface loop
 
-!For some function, e.g. calculate DI, it is safe to use relatively low grid quality for saving time,
+!==== Interface loop ====!
+!==== Interface loop ====!
+do while(.true.) 
+
+!For some functions, e.g. calculate DI, it is safe to use relatively low grid quality for saving time,
 !so sphpot and radpot may be adjusted automatically, but each time enter main interface we recover the one set by users
 radpot=radpotold
 sphpot=sphpotold
@@ -71,7 +75,7 @@ if (iwork==0) then
     if (natmcalclist==ncenter) write(*,*) "-5 Define the atoms to be calculated in functions 1 and 2, current: all atoms"
     if (natmcalclist/=ncenter) write(*,"(a,i5,a)") " -5 Define the atoms to be calculated in functions 1 and 2, current:",natmcalclist," atoms"
     write(*,*) "-4 Adjust reference parameter for FLU"
-    if (ipartition==1) then
+    if (ipartition==1) then !For Becke
         write(*,"(' -3 Set the number of iterations for Becke partition, current:',i3)") nbeckeiter
         if (iraddefine==-1) write(*,*) "-2 Select radius definition for Becke partition, current: Modified CSD"
         if (iraddefine==0) write(*,*) "-2 Select radius definition for Becke partition, current: Custom"
@@ -83,6 +87,7 @@ if (iwork==0) then
     if (ipartition==1) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Becke"
     if (ipartition==2) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Hirshfeld"
     if (ipartition==3) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Hirshfeld*"
+    if (ipartition==4) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Hirshfeld-I"
     write(*,*) "0 Return"
     write(*,*) "1 Perform integration in fuzzy atomic spaces for a real space function"
     write(*,*) "2 Calculate atomic multipole moments"
@@ -103,6 +108,7 @@ if (iwork==0) then
         write(*,*) "103 Obtain quadratic and cubic Renyi relative entropy"
     end if
     read(*,*) isel
+    
 else if (iwork==1) then
     isel=4 !Directly calculate delocalization index
 else if (iwork==2) then
@@ -111,11 +117,8 @@ end if
 
 
 !!===================================
-!!-----------------------------------
 !!--------- Adjust settings ---------
-!!-----------------------------------
 !!===================================
-
 if (isel==0) then
     exit
     
@@ -274,12 +277,14 @@ else if (isel==-1) then
     write(*,*) "Select atomic space partition method"
     write(*,*) "1 Becke"
     write(*,*) "2 Hirshfeld"
-    write(*,*) "3 Hirshfeld*"
-    write(*,"(a)") " Note: (2) uses atomic .wfn files to calculate Hirshfeld weights, they must be  provided by yourself or let Multiwfn automatically &
+    write(*,*) "3 Hirshfeld* (preferred over 2)"
+    write(*,*) "4 Hirshfeld-I"
+    write(*,"(a)") " Note: (2) uses atomic .wfn files to calculate Hirshfeld weights, they must be provided by yourself or let Multiwfn automatically &
     invoke Gaussian to generate them. (3) evaluates the weights based on built-in radial atomic densities, thus is more convenient than (2)"
     read(*,*) ipartition
-    if (imodwfn==1.and.ipartition==2) then !Since using Hirshfeld partition involves reload the wavefunction file, so if it has been modified before, discrepancy will occurred during calculation
-        write(*,"(a)") " Error: The wavefunction has been modified by users or by other functions, Hirshfeld partition can not be applied to this case. Please reboot Multiwfn and reload the file"
+    if (imodwfn==1.and.(ipartition==2.or.ipartition==4)) then !These two modes need reloading firstly loaded file, so they cannot be already modified
+        write(*,"(a)") " Error: Since the wavefunction has been modified by you or by other functions, present function is unable to use. &
+        Please reboot Multiwfn and reload the file"
         ipartition=ipartitionold
         cycle
     end if
@@ -287,16 +292,16 @@ else if (isel==-1) then
         if (allocated(AOM)) deallocate(AOM,AOMsum)
         if (allocated(AOMa)) deallocate(AOMa,AOMb,AOMsuma,AOMsumb)
     end if
+    if (ipartition==4) then !Generate radial density of all atoms by Hirshfeld-I
+        call Hirshfeld_I(2)
+    end if
 end if
 if (isel==101.or.isel<0) cycle
 
 
 !!=======================================
-!!---------------------------------------
 !!--------- Prepare calculation ---------
-!!---------------------------------------
 !!=======================================
-
 
 if (isel==1.or.isel==8) then !Select which function to be integrated in single atomic space or overlap between two atomic spaces
     if (isel==8.and.ipartition/=1) then
@@ -318,7 +323,8 @@ else if (isel==2) then !Multipole moment integral need electron density
     write(*,*) "Note: All units below are in a.u."
     write(*,*)
     
-else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then !AOM,LI/DI,PDI,FLU/-pi/CLRK/PLR/Multicenter DI Note: MO values will be generated when collecting data
+!AOM,LI/DI,PDI,FLU/-pi/CLRK/PLR/Multicenter DI. Note: MO values will be generated when collecting data
+else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
     !Mayer use (30,110) for fuzzy bond order, so (45,170) is absolutely enough
     if (iautointgrid==1) then !Allow change integration grid adapatively
         radpot=45
@@ -396,18 +402,10 @@ end if
 !!--------- Start calculation -----------
 !!---------------------------------------
 !!=======================================
-
-
 rintval=0D0 !Clean accumulated variables
 xintacc=0D0
 yintacc=0D0
 zintacc=0D0
-! xxintacc=0D0
-! yyintacc=0D0
-! zzintacc=0D0
-! xyintacc=0D0
-! yzintacc=0D0
-! xzintacc=0D0
 ovlpintpos=0D0
 ovlpintneg=0D0
 if (ipartition==2.or.ifunc==-2) call setpromol !In this routine reload first molecule at the end
@@ -475,7 +473,8 @@ nthreads=getNThreads()
         end if
     end if
     
-    !Calculate atomic space weight at each point, which will be used later. Also integrate fuzzy overlap region here
+    !Calculate "iatm" atomic space weight at all points around it (recorded in atmspcweight), which will be used later
+    !Also integrate fuzzy overlap region here (only available for Becke partition)
     if (ipartition==1) then !Becke
 !$OMP parallel shared(atmspcweight,ovlpintpos,ovlpintneg) private(i,rnowx,rnowy,rnowz,smat,&
 !$OMP ii,ri,jj,rj,rmiu,chi,uij,aij,tmps,iter,Pvec,tmpval,tmpval2,ovlpintpostmp,ovlpintnegtmp) num_threads(nthreads)
@@ -538,15 +537,15 @@ nthreads=getNThreads()
 !$OMP end parallel
     else if (ipartition==2) then !Hirshfeld based on atomic .wfn files
         promol=0D0
-        do jatm=1,ncenter_org !Calc free atomic density of each atom and promolecular density
+        do jatm=1,ncenter_org !Calculate free atomic density of each atom and promolecular density
             call dealloall
             call readwfn(custommapname(jatm),1)
 nthreads=getNThreads()
 !$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
             do ipt=1+iradcut*sphpot,radpot*sphpot
                 atomdens(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
-                if ((isel==99.or.isel==100).and.jatm==iatm) selfdensgrad2(ipt)=&
-                fgrad(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,'t')**2 !Calculate square of rhograd of free atom
+                if ((isel==99.or.isel==100).and.jatm==iatm) selfdensgrad2(ipt)=& !SPECIAL: Calculate square of rhograd of free atom
+                fgrad(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,'t')**2
             end do
 !$OMP end parallel do
             promol=promol+atomdens
@@ -560,21 +559,34 @@ nthreads=getNThreads()
             end if
         end do
         call dealloall
-        call readinfile(firstfilename,1) !Retrieve the first loaded file(whole molecule) to calc real rho later
-    else if (ipartition==3) then !Hirshfeld with interpolation of built-in atomic radius density
+        call readinfile(firstfilename,1) !Retrieve the firstly loaded file(whole molecule) in order to calculate real rho later
+    else if (ipartition==3.or.ipartition==4) then !Hirshfeld or Hirshfeld-I
         promol=0D0
-        do jatm=1,ncenter_org !Calc free atomic density of each atom and promolecular density
+        if (ipartition==3) then !Hirshfeld based on interpolation of built-in atomic radius density
+            do jatm=1,ncenter !Calculate free atomic density of each atom and promolecular density
 nthreads=getNThreads()
 !$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
-            do ipt=1+iradcut*sphpot,radpot*sphpot
-                atomdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
-            end do
+                do ipt=1+iradcut*sphpot,radpot*sphpot
+                    atomdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
+                end do
 !$OMP end parallel do
-            promol=promol+atomdens
-            if (jatm==iatm) selfdens=atomdens
-        end do
+                promol=promol+atomdens
+                if (jatm==iatm) selfdens=atomdens
+            end do
+        else !Hirshfeld-I based on refined atomic radial density
+            do jatm=1,ncenter !Calculate free atomic density of each atom and promolecular density
+nthreads=getNThreads()
+!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
+                do ipt=1+iradcut*sphpot,radpot*sphpot
+                    atomdens(ipt)=fdens_rad(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+                end do
+!$OMP end parallel do
+                promol=promol+atomdens
+                if (jatm==iatm) selfdens=atomdens
+            end do
+        end if
         do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
-            if (promol(i)/=0.0D0) then
+            if (promol(i)/=0D0) then
                 atmspcweight(i)=selfdens(i)/promol(i)
             else
                 atmspcweight(i)=0D0
@@ -582,7 +594,7 @@ nthreads=getNThreads()
         end do
     end if
     
-    !Special case: Calculate density of atom in specific-state, due to Shubin's idea
+    !SPECIAL CASE: Calculate density of atom in specific-state, for Shubin's idea
     if (isel==100) then
         write(specatmfilename,"(a,i4.4,a)") "specwfn/",iatm,".wfn"
         write(*,*) "Prodessing "//trim(specatmfilename)
@@ -605,7 +617,7 @@ nthreads=getNThreads()
         do i=1+iradcut*sphpot,radpot*sphpot
             rintval(iatm,1)=rintval(iatm,1)+atmspcweight(i)*funcval(i)*gridatm(i)%value
         end do
-    else if (isel==99.or.isel==100.or.isel==103) then
+    else if (isel==99.or.isel==100.or.isel==103) then !SPECIAL SPECIAL SPECIAL
         !=99:  Calculate relative Shannon and Fisher entropy and 2nd-order term
         !=100: Calculate relative Shannon/Fisher entropy by taking Hirshfeld density as reference
         !=103: Calculate quadratic and cubic Renyi relative entropy
@@ -649,12 +661,12 @@ nthreads=getNThreads()
             rintval=rintval+rintvalp
 !$OMP end CRITICAL
 !$OMP end parallel
-    else if (isel==102) then !Obtain quadratic and cubic Renyi entropy
+    else if (isel==102) then !SPECIAL SPECIAL SPECIAL: Obtain quadratic and cubic Renyi entropy
         do i=1+iradcut*sphpot,radpot*sphpot
             rintval(iatm,1)=rintval(iatm,1)+atmspcweight(i)*funcval(i)**2*gridatm(i)%value
             rintval(iatm,2)=rintval(iatm,2)+atmspcweight(i)*funcval(i)**3*gridatm(i)%value
         end do
-    else if (isel==2) then !Integrate multipole moment
+    else if (isel==2) then !Integrate multipole momentS
         eleint=0D0
         xint=0D0
         yint=0D0
@@ -752,16 +764,9 @@ nthreads=getNThreads()
         xintacc=xintacc+xint
         yintacc=yintacc+yint
         zintacc=zintacc+zint
-!         xxintacc=xxintacc+xxint
-!         yyintacc=yyintacc+yyint
-!         zzintacc=zzintacc+zzint
-!         xyintacc=xyintacc+xyint
-!         yzintacc=yzintacc+yzint
-!         xzintacc=xzintacc+xzint
     
-    !All of these tasks request integrate atomic overlap matrix (AOM), which will be calculated here
     else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
-    
+    !Calculate atomic overlap matrix (AOM) for all tasks requiring it
         if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
 nthreads=getNThreads()
 !$OMP parallel shared(AOM) private(i,imo,jmo,AOMtmp,orbval) num_threads(nthreads)
@@ -820,13 +825,14 @@ nthreads=getNThreads()
         end if
     end if
     
-end do !End cycle atoms
+end do !End cycling atoms
 
 call walltime(nwalltime2)
 write(*,"(' Calculation took up',i8,' seconds wall clock time')") nwalltime2-nwalltime1
 
 
-!Check sanity of AOM
+
+!==== Check sanity of AOM ====!
 if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
     if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
         do iatm=1,ncenter
@@ -850,10 +856,9 @@ if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.o
     end if
 end if
 
-!Next, generate DI, LI or condensed linear response kernel
+!==== Generate DI, LI or condensed linear response kernel (CLRK) ====!
 !DI-pi will be calculated for FLU-pi at later stage
 !Multicenter DI will be calculated at later stage
-
 10    if (isel==4.or.isel==5.or.isel==6) then !For LI/DI, PDI and FLU
     !RHF,R-post-HF, DI_A,B=2¡Æ[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B     where i and j are non-spin orbitals
     if (wfntype==0.or.wfntype==3) then
@@ -983,13 +988,11 @@ else if (isel==9.or.isel==10) then !Calculate condensed linear response kernel, 
 end if
 
 
+
+
 !!====================================================
-!!----------------------------------------------------
 !!------- Statistic results or post-processing -------
-!!----------------------------------------------------
 !!====================================================
-
-
 write(*,*)
 if (isel==1) then
     sumval=sum(rintval(:,1))
@@ -1010,7 +1013,7 @@ if (isel==1) then
     end if
     write(*,*)
     
-else if (isel==99) then !Relative Shannon and Fisher entropy and 2nd-order term
+else if (isel==99) then !SPECIAL: Relative Shannon and Fisher entropy and 2nd-order term
     write(*,*) "Relative Shannon and Fisher information entropy w.r.t. its free-state"
     write(*,*) "   Atom         Relat_Shannon      Relat_Fisher"
     do iatm=1,ncenter
@@ -1032,16 +1035,14 @@ else if (isel==99) then !Relative Shannon and Fisher entropy and 2nd-order term
     end do
     write(*,"(' Summing up above values:',2f16.8)") sum(rintval(:,5)),sum(rintval(:,6))
     write(*,*)
-    
-else if (isel==100) then !Relative Shannon/Fisher by taking Hirshfeld density as reference
+else if (isel==100) then !SPECIAL: Relative Shannon/Fisher by taking Hirshfeld density as reference
     write(*,*) "Relative Shannon and Fisher entropy of specific state w.r.t. Hirshfeld density"
     write(*,*) "   Atom         Relat_Shannon      Relat_Fisher"
     do iatm=1,ncenter
         write(*,"(i6,'(',a2,')  ',2f18.8)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,2)
     end do
     write(*,*)
-    
-else if (isel==102) then !Quadratic and cubic Renyi entropy
+else if (isel==102) then !SPECIAL: Quadratic and cubic Renyi entropy
     write(*,*) "Atomic contribution to int(rho^2) and int(rho^3) under Hirshfeld partition:"
     write(*,*) "   Atom            Quadratic             Cubic"
     do iatm=1,ncenter
@@ -1052,8 +1053,7 @@ else if (isel==102) then !Quadratic and cubic Renyi entropy
     write(*,"(' Molecular quadratic Renyi entropy:',f18.8)") -log10(sum(rintval(:,1)))
     write(*,"(' Molecular cubic Renyi entropy:    ',f18.8)") -log10(sum(rintval(:,2)))/2
     write(*,*)
-    
-else if (isel==103) then !Quadratic and cubic Renyi relative entropy
+else if (isel==103) then !SPECIAL: Quadratic and cubic Renyi relative entropy
     write(*,"(a)") " Note: rhoA=w_A(r)*rho(r) is density of A in molecule, rhoA0 is density of A in its free-state"
     write(*,*) "   Atom        int(rhoA^2/rhoA0)   int(rhoA^3/rhoA0^2)"
     do iatm=1,ncenter
@@ -1352,7 +1352,7 @@ else if (isel==7) then !FLU-pi
         write(*,*)
     end do
     
-else if (isel==8) then !Integrate in overlap region
+else if (isel==8) then !Integral in overlap region
     ovlpintpos=ovlpintpos+transpose(ovlpintpos)
     ovlpintneg=ovlpintneg+transpose(ovlpintneg)
     sumdiagpos=0D0

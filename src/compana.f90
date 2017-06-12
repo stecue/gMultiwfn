@@ -1,7 +1,15 @@
-!!--------- Interface of composition analysis
+!!--------- Interface of orbital composition analysis
 subroutine compana
 use defvar
 implicit real*8 (a-h,o-z)
+!Automatically set proper radpot and sphpot for e.g. Becke, Hirshfeld, Hirshfeld-I
+radpotold=radpot
+sphpotold=sphpot
+if (iautointgrid==1) then
+    radpot=50
+    sphpot=170
+end if
+
 do while(.true.)
     write(*,"(/,a,/)") " Citation of this module: Tian Lu, Feiwu Chen, Calculation of Molecular Orbital Composition, Acta Chim. Sinica, 69, 2393-2406"
     write(*,*) "      ================ Orbital composition analysis ==============="
@@ -19,12 +27,17 @@ do while(.true.)
     write(*,*) "7 Orbital composition analysis by natural atomic orbital (NAO) method"
     if (allocated(b)) write(*,*) "8 Calculate atom and fragment contributions by Hirshfeld method"
     if (allocated(b)) write(*,*) "9 Calculate atom and fragment contributions by Becke method"
+    if (allocated(b)) write(*,*) "10 Calculate atom and fragment contributions by Hirshfeld-I method"
     write(*,*) "100 Evaluate oxidation state by LOBA method"
     read(*,*) icompana
 
     if (icompana==-10) then
         if (allocated(frag1)) deallocate(frag1)
         if (allocated(frag2)) deallocate(frag2)
+        if (iautointgrid==1) then
+            radpot=radpotold
+            sphpot=sphpotold
+        end if
         exit
     else if (icompana==-1) then
         call deffrag(1)
@@ -52,6 +65,9 @@ do while(.true.)
         call spaceparorb(1)
     else if (icompana==9) then
         call spaceparorb(2)
+    else if (icompana==10) then
+        call Hirshfeld_I(2)
+        call spaceparorb(3)
     else if (icompana==100) then
         call LOBA
     end if
@@ -486,24 +502,25 @@ end subroutine
 
 
 
-!!!---Partition orbital to atomic contribution by space partition methods
-! itype=1 Hirshfeld, itype=2 Becke
+
+!!!--- Partition orbital to atomic contribution by space partition methods
+!itype=1: Hirshfeld, itype=2: Becke, itype=3: Hirshfeld-I
 subroutine spaceparorb(itype)
 use defvar
 use util
 use function
 implicit real*8(a-h,o-z)
 type(content) gridorg(radpot*sphpot),gridatm(radpot*sphpot)
-!The i,j element of allpotx is x coordinate of the jth point for integrating center i
-!allpotw combines Becke integration weight and Hirshfeld weight
 real*8 resultvec(ncenter)
-real*8 allpotx(ncenter,sphpot*radpot),allpoty(ncenter,sphpot*radpot),allpotz(ncenter,sphpot*radpot),allpotw(ncenter,sphpot*radpot)
+real*8 allpotx(ncenter,radpot*sphpot),allpoty(ncenter,radpot*sphpot),allpotz(ncenter,radpot*sphpot),allpotw(ncenter,radpot*sphpot)
+real*8 tmpdens(radpot*sphpot),selfdens(radpot*sphpot),promol(radpot*sphpot)
 integer,allocatable :: fragorbcomp(:)
-integer,save :: ifirst=1
 character orbtype*10,c2000tmp*2000
+real*8,external :: fdens_rad
 
 !Generate allpotx/y/z/w
-write(*,*) "Initializing data, please wait...\(^_^)/"
+!allpotx(iatm,j) is x coordinate of the jth point for integrating center iatm
+write(*,*) "Initializing data, please wait... \(^_^)/"
 call gen1cintgrid(gridorg,iradcut)
 do iatm=1,ncenter
     allpotx(iatm,:)=gridorg(:)%x+a(iatm)%x
@@ -511,75 +528,84 @@ do iatm=1,ncenter
     allpotz(iatm,:)=gridorg(:)%z+a(iatm)%z
 end do
 
+!allpotw combines Becke multi-center integration weight with Becke/Hirshfeld/Hirshfeld-I weight
 allpotw=0D0
 write(*,"(i7,' quadrature points are used for each atom')") radpot*sphpot
 call walltime(iwalltime1)
-if (itype==1) then
+if (itype==1.or.itype==3) then !Hirshfeld or Hirshfeld-I partition
     write(*,*)
-    write(*,*) "Hirshfeld analysis requests atomic densities, please select how to obtain them"
-    write(*,*) "1 Use build-in sphericalized atomic densities in free-states (recommended)"
-    write(*,"(a)") " 2 Provide wavefunction file of involved elements by yourself or invoke Gaussian to automatically calculate them"
-    read(*,*) ihirshmode
-    if (ihirshmode==1) then
-        write(*,*) "Generating promolecular density from atom densities..."
+    if (itype==1) then
+        write(*,*) "Hirshfeld analysis requests atomic densities, please select how to obtain them"
+        write(*,*) "1 Use build-in sphericalized atomic densities in free-states (recommended)"
+        write(*,"(a)") " 2 Provide wavefunction file of involved elements by yourself or invoke Gaussian to automatically calculate them"
+        read(*,*) ihirshmode
+    end if
+    if ((itype==1.and.ihirshmode==1).or.itype==3) then !Hirshfeld or Hirshfeld-I based on interpolation density
+        if (itype==1.and.ihirshmode==1) write(*,*) "Generating Hirshfeld atomic weighting functions at all grids..."
+        if (itype==3) write(*,*) "Generating Hirshfeld-I atomic weighting functions at all grids..."
         do iatm=1,ncenter
+            promol=0D0
+            do jatm=1,ncenter
+                if (itype==1.and.ihirshmode==1) then !Hirshfeld based on interpolation of built-in atomic radius density
 nthreads=getNThreads()
-!$OMP parallel do shared(allpotw) private(jatm,i) num_threads(nthreads)
-            do jatm=1,ncenter_org !Cycle points of every atom
-                do i=1+iradcut*sphpot,radpot*sphpot
-                    allpotw(jatm,i)=allpotw(jatm,i)+calcatmdens(iatm,allpotx(jatm,i),allpoty(jatm,i),allpotz(jatm,i),0)
-                end do
-            end do
+!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+                    do ipt=1+iradcut*sphpot,radpot*sphpot
+                        tmpdens(ipt)=calcatmdens(jatm,allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt),0)
+                    end do
 !$OMP end parallel do
-            write(*,"(' Atom',i6,'(',a,') finished')") iatm,a_org(iatm)%name
+                else if (itype==3) then !Hirshfeld-I based on refined atomic radial density
+nthreads=getNThreads()
+!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+                    do ipt=1+iradcut*sphpot,radpot*sphpot
+                        tmpdens(ipt)=fdens_rad(jatm,allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt))
+                    end do
+!$OMP end parallel do
+                end if
+                promol=promol+tmpdens
+                if (jatm==iatm) selfdens=tmpdens
+            end do
+            do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
+                if (promol(i)/=0D0) then
+                    allpotw(iatm,i)=selfdens(i)/promol(i)
+                else
+                    allpotw(iatm,i)=0D0
+                end if
+            end do
+            allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
+            write(*,"(' Atom',i6,'(',a,') finished')") iatm,a(iatm)%name
         end do
-        write(*,*) "Generating Hirshfeld weight..."
+        
+    else if (itype==1.and.ihirshmode==2) then !Hirshfeld based on atomic .wfn file
+        call setpromol
         do iatm=1,ncenter_org
+            promol=0D0
+            do jatm=1,ncenter_org
+                call dealloall
+                call readwfn(custommapname(jatm),1)
 nthreads=getNThreads()
-!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads(nthreads)
-            do i=1+iradcut*sphpot,radpot*sphpot
-                if (allpotw(iatm,i)/=0D0) allpotw(iatm,i)=calcatmdens(iatm,allpotx(iatm,i),allpoty(iatm,i),allpotz(iatm,i),0)/allpotw(iatm,i)
-            end do
-!$OMP end parallel do
-            allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirsfheld weight with single-center integration weight
-        end do
-    else if (ihirshmode==2) then
-        if (ifirst==1) call setpromol !First time enter this routine
-        ifirst=0
-        write(*,*) "Generating promolecular density from atom densities..."
-        do iatm=1,ncenter !Firstly, store promolecular density to allpotw, now calc the part from atom: iatm
-            call dealloall
-            call readwfn(custommapname(iatm),1)
-nthreads=getNThreads()
-!$OMP parallel do shared(allpotw) private(jatm,i) num_threads(nthreads)
-            do jatm=1,ncenter_org !Cycle points of each atom, because current wfn file is atomic, so use _org
-                do i=1,iatmnumpot
-                    !For faster calculation, distant points are cut, however leads results weird in individual cases, so it is disabled
-        !             dist2=(allpotx(jatm,i)-a_org(iatm)%x)**2+(allpoty(jatm,i)-a_org(iatm)%y)**2+(allpotz(jatm,i)-a_org(iatm)%z)**2
-        !             if (a_org(iatm)%index<=18.and.dist2>(vdwr(a_org(iatm)%index)*4)**2) cycle
-                    allpotw(jatm,i)=allpotw(jatm,i)+fdens(allpotx(jatm,i),allpoty(jatm,i),allpotz(jatm,i))
+!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+                do ipt=1+iradcut*sphpot,radpot*sphpot
+                    tmpdens(ipt)=fdens(allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt))
                 end do
-            end do
 !$OMP end parallel do
+                promol=promol+tmpdens
+                if (jatm==iatm) selfdens=tmpdens
+            end do
+            do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
+                if (promol(i)/=0D0) then
+                    allpotw(iatm,i)=selfdens(i)/promol(i)
+                else
+                    allpotw(iatm,i)=0D0
+                end if
+            end do
+            allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
             write(*,"(' Atom',i6,'(',a,') finished')") iatm,a_org(iatm)%name
-        end do
-        write(*,*) "Generating Hirshfeld weight..."
-        do iatm=1,ncenter_org
-            call dealloall
-            call readwfn(custommapname(iatm),1)
-nthreads=getNThreads()
-!$OMP parallel do shared(allpotw) private(i) schedule(dynamic) num_threads(nthreads)
-            do i=1,iatmnumpot
-                if (allpotw(iatm,i)/=0.0D0) allpotw(iatm,i)=fdens(allpotx(iatm,i),allpoty(iatm,i),allpotz(iatm,i))/allpotw(iatm,i)
-            end do
-!$OMP end parallel do
-            allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirsfheld weight with single-center integration weight
         end do
         call dealloall
-        call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule)
+        call readinfile(firstfilename,1) !Retrieve the firstly loaded file(whole molecule) in order to calculate real rho later
     end if
 
-else if (itype==2) then
+else if (itype==2) then !Becke partition
     write(*,*) "Generating Becke weight..."
     do iatm=1,ncenter !Cycle points of each atom
         gridatm%x=gridorg%x+a(iatm)%x
@@ -590,6 +616,7 @@ else if (itype==2) then
         write(*,"(' Atom',i6,'(',a,') finished')") iatm,a_org(iatm)%name
     end do
 end if
+
 call walltime(iwalltime2)
 write(*,"(' Done! Initialization step took up wall clock time',i10,'s')") iwalltime2-iwalltime1
 write(*,*)

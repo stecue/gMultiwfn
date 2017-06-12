@@ -1017,7 +1017,6 @@ end do
 call walltime(walltime1)
 CALL CPU_TIME(time_begin)
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmprho) schedule(dynamic) NUM_THREADS(nthreads)
 do k=1,nz
     tmpz=zarr(k)
@@ -1278,13 +1277,13 @@ else if (noatmwfn==1) then !Some wfn needs to be genereated by Gaussian and sphe
             call loclabel(10,"Normal termination",igaunormal)
             close(10)
             if (igaunormal==0) then
-                write(*,"(a)") "Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder. Press ENTER to continue"
+                write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder. Press ENTER to continue"
                 pause
             else if (igaunormal==1) then
                 write(*,*) "Finished successfully!"
             end if
         else
-            write(*,"(a)") "Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder"
+            write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder"
             pause
         end if
     
@@ -1532,7 +1531,6 @@ implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFSmat(nsize)
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFSmat) PRIVATE(ides,iGTF,jGTF) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1548,7 +1546,6 @@ subroutine genSbas
 use defvar
 implicit real*8 (a-h,o-z)
 Sbas=0D0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Sbas) PRIVATE(i,ii,j,jj) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
@@ -1673,7 +1670,6 @@ implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFdipmat(3,nsize)
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFdipmat) PRIVATE(ides,iGTF,jGTF,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1692,7 +1688,6 @@ subroutine genDbas
 use defvar
 implicit real*8 (a-h,o-z)
 Dbas=0D0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Dbas) PRIVATE(i,ii,j,jj,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
@@ -1761,7 +1756,6 @@ integer nsize
 real*8 GTFdipmat(3,nsize)
 GTFdipmat=0D0
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFdipmat) PRIVATE(ides,iGTF,jGTF,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF+1,nprims !For iGTF=jGTF, the value must exactly zero, so don't calculate
@@ -1781,7 +1775,6 @@ subroutine genMagbas
 use defvar
 implicit real*8 (a-h,o-z)
 Magbas=0D0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Magbas) PRIVATE(i,ii,j,jj,xcomp,ycomp,zcomp) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
@@ -1840,7 +1833,6 @@ implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFVelmat(3,nsize)
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFVelmat) PRIVATE(ides,iGTF,jGTF,xtmp,ytmp,ztmp) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1860,7 +1852,6 @@ subroutine genVelbas
 use defvar
 implicit real*8 (a-h,o-z)
 Velbas=0D0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Velbas) PRIVATE(i,ii,j,jj,xcomp,ycomp,zcomp) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
@@ -1923,7 +1914,6 @@ implicit real*8 (a-h,o-z)
 integer nsize
 real*8 GTFTmat(nsize)
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(GTFTmat) PRIVATE(ides,iGTF,jGTF) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
     do jGTF=iGTF,nprims
@@ -1939,7 +1929,6 @@ subroutine genTbas
 use defvar
 implicit real*8 (a-h,o-z)
 Tbas=0D0
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(Tbas) PRIVATE(i,ii,j,jj) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,nbasis
@@ -2521,7 +2510,11 @@ if (allocated(MOocc)) deallocate(MOocc)
 if (allocated(MOsym)) deallocate(MOsym)
 if (allocated(MOene)) deallocate(MOene)
 if (allocated(MOtype)) deallocate(MOtype)
-if (allocated(b_EDF)) deallocate(CO_EDF,b_EDF)
+if (allocated(b_EDF)) then
+    deallocate(CO_EDF,b_EDF)
+    nEDFprims=0
+    nEDFelec=0
+end if
 !Loaded file contains basis information
 if (allocated(shtype)) deallocate(shtype,shcen,shcon,primshexp,primshcoeff,&
 basshell,bascen,bastype,basstart,basend,primstart,primend,primconnorm)
@@ -2558,7 +2551,6 @@ do iatm=1,ncenter_org !Calc free atomic density of each atom, get promolecular d
         call dealloall
         call readwfn(custommapname(iatm),1)
     end if
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz,tmpval) shared(planemat) schedule(dynamic) NUM_THREADS(nthreads)
     do i=1,ngridnum1 !First calculate promolecular density and store it to planemat
@@ -2609,7 +2601,6 @@ planeprodens=0D0
 planemat=0D0
 !Calculate molecular density in the plane and store it to planedens
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planedens) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,ngridnum1
     do j=1,ngridnum2
@@ -2623,7 +2614,6 @@ end do
 do jatm=1,ncenter_org !Calculate promolecular density in the plane and store it to planeprodens
     call dealloall
     call readwfn(custommapname(jatm),1)
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planeprodens) schedule(dynamic) NUM_THREADS(nthreads)
     do i=1,ngridnum1
@@ -2640,7 +2630,6 @@ end do
 do jatm=1,ncenter_org !Cycle each atom, calculate its contribution in the plane
     call dealloall
     call readwfn(custommapname(jatm),1)
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz,rho0A,rhoA,tmpval) shared(planemat) schedule(dynamic) NUM_THREADS(nthreads)
     do i=1,ngridnum1
@@ -2683,7 +2672,6 @@ do iatm=1,ncenter_org
         call dealloall
         call readwfn(custommapname(iatm),1)
     end if
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(cubmat,cubmattmp,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmpval) schedule(dynamic) NUM_THREADS(nthreads)
     do k=1,nz !First calculate promolecular density and store it to cubmat
@@ -2742,7 +2730,6 @@ ifinish=0
 iprogstp=20
 iprogcrit=iprogstp
 write(*,*) "Calculating..."
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(sphavgval,radpos,ifinish,iprogcrit) PRIVATE(irad,radx,radr,isph,rnowx,rnowy,rnowz,tmpval) schedule(dynamic) NUM_THREADS(nthreads)
 do irad=1,nradpt

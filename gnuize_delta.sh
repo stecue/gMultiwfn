@@ -20,9 +20,14 @@ do
 nthreads=getNThreads()' "${srcF}"
     sed -i -e '/^..OMP parallel.*nthreads/i\
 nthreads=getNThreads()' "${srcF}"
+    sed -i -e 's/\(^ *write.*\)nthreads/\1 getNThreads()/' "${srcF}"
     sed -i -e 's/\([^=]\)==\.false\./\1.eqv. .false./g' "${srcF}"
     sed -i -e 's/\([^=]\)==\.true\./\1.eqv. .true./g' "${srcF}"
     sed -i -e 's/^\(.*call KMP_SET_STACKSIZE_S.*\)/!\1/' "${srcF}"
+#Change inquire(directory) to file
+    sed -i -e 's#inquire.directory=\(.\)\([0-9a-zA-Z]*\)\(.\)#inquire(file=\1./\2/.\3#g' "${srcF}"
+#    uniq "${srcF}" > "${srcF}.1"
+#    mv "${srcF}.1" "${srcF}"
     # Delete the unsupported domaingui for otherfunction2.f90
     sed -i -e  '/call drawdomaingui/d' "${srcF}"
 done

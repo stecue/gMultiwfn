@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-Jun-3"
+write(*,*) "Version 3.4(dev), release date: 2017-Jun-10"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -142,6 +142,7 @@ end if
 
 write(*,"(/,3a)") " Loaded ",trim(filename)," successfully!"
 ! call sys1eprop !Show some system 1e properties, only works when Cartesian basis functions are presented
+
 
 
 !!!--------------------- Now everything start ---------------------!!!
@@ -1161,7 +1162,6 @@ else if (infuncsel1==4) then
         ncustommap=0
     else
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(nthreads)
         do i=1,ngridnum1
             do j=1,ngridnum2
@@ -1625,7 +1625,6 @@ nthreads=getNThreads()
                     idrawplanevdwctr=1
                     write(*,*) "Please wait..."
 nthreads=getNThreads()
-nthreads=getNThreads()
 !$OMP PARALLEL DO private(ipt,jpt,rnowx,rnowy,rnowz) shared(planemattmp) schedule(dynamic) NUM_THREADS(nthreads)
                     do ipt=0,ngridnum1-1
                         do jpt=0,ngridnum2-1
@@ -1760,7 +1759,6 @@ nthreads=getNThreads()
                             write(*,"(' Found',i8,' (3,-1) CPs in the plane')") nple3n1path
                             allocate(ple3n1path(3,n3n1plept,2,nple3n1path))
                             write(*,*) "Generating interbasin paths from (3,-1) CPs, Please wait..."
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(numcp) PRIVATE(icp) schedule(dynamic) NUM_THREADS(nthreads)
                             do icp=1,numcp
@@ -1916,7 +1914,6 @@ else if (infuncsel1==5) then
         CALL CPU_TIME(time_begin)
         if (ipromol==1) goto 509 !Calculate promolecular property, so skip the first time calculation (namely for the whole system)
     508 continue
-nthreads=getNThreads()
 nthreads=getNThreads()
 !$OMP PARALLEL DO SHARED(extpt) PRIVATE(iextpt) schedule(dynamic) NUM_THREADS(nthreads)
         do iextpt=1,numextpt !Calculate function value
@@ -2612,11 +2609,10 @@ else if (infuncsel1==200) then
         end if
         write(*,*)
     end do
-        
+
+
 else if (infuncsel1==98) then
     call sphatmraddens
-! else if (infuncsel1==99) then
-!     call AIMbasinint
 
 
 !!!---------------------------------------
@@ -2634,6 +2630,7 @@ else if (infuncsel1==1000) then
     end if
     write(*,"(a,1PD18.8)") " 5 Set global temporary variable, current:",globaltmp
     write(*,"(a,i3)") " 10 Set the number of threads, current:", getNThreads()
+    write(*,*) "99 Show EDF information (if any)"
     write(*,*) "100 Check the sanity of present wavefunction"
     read(*,*) i
     if (i==1) then
@@ -2675,6 +2672,21 @@ else if (infuncsel1==1000) then
         write(*,*) "Input an integer, e.g. 8"
         read(*,*) iniNThreads
         write(*,*) "Done!"
+    else if (i==99) then
+        if (.not.allocated(b_EDF)) then
+            write(*,*) "EDF field was not loaded"
+        else
+            write(*,"( ' The number of inner-core electrons represented by EDF:',i6)") nEDFelec
+            write(*,*) "Information of EDF primitives:"
+            write(*,*) "Column 1: Index"
+            write(*,*) "Column 2: Atom"
+            write(*,*) "Column 3: Function type"
+            write(*,*) "Column 4: Exponent"
+            write(*,*) "Column 5: Coefficient"
+            do iEDFprim=1,nEDFprims
+                write(*,"(3i6,2f20.8)") iEDFprim,b_EDF(iEDFprim)%center,b_EDF(iEDFprim)%functype,b_EDF(iEDFprim)%exp,CO_EDF(iEDFprim)
+            end do
+        end if
     else if (i==100) then
         call wfnsanity
     end if
