@@ -33,7 +33,7 @@ src/Multiwfn
 Multiwfn
 Multiwfn.01
 Multiwfn.02
-settings.ini
+#settings.ini
 gMultiwfn-*/
 gMultiwfn-*gz
 vdiff/
