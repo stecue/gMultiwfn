@@ -6,7 +6,8 @@ ifwrong=`( unzip -l ${LATEST} > /dev/null ) 2>&1 |wc -l`
 while [ $ifwrong -gt 0 ]
 do
     echo $ifwrong
-    wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.4(dev)_src_Linux.zip' -O $LATEST
+    wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.4_src_Linux.zip' -O $LATEST
+#    wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.4(dev)_src_Linux.zip' -O $LATEST
     ifwrong=`( unzip -l ${LATEST} > /dev/null ) 2>&1 |wc -l`
 done
 md5 () {

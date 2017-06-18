@@ -20,6 +20,7 @@ find . -name '* *' -print0|xargs -0 rm -f
 clean_noGUI
 sed -i -e 's/grep/grep -a/g' noGUI.sh
 sh noGUI.sh && mv noGUI ../src_old
+rm ../src_old/Makefile
 popd && mv Multi*src_Linux src_full_old
 ../gnuize_delta.sh src_old
 pushd .
@@ -38,6 +39,7 @@ find . -name '* *' -print0|xargs -0 rm -f
 clean_noGUI
 sed -i -e 's/grep/grep -a/g' noGUI.sh
 sh noGUI.sh && mv noGUI ../src_new
+rm ../src_new/Makefile
 popd && mv Multi*src_Linux src_full_new
 ../gnuize_delta.sh src_new
 diff -uNr src_old src_new > src_update.diff

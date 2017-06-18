@@ -11,7 +11,7 @@ integer,parameter :: num2Dpoints=200 !The number of points constituting the X-ax
 real*8 :: curvexpos(num1Dpoints),TDOScurve(num1Dpoints),OPDOScurve(num1Dpoints),PDOScurve(num1Dpoints,nfragmax),LDOScurve(num1Dpoints)
 real*8 :: LDOSxpos(num2Dpoints)
 !All ?DOSliney share DOSlinex(:) as X axis
-real*8,allocatable :: str(:),FWHM(:),DOSlinex(:),TDOSliney(:),PDOSliney(:,:),OPDOSliney(:),LDOSliney(:)
+real*8,allocatable :: DOSlinex(:),TDOSliney(:),PDOSliney(:,:),OPDOSliney(:),LDOSliney(:)
 real*8,allocatable :: compfrag(:,:) !i,k element is the MPA composition of fragment k in MO i
 real*8,allocatable :: OPfrag12(:) !Overlap population between fragment 1 and 2
 real*8,allocatable :: LDOScomp(:) !Composition at a point of each orbital
@@ -30,6 +30,9 @@ character(len=80), dimension(nfragmax) :: PDOSstring = [character(len=80):: "PDO
                  "PDOS frag.5","PDOS frag.6","PDOS frag.7","PDOS frag.8","PDOS frag.9","PDOS frag.10"]
 integer :: ishowPDOSline(nfragmax),ishowPDOScurve(nfragmax)
 integer :: iclrPDOS(nfragmax)=(/ 1,3,10,14,12,9,13,11,6,7 /)
+
+if (allocated(FWHM)) deallocate(FWHM) !Global array
+if (allocated(str)) deallocate(str) !Global array
 defFWHM=0.05D0 !Default FWHM
 ipopmethod=1 !The method calculated OPDOS, =1 Mulliken, =3 SCPA, stout-politzer is too bad so don't consider it
 ibroadfunc=2 !Default is Gaussian function
@@ -135,7 +138,7 @@ else if (allocated(CObasa)) then
 else
     write(*,*) "Error: Your input file does not contain basis function information!"
     write(*,*) "Press ENTER to return"
-    pause
+    read(*,*)
     return
 end if
 
@@ -663,7 +666,7 @@ nthreads=getNThreads()
             else if (isel==10) then
             end if
 
-            if (isavepic==1) write(*,*) "Graph file has been saved to current folder with ""DISLIN"" prefix"
+            if (isavepic==1) write(*,*) "Graphic file has been saved to current folder with ""DISLIN"" prefix"
         end if
         idraw=0
 
@@ -880,7 +883,7 @@ nthreads=getNThreads()
         else if (isel==10) then !LDOS in 1D
             write(*,*) "0 Return"
             write(*,*) "1 Show graph again"
-            write(*,*) "2 Save the picture to current folder"
+            write(*,*) "2 Save graphical file of the DOS map in current folder"
             write(*,*) "3 Export curve data to plain text file in current folder"
             if (ishowLDOSline==1) write(*,*) "6 Toggle showing LDOS line, current: Yes"
             if (ishowLDOSline==0) write(*,*) "6 Toggle showing LDOS line, current: No"

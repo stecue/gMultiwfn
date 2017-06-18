@@ -2066,12 +2066,12 @@ do iatm=1,ncenter
             if (igaunormal==0) then
                 write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in atmrad folder"
                 write(*,*) "Press ENTER to continue"
-                pause
+                read(*,*)
             end if
         else
             write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in atmrad folder"
             write(*,*) "Press ENTER to continue"
-            pause
+            read(*,*)
         end if
     end do
 end do
@@ -2091,7 +2091,7 @@ do iatm=1,ncenter
         if (alive.eqv. .false.) then
             write(*,"(' Error: ',a,' was not found!')") trim(c80tmp)//".wfn"
             write(*,*) "If you want to skip, press ENTER directly"
-            pause
+            read(*,*)
             cycle
         end if
         write(*,"(' Converting ',a,' to ',a)") trim(c80tmp)//".wfn",trim(c80tmp)//".rad"

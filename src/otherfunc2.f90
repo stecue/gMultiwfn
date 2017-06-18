@@ -1374,7 +1374,7 @@ if (isel==1.or.isel==3.or.isel==5) then
 !         write(ides,form) ' Polarizability anisotropy (definition 2):',alphaani2
 !         write(ides,form) " Magnitude of first hyperpolarizability:",dsqrt(betaX**2+betaY**2+betaZ**2)
 !         write(ides,form) " Beta ||     :",betaprj/5D0*3D0
-!         pause
+!         read(*,*)
         
     else if (irdfreq==1) then !Frequency-dependent hyperpolarizability, only available for HF/DFT/semi-empirical
         write(*,*) "Loading which type of hyperpolarizability?"
@@ -2875,7 +2875,7 @@ write(*,*) "Citation of FCD method: J. Chem. Phys., 117, 5607 (2002)"
                 write(*,"(a)") " Warning: To use GMH method, you should set ""igenDbas"" in settings.ini to 1, &
                 and then restart Multiwfn, so that dipole moment integral matrix could be generated when loading file"
                 write(*,"(a)") " Alternatively, now you can press ENTER to reload input file and meantime generate dipole moment integral matrix"
-                pause
+                read(*,*)
                 call dealloall
                 write(*,*) "Reloading input file..."
                 igenDbas=1
@@ -3250,9 +3250,15 @@ real*8,pointer :: Cmat(:,:)
 real*8,allocatable :: FmatA(:,:),FmatB(:,:),FLMOA(:,:),FLMOB(:,:)
 character c200tmp*200,typestr*4
 if (wfntype==2.or.wfntype==3.or.wfntype==4) then
-write(*,*) "Error: This function only works for restricted or unrestricted SCF wavefunction!"
+    write(*,*) "Error: This function only works for restricted or unrestricted SCF wavefunction!"
     write(*,*) "Press ENTER to return"
-    pause
+    read(*,*)
+    return
+end if
+if (.not.allocated(CObasa)) then
+    write(*,*) "Error: Basis function information was not provided by your input file!"
+    write(*,*) "Press ENTER to return"
+    read(*,*)
     return
 end if
 
@@ -3395,7 +3401,7 @@ nthreads=getNThreads()
                 Cmat(:,imo)=arrayi
                 Cmat(:,jmo)=arrayj
     !             write(*,*) imo,jmo,gamma,Aval,Bval
-    !             pause
+    !             read(*,*)
             end do
         end do
         Pval=0
@@ -3497,7 +3503,7 @@ if (idoene==1) then
 !         !Regenerated Fock matrix in LMO, since they have been sorted
 !         FLMOA=matmul(matmul(transpose(CObasa),FmatA),CObasa)
 !         call showmatgau(FLMOA)
-!         pause
+!         read(*,*)
 !         coeff=2
 !         do iocc=1,naelec
 !             do ivir=naelec+1,nbasis
@@ -3641,7 +3647,7 @@ do while(.true.)
             if (ixtmp<1.or.ixtmp>nx.or.iytmp<1.or.iytmp>ny.or.iztmp<1.or.iztmp>nz) then
                 write(*,"(a)") " Error: Some domains may be truncated! You should enlarge extension size or completely re-defined grid to avoid this circumstance!"
                 write(*,*) "Press Enter to exit"
-                pause
+                read(*,*)
                 return
             end if
             if (grididx(ix,iy,iz)<grididx(ixtmp,iytmp,iztmp)) then
@@ -3659,7 +3665,7 @@ end do
 !         iz=dogrid(itmp,3)
 !         write(*,*) itmp,grididx(ix,iy,iz)
 !     end do
-!     pause
+!     read(*,*)
 ndone=0
 ndomain=0
 do while(.true.)

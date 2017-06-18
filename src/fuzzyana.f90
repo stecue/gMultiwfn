@@ -865,7 +865,7 @@ end if
         if (any(MOocc<0)) then
             write(*,"(a)") " Warning: Some occupation numbers are negative. In order to make the calculation viable, now they have been set to zero"
             where(MOocc<0) MOocc=0
-            pause
+            read(*,*)
         end if
         DI=0D0
         do iatm=1,ncenter

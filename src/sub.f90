@@ -202,7 +202,7 @@ do while(.true.)
                 write(*,"(a)") " Error: Electric dipole moment integral matrix has not been calculated, please set ""igenDbas"" &
                 in settings.ini to 1, so that this matrix can be generated when loading input file"
                 write(*,*) "Press Enter to skip"
-                pause
+                read(*,*)
                 cycle
             end if
         else if (imattype==3) then
@@ -217,14 +217,14 @@ do while(.true.)
                 write(*,"(a)") " Error: Magnetic dipole moment integral matrix has not been calculated, please set ""igenMagbas"" &
                 in settings.ini to 1, so that this matrix can be generated when loading input file"
                 write(*,*) "Press Enter to skip"
-                pause
+                read(*,*)
                 cycle
             end if
         else if (imattype==4.or.imattype==5) then
             if (isphergau==1) then !If you want, you can generate the matrix and perform Cartesian->spherical transformation at file loading stage for Velbas
                 write(*,"(a)") " Error: Spherical-harmonic type of basis functions are found. This function only works when all basis functions are Cartesian type!"
                 write(*,*) "Press Enter to skip"
-                pause
+                read(*,*)
                 cycle
             end if
             if (imattype==4) then
@@ -1200,7 +1200,7 @@ do i=1,nfragatmnum
                 write(*,"(a,a,a)") " Error: Multiwfn can't invoke Gaussian to generate wavefunction file and sphericalize density for ",a(fragatm(i))%name,", since its &
                 index is larger than 36! You should provide corresponding atom .wfn files in ""atomwfn"" folder manually"
                 write(*,*) "Press ENTER to continue"
-                pause
+                read(*,*)
                 return
             end if
         end if
@@ -1278,13 +1278,13 @@ else if (noatmwfn==1) then !Some wfn needs to be genereated by Gaussian and sphe
             close(10)
             if (igaunormal==0) then
                 write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder. Press ENTER to continue"
-                pause
+                read(*,*)
             else if (igaunormal==1) then
                 write(*,*) "Finished successfully!"
             end if
         else
             write(*,"(a)") " Gaussian running may be failed! Please manually check Gaussian input and output files in wfntmp folder"
-            pause
+            read(*,*)
         end if
     
         !Load and sphericalize electron density for the just generated wfn, and then save

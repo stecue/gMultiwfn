@@ -2,7 +2,7 @@
 # Written by Xing (stecue@gmail) to do some "porting" work for gMultiwfn.
 srcDir=$1
 dos2unix ${srcDir}/*F
-for srcF in ${srcDir}/*f90
+for srcF in ${srcDir}/*f90 ${srcDir}/*F
 do
 ##Fix tab using blanks
     dos2unix "${srcF}"
@@ -13,7 +13,8 @@ do
 #        ntab=`grep -P '^ *\t' "${srcF}"|wc -l`
 #    done
     sed -i -e 's/\t/    /g' "${srcF}"
-    sed -i -e 's/\(^ *\)read *(\*,\*)\( *\)$/\1pause\2/g' "${srcF}"
+    sed -i -e 's/pause/read(*,*)/g' "${srcF}"
+#    sed -i -e 's/\(^ *\)read *(\*,\*)\( *\)$/\1pause\2/g' "${srcF}"
 #Note that following will add too many "getNThreads". It should only work for _delta_ update!
     sed -i -e 's/^[\t ]*\!\$/!$/' "${srcF}"
     sed -i -e '/^..OMP PARALLEL.*nthreads/i\

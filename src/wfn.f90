@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4(dev), release date: 2017-Jun-10"
+write(*,*) "Version 3.4, release date: 2017-Jun-13"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -42,7 +42,7 @@ write(*,*)
 if (trim(filename)=="") then !Haven't defined filename variable
     call mylover(lovername)
     write(*,"(a,a,a)") " Input file path, for example E:\",trim(lovername),".wfn"
-    write(*,*) "(Supported types: .wfn/.wfx/.fch/.31/.chg/.pdb/.xyz/.cub/.grd/.molden, etc.)"
+    write(*,*) "(Supported types: .wfn/.wfx/.fch/.molden/.31/.chg/.pdb/.xyz/.cub/.grd, etc.)"
     write(*,"(a)") " Hint: To reload the file last time used, simply input the letter ""o"". Input such as ?miku.fch can open miku.fch in the same folder of the file last time used"
     do while(.true.)
         read(*,"(a)") filename
@@ -89,7 +89,7 @@ else
     inquire(file=filename,exist=alive)
     if (alive.eqv..false.) then
         write(*,*) "File not found, exit program..."
-        pause
+        read(*,*)
         stop
     end if
 end if
@@ -2014,7 +2014,7 @@ nthreads=getNThreads()
             write(*,*) "Done, the results have been outputted to stericforce.txt in current folder"
             write(*,"(a)") " Columns 1,2,3 correspond to X,Y,Z coordinates, 4,5,6 correspond to steric force component in X,Y,Z. The last column denotes magnitude of steric force"
             write(*,*)
-            pause
+            read(*,*)
         else !Common cases
             cubmat=0D0
             icustom=0

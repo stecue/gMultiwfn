@@ -3223,7 +3223,7 @@ if (wfntype==0.or.wfntype==3) then !Close-shell
 else !Open-shell
     DFTxcpot=DFTxcpot_open(x,y,z)
     write(*,*) "XC potential for open-shell has not been supported yet!"
-    pause
+    read(*,*)
 end if
 end function
 

@@ -385,7 +385,7 @@ do while(.true.)
                         if (numcandi>nlencandi) then
                             write(*,"(a)") " Error: Candidate orbital list is overflow! You may need to increase variable ""nlencandi"" in AdNDP.f90 or properly tight up occupation threshold"
                             write(*,*) "Press ENTER to continue"
-                            pause
+                            read(*,*)
                             deallocate(DMNAOblk,orbeigval,orbeigvec)
                             numcandi=numcandi-1
                             exit cyccomb

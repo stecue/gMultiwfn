@@ -27,7 +27,7 @@ if (iselfunc1==0.and.iselfunc2==0) then !Directly load grid data
     call readcubetmp(c200tmp,inconsis)
     if (inconsis==1) then
         write(*,"(a)") " Error: The grid setting of this cube file is inconsistent with that of present grid data, exit..."
-        pause
+        read(*,*)
         return
     end if
 else
@@ -1142,8 +1142,9 @@ use function
 use util
 implicit real*8 (a-h,o-z)
 real*8 intval,intvalold,funcval1(radpot*sphpot),funcval2(radpot*sphpot),beckeweigrid(radpot*sphpot)
+real*8 funcval1all(radpot*sphpot,ncenter) !For reuse data
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
-character*200 filename2
+character*200 filename2,reusename*200
 
 write(*,*) "Select the function to be integrated over the whole space"
 call funclist
@@ -1156,6 +1157,20 @@ write(*,"(a)") " Input density cutoff (e.g. 0.5), if electron density of the fir
 larger than this value, then corresponding integration grid will be ignored"
 write(*,*) "If you don't want to enable this feature, input 0"
 read(*,*) denscut
+
+ireuse=0
+write(reusename,"(a,'_',i3.3,'_',i4.4,'_',i4.4)") trim(firstfilename),ifunc,radpot,sphpot
+inquire(file=reusename,exist=alive)
+if (alive) then
+    write(*,"(' Note: Data of reference system retrieved from ',a,' will be used')") trim(reusename)
+    ireuse=1
+    open(10,file=reusename,status="old")
+    do iatm=1,ncenter
+        read(10,*)
+        read(10,*) funcval1all(:,iatm)
+    end do
+    close(10)
+end if
 
 write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
 call gen1cintgrid(gridatmorg,iradcut)
@@ -1170,16 +1185,20 @@ do iatm=1,ncenter
     gridatm%y=gridatmorg%y+a(iatm)%y
     gridatm%z=gridatmorg%z+a(iatm)%z
     
-    !Calculate data for wfn1
+    if (ireuse==0) then !Calculate data for wfn1
 nthreads=getNThreads()
 !$OMP parallel do shared(funcval1) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
-    do i=1+iradcut*sphpot,radpot*sphpot
-        rnowx=gridatm(i)%x
-        rnowy=gridatm(i)%y
-        rnowz=gridatm(i)%z
-        funcval1(i)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
-    end do
+        do i=1+iradcut*sphpot,radpot*sphpot
+            rnowx=gridatm(i)%x
+            rnowy=gridatm(i)%y
+            rnowz=gridatm(i)%z
+            funcval1(i)=calcfuncall(ifunc,rnowx,rnowy,rnowz)
+        end do
 !$OMP end parallel do
+        funcval1all(:,iatm)=funcval1
+    else !Reuse data of wfn1 from external file
+        funcval1=funcval1all(:,iatm)
+    end if
     
     !Calculate data for wfn2
     call dealloall
@@ -1217,6 +1236,17 @@ CALL CPU_TIME(time_end)
 call walltime(iwalltime2)
 write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s',/)") time_end-time_begin,iwalltime2-iwalltime1
 write(*,"(' Final result:',f24.12)") intval
+
+!Write calculated wfn1 data to external file for reuse in the later calculation
+if (ireuse==0) then
+    open(10,file=reusename,status="replace")
+    do iatm=1,ncenter
+        write(10,*) iatm
+        write(10,*) funcval1all(:,iatm)
+    end do
+    close(10)
+    write(*,"(/,' Data of the firstly loaded file have been exported to ',a,' for possible later use')") trim(reusename)
+end if
 end subroutine
 
 

@@ -17575,7 +17575,7 @@ else if (iele==103) then  !Lr, 5f14 6d1 7s2, 0 2, B3LYP/SARC-DKH int=dkh2
 
 else
     write(*,"(' ERROR: The promolecular density for the element with index of',i4,' has not been supported yet!')") iele
-    pause
+    read(*,*)
 end if
 
 end subroutine
