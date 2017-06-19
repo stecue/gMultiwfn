@@ -1102,7 +1102,7 @@ use util
 implicit real*8 (a-h,o-z)
 real*8 dipole(3),poltens(3,3),hypoltens(3,3,3) !hypoltens2(3,3,3,3)
 real*8 eigvecmat(3,3),eigval(3),freqval(100000)
-character c200tmp*200,sepchar,c210tmp*310
+character c200tmp*200,sepchar,c210tmp*210
 character*20 :: form,formau="(a,f16.6)",formother="(a,1PE16.6)"
 integer :: irdfreq=0,ides=6,iunit=1
 poltens=0D0
@@ -1254,7 +1254,13 @@ else if (isel==6) then !Find result from archive part
     do iend=istart+1,210
         if (c210tmp(iend:iend)=="|".or.c200tmp(iend:iend)=="\") exit
     end do
-    c210tmp(1:istart+6)=" " !Clean other information so that the data can be read in free format
+    if (istart <= 204) then
+        c210tmp(1:istart+6)=" " !Clean other information so that the data can be read in free format
+    else
+        c210tmp(1:210)=" " !Clean other information so that the data can be read in free format
+        !0 is usually stderr
+        write(0,*) "Wrong input! Please double check your Gaussian polar output!"
+    endif
     c210tmp(iend:)=" "
     read(c210tmp,*) poltens(1,1),poltens(2,1),poltens(2,2),poltens(3,1),poltens(3,2),poltens(3,3)
 end if
