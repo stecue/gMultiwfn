@@ -1,0 +1,4 @@
+examples\spectra\weighted\a.out 0.6046
+examples\spectra\weighted\b.out 0.1950
+examples\spectra\weighted\c.out 0.1686
+examples\spectra\weighted\d.out 0.0317
