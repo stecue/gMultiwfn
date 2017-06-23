@@ -1248,7 +1248,7 @@ else if (isel==6) then !Find result from archive part
         backspace(10)
         backspace(10)
     end do
-    do istart=1,210
+    do istart=1,204
         if (c210tmp(istart:istart+6)==sepchar//"Polar=") exit
     end do
     do iend=istart+1,210

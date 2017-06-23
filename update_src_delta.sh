@@ -54,7 +54,7 @@ fi
 #apply the patch
 cd src
 patch -p1 --no-backup-if-mismatch < ../$dirdiff/src_update.diff
-patch --no-backup-if-mismatch < population.patch
+#patch --no-backup-if-mismatch < population.patch
 cd .. #we are in $dirdiff
 # rename .zip #should be down manually
 #mv current_src.zip previous_src.zip

@@ -711,6 +711,9 @@ if (iuserfunc==83) userfunc=hamkin(x,y,z,3) !Z component of Hamiltonian kinetic 
 if (iuserfunc==84) userfunc=Lagkin(x,y,z,1) !X component of Lagrangian kinetic energy density
 if (iuserfunc==85) userfunc=Lagkin(x,y,z,2) !Y component of Lagrangian kinetic energy density
 if (iuserfunc==86) userfunc=Lagkin(x,y,z,3) !Z component of Lagrangian kinetic energy density
+if (iuserfunc==87) userfunc=localcorr(x,y,z,1) !Local total electron correlation function
+if (iuserfunc==88) userfunc=localcorr(x,y,z,2) !Local dynamic electron correlation function
+if (iuserfunc==89) userfunc=localcorr(x,y,z,3) !Local nondynamic electron correlation function
 if (iuserfunc==100) userfunc=fdens(x,y,z)**2 !Disequilibrium (also known as semi-similarity), DOI: 10.1002/qua.24510
 if (iuserfunc==101) then !Positive part of ESP
     userfunc=totesp(x,y,z)
@@ -3706,6 +3709,59 @@ end do
 Ang_rhoeigvec_ple=vecang(eigvecmat(1,i),eigvecmat(2,i),eigvecmat(3,i),pleA,pleB,pleC)
 end function
 
+
+!!------ Local electron correlation function (DOI: 10.1021/acs.jctc.7b00293)
+!itype=1: Local total electron correlation function
+!itype=2: Local dynamic electron correlation function
+!itype=3: Local nondynamic electron correlation function
+real*8 function localcorr(x,y,z,itype)
+integer itype
+real*8 x,y,z,wfnval(nmo),occ(nmo)
+call orbderv(1,1,nmo,x,y,z,wfnval)
+localcorr=0D0
+if (wfntype==3) then
+    occ=MOocc/2
+    where(occ>1) occ=1 !Remove unphysical larger than unity occupation number
+    where(occ<0) occ=0 !Remove unphysical negative occupation number
+    if (itype==1) then
+        do i=1,nmo
+            localcorr=localcorr+ dsqrt(occ(i)*(1-occ(i)))*wfnval(i)**2
+        end do
+        localcorr=localcorr/4
+    else if (itype==2) then
+        do i=1,nmo
+            localcorr=localcorr+ ( dsqrt(occ(i)*(1-occ(i))) - 2*occ(i)*(1-occ(i)) ) *wfnval(i)**2
+        end do
+        localcorr=localcorr/4
+    else if (itype==3) then
+        do i=1,nmo
+            localcorr=localcorr+ occ(i)*(1-occ(i))*wfnval(i)**2
+        end do
+        localcorr=localcorr/2
+    end if
+    localcorr=localcorr*2
+else if (wfntype==4) then
+    occ=MOocc
+    where(occ>1) occ=1
+    where(occ<0) occ=0
+    if (itype==1) then
+        do i=1,nmo
+            localcorr=localcorr+ dsqrt(occ(i)*(1-occ(i)))*wfnval(i)**2
+        end do
+        localcorr=localcorr/4
+    else if (itype==2) then
+        do i=1,nmo
+            localcorr=localcorr+ ( dsqrt(occ(i)*(1-occ(i))) - 2*occ(i)*(1-occ(i)) ) *wfnval(i)**2
+        end do
+        localcorr=localcorr/4
+    else if (itype==3) then
+        do i=1,nmo
+            localcorr=localcorr+ occ(i)*(1-occ(i))*wfnval(i)**2
+        end do
+        localcorr=localcorr/2
+    end if
+end if
+end function
 
 
 end module

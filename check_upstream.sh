@@ -6,7 +6,7 @@ ifwrong=`( unzip -l ${LATEST} > /dev/null ) 2>&1 |wc -l`
 while [ $ifwrong -gt 0 ]
 do
     echo $ifwrong
-    wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.4_src_Linux.zip' -O $LATEST
+    wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.4.1(dev)_src_Linux.zip' -O $LATEST
 #    wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.4(dev)_src_Linux.zip' -O $LATEST
     ifwrong=`( unzip -l ${LATEST} > /dev/null ) 2>&1 |wc -l`
 done
@@ -19,4 +19,9 @@ then
     echo "Noting to do..."
 else
     echo "You need to update the build."
+    wget 'http://sobereva.com/multiwfn/misc/Manual_3.4.1(dev).pdf' -O doc/Manual_dev.pdf &
+    wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.4.1(dev)_bin_Linux.zip' -O examples.zip
+    unzip examples.zip
+    cp -r Multi*/examples/* examples/
+    rm -r Multi*
 fi

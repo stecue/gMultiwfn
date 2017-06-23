@@ -1146,21 +1146,34 @@ end function
 !Return ifound=1 if found the label, else return 0
 !Default is rewind, if irewind=0 then will not rewind
 !If the current line just has the label, calling this subroutine will do nothing
-subroutine loclabel(fileid,label,ifound,irewind)
+!maxline define the maximum number of lines that will be searched, default is search the whole file
+subroutine loclabel(fileid,label,ifound,irewind,maxline)
 integer fileid,ierror
-integer,optional :: ifound,irewind
+integer,optional :: ifound,irewind,maxline
 character*200 c200
 CHARACTER(LEN=*) label
 if ((.not.present(irewind)).or.(present(irewind).and.irewind==1)) rewind(fileid)
-do while(.true.)
-    read(fileid,"(a)",iostat=ierror) c200
-    if (index(c200,label)/=0) then
-        backspace(fileid)
-        if (present(ifound)) ifound=1 !Found result
-        return
-    end if
-    if (ierror/=0) exit
-end do
+if (.not.present(maxline)) then
+    do while(.true.)
+        read(fileid,"(a)",iostat=ierror) c200
+        if (index(c200,label)/=0) then
+            backspace(fileid)
+            if (present(ifound)) ifound=1 !Found result
+            return
+        end if
+        if (ierror/=0) exit
+    end do
+else
+    do iline=1,maxline
+        read(fileid,"(a)",iostat=ierror) c200
+        if (index(c200,label)/=0) then
+            backspace(fileid)
+            if (present(ifound)) ifound=1 !Found result
+            return
+        end if
+        if (ierror/=0) exit
+    end do
+end if
 if (present(ifound)) ifound=0
 end subroutine
 

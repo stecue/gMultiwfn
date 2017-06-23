@@ -387,7 +387,7 @@ do while(.true.)
                 forall(itmp=1:numdata) tmparr(itmp)=itmp
             end if
             write(*,"(i6,' frequencies are selected')") nmode
-            write(*,*) "Multiplying the frequencies by which factor?  e.g. 0.9614 (suitable for B3LYP/6-31G*)"
+            write(*,"(a)") " Multiplying the frequencies by which factor?  e.g. 0.9614 (suitable for B3LYP/6-31G*)"
             read(*,*) tmpval
             do idx=1,nmode
                 dataxall(:,tmparr(idx))=dataxall(:,tmparr(idx))*tmpval
