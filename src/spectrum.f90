@@ -422,6 +422,7 @@ do while(.true.)
         write(*,*) "Input temperature in K (Input 0 means ignoring the boltzmann term)"
         read(*,*) temper
         Cfac=1D-12
+        write(*,"(' Note: C factor of',1PD16.8,' is used')") Cfac
         do imol=1,nsystem
             do i=1,numdata
                 vi=dataxall(imol,i)
@@ -459,18 +460,18 @@ do while(.true.)
     if (isel==0.or.isel==1.or.isel==2.or.isel==15.or.isel==16) then
         !====== Construct correspondence array if outputting individual bands. Only available when one file is loaded
         if (isel==15) then
-            write(*,"(a)") " Input criterion of strength, e.g. 0.2, the contribution of the bands having strength larger than this value will be outputted"
+            write(*,"(a)") " Input criterion of strength, e.g. 0.2, the contribution of the transitions whose absolute value of strength larger than this value will be outputted"
             read(*,*) critindband
             numindband=0 !The number of individual bands satisfying criterion
             do idata=1,numdata
-                if (strall(1,idata)>=critindband) numindband=numindband+1
+                if (abs(strall(1,idata))>=critindband) numindband=numindband+1
             end do
             allocate(indband2idx(numindband),idx2indband(numdata),indcurve(num1Dpoints,numindband))
             indcurve=0D0
             itmp=0
             idx2indband=0
             do idata=1,numdata
-                if (strall(1,idata)<critindband) cycle
+                if (abs(strall(1,idata))<critindband) cycle
                 itmp=itmp+1
                 indband2idx(itmp)=idata !Map index of outputted bands (indband) to actual index of all transitions (idx)
                 idx2indband(idata)=itmp !If not =0, the contribution from i band will be stored to idx2indband(i) slot of indcurve array
@@ -851,22 +852,24 @@ else
                     read(10,"(a)") c200tmp
                     itmp=index(c200tmp,"NFrqRd=")
                     read(c200tmp(itmp+7:),*) nrdfreq
-                    allocate(rdfreq(nrdfreq))
-                    do itmp=0,nrdfreq,5
-                        nleft=nrdfreq-itmp
-                        read(10,"(a)") c200tmp
-                        if (nleft>5) then
-                            read(c200tmp(14:),*) rdfreq(itmp+1:itmp+5)
-                        else
-                            read(c200tmp(14:),*) rdfreq(itmp+1:nrdfreq)
-                        end if
-                    end do
-                    write(*,*) "This is a pre-resonance Raman calculation, external field frequencies (a.u.):"
-                    do itmp=1,nrdfreq
-                        write(*,"(i5,':',f16.8)") itmp,rdfreq(itmp)
-                    end do
-                    write(*,*) "Load data for which frequency? Input its index, e.g. 3"
-                    read(*,*) irdfreq
+                    if (nrdfreq>0) then
+                        allocate(rdfreq(nrdfreq))
+                        do itmp=0,nrdfreq,5
+                            nleft=nrdfreq-itmp
+                            read(10,"(a)") c200tmp
+                            if (nleft>5) then
+                                read(c200tmp(14:),*) rdfreq(itmp+1:itmp+5)
+                            else
+                                read(c200tmp(14:),*) rdfreq(itmp+1:nrdfreq)
+                            end if
+                        end do
+                        write(*,*) "This is a pre-resonance Raman calculation, external field frequencies (a.u.):"
+                        do itmp=1,nrdfreq
+                            write(*,"(i5,':',f16.8)") itmp,rdfreq(itmp)
+                        end do
+                        write(*,*) "Load data for which frequency? Input its index, e.g. 3"
+                        read(*,*) irdfreq
+                    end if
                 end if
                 rewind(10)
             end if
@@ -936,10 +939,37 @@ else
             if (ispectrum==1) then
                 call loclabel(10,"Anharmonic Infrared Spectroscopy",ifound,0)
                 if (ifound==1) then
-                    write(*,"(a)") " Note: Found anharmonic frequencies, if load them instead of harmonic frequencies? (y/n)"
+                    write(*,"(a)") " Note: Found anharmonic IR information, if load them instead of the harmonic ones? (y/n)"
                     read(*,*) ctest
                     if (ctest=='y'.or.ctest=='Y') then
-                        call loclabel(10,"Mode(Quanta)",ifound,0)
+                        call loclabel(10,"Mode(",ifound,0)
+                        read(10,*)
+                        do itmp=1,numdata
+                            read(10,*) c200tmp,rnouse,datax(itmp),rnouse,str(itmp)
+                        end do
+                    end if
+                end if
+            else if (ispectrum==2) then
+                call loclabel(10,"Anharmonic Raman Spectroscopy",ifound,0)
+                if (ifound==1) then
+                    write(*,"(a)") " Note: Found anharmonic Raman information, if load them instead of the harmonic ones? (y/n)"
+                    read(*,*) ctest
+                    if (ctest=='y'.or.ctest=='Y') then
+                        call loclabel(10,"Mode(",ifound,0)
+                        read(10,*)
+                        do itmp=1,numdata
+                            read(10,*) c200tmp,harmfreq,datax(itmp),harmact,str(itmp)
+                            str(itmp)=0.059320323D0*harmfreq*str(itmp) !The conversion coefficient can be found in output file
+                        end do
+                    end if
+                end if
+            else if (ispectrum==5) then
+                call loclabel(10,"Anharmonic VCD Spectroscopy",ifound,0)
+                if (ifound==1) then
+                    write(*,"(a)") " Note: Found anharmonic VCD information, if load them instead of the harmonic ones? (y/n)"
+                    read(*,*) ctest
+                    if (ctest=='y'.or.ctest=='Y') then
+                        call loclabel(10,"Mode(",ifound,0)
                         read(10,*)
                         do itmp=1,numdata
                             read(10,*) c200tmp,rnouse,datax(itmp),rnouse,str(itmp)

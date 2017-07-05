@@ -28,7 +28,7 @@ do while(.true.)
     if (allocated(b)) write(*,*) "8 Calculate atom and fragment contributions by Hirshfeld method"
     if (allocated(b)) write(*,*) "9 Calculate atom and fragment contributions by Becke method"
     if (allocated(b)) write(*,*) "10 Calculate atom and fragment contributions by Hirshfeld-I method"
-    write(*,*) "100 Evaluate oxidation state by LOBA method"
+    if (allocated(CObasa)) write(*,*) "100 Evaluate oxidation state by LOBA method"
     read(*,*) icompana
 
     if (icompana==-10) then
