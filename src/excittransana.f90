@@ -1,6 +1,5 @@
 !!------- Analyze or visualize hole-electron distribution, transition dipole moment and transition density
 !ROHF,RODFT are assumed to be impossible to be ground state
-!IOp(9/40=4) or IOp(9/40=5) is recommended to use
 !itype=1 is normal mode
 !itype=2 is specifically used to calculate delta_r
 !itype=3 is specifically used to generate NTOs 
@@ -34,8 +33,6 @@ real*8,allocatable :: exccoeff2(:)
 real*8,allocatable :: cubx(:),cuby(:),cubz(:)
 ! real*8 eigvecmat(nbasis,nbasis),eigvalarr(nbasis)
 
-! excitfilename="examples\N-phenylpyrrole_ext.out"
-! excitfilename="C:\gtest\acrolein.out"
 
 if (.not.allocated(CObasa)) then
     write(*,*) "Error: The input file does not contain basis function information!"
@@ -46,7 +43,7 @@ if (.not.allocated(CObasa)) then
 end if
 
 if (excitfilename==" ") then
-    write(*,"(a)") " Input the path of the Gaussian output file or plain text file containing excitation data, e.g. c:\a.out"
+    write(*,"(a)") " Input the path of the Gaussian/ORCA output file or plain text file containing excitation data, e.g. c:\a.out"
     do while(.true.)
         read(*,"(a)") excitfilename
         inquire(file=excitfilename,exist=alive)
@@ -57,8 +54,8 @@ else
     write(*,"(' Loading ',a)") trim(excitfilename)
 end if
 open(10,file=excitfilename,status="old")
-call loclabel(10,"Gaussian",igauout,maxline=100)
-call loclabel(10,"O   R   C   A",iORCAout,maxline=100)
+call loclabel(10,"Gaussian",igauout,maxline=50)
+call loclabel(10,"O   R   C   A",iORCAout,maxline=50)
 if (igauout==1) then !Gaussian output file
     call loclabel(10,"Excitation energies and oscillator strengths:")
     read(10,*)
@@ -94,7 +91,7 @@ if (igauout==1) then !Gaussian output file
 else if (iORCAout==1) then !ORCA output file
     call loclabel(10,"Number of roots to be determined",ifound)
     if (ifound==0) then
-        write(*,*) "Error: It seems that this is not a output file of CIS/TDA task"
+        write(*,*) "Error: It seems that this is not a output file of CIS/TDA/TD task"
         write(*,*) "Press Enter to exit"
         read(*,*)
         return
@@ -158,20 +155,23 @@ write(*,"(a,i8,a)") " There are",nexcitorb," orbital pairs in this transition mo
 !Load transition detail. Notice that for unrestricted case, A and B are separately recorded in input file, &
 !however after loading, they are combined as single index, namely if orbital index is larger than nbasis, then it is B, else A
 if (iORCAout==1) then
+    !Worthnotingly, in at least ORCA 4.0, de-excitation is not separately outputted as <-, but combined into ->
+    !Here we still determine <-, because hopefully Neese may change the convention of ORCA output in the future...
     do itmp=1,nexcitorb
         read(10,"(a)") c80tmp
-        excdir(itmp)=1 !means ->
+        excdir(itmp)=-1
+        if (index(c80tmp,'->')/=0) excdir(itmp)=1 !means ->
         if (index(c80tmp,'<-')/=0) excdir(itmp)=2 !means <-
-        do isign=1,80 !Find position of <- or ->
-            if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
-        end do
-        write(*,*) trim(c80tmp)
-        if (index(c80tmp,"c=")==0) then
-            write(*,"(a)") " Error: This output file does not correspond to a CIS or TDA task (maybe a TDDFT task?), the configuration coefficients cannot be found!"
+        if (excdir(itmp)==-1) then
+            write(*,"(a)") " Error: This output file does not correspond to a CIS or TD or TDA task, configuration information cannot be found!"
             write(*,*) "Press Enter to exit"
             read(*,*)
             return
         end if
+!         write(*,*) trim(c80tmp)
+        do isign=1,80 !Find position of <- or ->
+            if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
+        end do
         !Process left side of <- or ->
         read(c80tmp(:isign-1),"(a)") leftstr
         read(leftstr(:len_trim(leftstr)-1),*) orbleft(itmp)
@@ -182,7 +182,20 @@ if (iORCAout==1) then
         read(rightstr(:len_trim(rightstr)-1),*) orbright(itmp)
         orbright(itmp)=orbright(itmp)+1
         if (index(rightstr,'b')/=0) orbright(itmp)=orbright(itmp)+nbasis
-        read(c80tmp(36:47),*) exccoeff(itmp)
+        if (index(c80tmp,'c=')/=0) then !CIS, TDA task, configuration coefficients are presented
+            read(c80tmp(36:47),*) exccoeff(itmp)
+        else !TD task, configuration coefficients are not presented. Contribution of i->a and i<-a are summed up and outputted as i->a
+            if (itmp==1) then
+                write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print corresponding contributions of each orbital pair, &
+                in this case Multiwfn determines configuration coefficients simply as square root of contribution values. However, this treatment is &
+                evidently inappropriate and the result is nonsense when de-excitation is significant (In this situation you have to use TDA-DFT instead)"
+                write(*,*) "If you really want to proceed, press ENTER to continue"
+                read(*,*)
+            end if
+            read(c80tmp(23:32),*) tmpval
+            if (tmpval<0) excdir(itmp)=2 !Negative contribution is assumed to be de-excitation (of course this is not strict since -> and <- have been combined together)
+            exccoeff(itmp)=dsqrt(abs(tmpval))
+        end if
         !Although for closed-shell ground state, ORCA still outputs coefficients as normalization to 100%, &
         !However, in order to follow the Gaussian convention, we change the coefficient as normalization to 50%
         if (wfntype==0.or.wfntype==3) exccoeff(itmp)=exccoeff(itmp)/dsqrt(2D0)
@@ -1697,6 +1710,8 @@ end subroutine
 
 
 !!---------- Calculate all transition dipole moments between all excited states
+!Note that this function cannot borrow the code in hetransdipdens for loading data, because this function &
+!need transition information of all states as well as excitation energies
 subroutine exctransdip
 use defvar
 use util
@@ -1719,7 +1734,8 @@ real*8 tdvec(3),grounddip(3),tmpvec(3)
 
 ! excitfilename="c:\gtest\acetic_acid.out"
 if (excitfilename==" ") then
-    write(*,"(a)") " Input the path of the Gaussian output file or plain text file, e.g. c:\a.out"
+    write(*,*) " Input the path of the Gaussian/ORCA output file or plain text file"
+    write(*,*) "e.g. c:\lovelive\sunshine\yosoro.out"
     do while(.true.)
         read(*,"(a)") excitfilename
         inquire(file=excitfilename,exist=alive)
@@ -1730,32 +1746,50 @@ else
     write(*,"(' Loading ',a)") trim(excitfilename)
 end if
 open(10,file=excitfilename,status="old")
-call loclabel(10,"Gaussian",igauout)
+call loclabel(10,"Gaussian",igauout,maxline=50)
+call loclabel(10,"O   R   C   A",iORCAout,maxline=50)
 rewind(10)
 
-!Determine the number of excited states
-if (igauout==1) call loclabel(10,"Excitation energies and oscillator strengths:")
+!Determine the number of excited states, so that proper size of arrays can be allocated
 nstates=0
-do while(.true.)
-    call loclabel(10,"Excited State",ifound,0)
-    if (ifound==1) then
-        nstates=nstates+1
-        read(10,*)
-    else
-        exit
-    end if
-end do
-write(*,"(/,' There are',i5,' transitions, loading...')") nstates
+if (igauout==1) then !Gaussian output file
+    write(*,*) "This is a Gaussian output file"
+    call loclabel(10,"Excitation energies and oscillator strengths:")
+    do while(.true.)
+        call loclabel(10,"Excited State",ifound,0)
+        if (ifound==1) then
+            nstates=nstates+1
+            read(10,*)
+        else
+            exit
+        end if
+    end do
+else if (iORCAout==1) then !ORCA output file
+    write(*,*) "This is a ORCA output file"
+    call loclabel(10,"Number of roots to be determined",ifound)
+    read(10,"(50x,i7)") nstates
+else !Plain text file
+    do while(.true.)
+        call loclabel(10,"Excited State",ifound,0)
+        if (ifound==1) then
+            read(10,*)
+            nstates=nstates+1
+        else
+            exit
+        end if
+    end do
+end if
+write(*,"(' There are',i5,' transitions, loading...')") nstates
+
 allocate(excenergy(nstates),excmulti(nstates),nexcitorb(nstates),tdvecmat(3,nstates,nstates))
 nexcitorb=0
 
 !Load excitation energy, multiplicity, the number of MO pairs of each excited state
-if (igauout==1) then
+if (igauout==1) then !Gaussian output file
     call loclabel(10,"Excitation energies and oscillator strengths:")
     do iexc=1,nstates
         call loclabel(10,"Excited State",ifound,0)
         read(10,"(a)") transmodestr
-!         write(*,*) transmodestr
         excmulti(iexc)=0 !Multiplicity of the excited state
         if (index(transmodestr,"Singlet")/=0) excmulti(iexc)=1
         if (index(transmodestr,"Triplet")/=0) excmulti(iexc)=3
@@ -1766,7 +1800,38 @@ if (igauout==1) then
         !Count how many orbital pairs are involved in this transition mode
         do while(.true.)
             read(10,"(a)",iostat=ierror) c80tmp
-            if ((index(c80tmp,'<-')==0.and.index(c80tmp,'->')==0).or.ierror/=0) exit
+            if (index(c80tmp,'<-')==0.and.index(c80tmp,'->')==0) exit
+            nexcitorb(iexc)=nexcitorb(iexc)+1
+        end do
+    end do
+else if (iORCAout==1) then !ORCA output file
+    excmulti=1 !Multiplicity of all excited states are assumed to be singlet
+    if (wfntype==0.or.wfntype==3) then
+        call loclabel(10,"Generation of triplets")
+        read(10,"(a)") c80tmp
+        if (index(c80tmp," on ")/=0) then
+            write(*,*) "Load which kind of excited states?"
+            write(*,*) "1: Singlet   3: Triplet"
+            read(*,*) iexcmulti
+            excmulti=iexcmulti
+        end if
+    end if
+    call loclabel(10,"the weight of the individual excitations are printed")
+    if (iexcmulti==3) then !When triplets=on, ORCA calculate both singlet and triplet excited state, now move to the latter
+        read(10,*)
+        call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
+    end if
+    do iexc=1,nstates
+        call loclabel(10,"STATE",ifound,0)
+        read(10,"(a)") transmodestr
+        do i=10,70
+            if (transmodestr(i:i+1)=="eV") exit
+        end do
+        read(transmodestr(i-10:i-1),*) excenergy(iexc)
+        !Count how many orbital pairs are involved in this transition mode
+        do while(.true.)
+            read(10,"(a)",iostat=ierror) c80tmp
+            if (index(c80tmp,'<-')==0.and.index(c80tmp,'->')==0) exit
             nexcitorb(iexc)=nexcitorb(iexc)+1
         end do
     end do
@@ -1784,52 +1849,107 @@ else
     end do
 end if
 maxpair=maxval(nexcitorb)
+
 allocate(excdir(maxpair,nstates),orbleft(maxpair,nstates),orbright(maxpair,nstates),exccoeff(maxpair,nstates))
 
 !Load MO transition coefficients and direction
 if (igauout==1) then
     call loclabel(10,"Excitation energies and oscillator strengths:")
+else if (iORCAout==1) then
+    call loclabel(10,"the weight of the individual excitations are printed")
+    if (iexcmulti==3) then !When triplets=on, ORCA calculate both singlet and triplet excited state, now move to the latter
+        read(10,*)
+        call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
+    end if
 else
     rewind(10)
 end if
-do iexc=1,nstates
-    call loclabel(10,"Excited State",ifound,0)
-    read(10,*)
-    do itmp=1,nexcitorb(iexc)
-        read(10,"(a)") c80tmp
-        excdir(itmp,iexc)=1 !means ->
-        if (index(c80tmp,'<-')/=0) excdir(itmp,iexc)=2 !means <-
-        do isign=1,80 !Find position of <- or ->
-            if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
-        end do
-        !Process left side of <- or ->
-        read(c80tmp(:isign-1),"(a)") leftstr
-        ilefttype=0 !close
-        if (index(leftstr,'A')/=0) ilefttype=1 !Alpha
-        if (index(leftstr,'B')/=0) ilefttype=2 !Beta
-        if (ilefttype==0) then
-            read(leftstr,*) orbleft(itmp,iexc)
-        else
-            read(leftstr(:len_trim(leftstr)-1),*) orbleft(itmp,iexc)
-            if (ilefttype==2) orbleft(itmp,iexc)=orbleft(itmp,iexc)+nbasis
-        end if
-        !Process right side of <- or ->
-        read(c80tmp(isign+2:),"(a)") rightstr
-        irighttype=0 !close
-        if (index(rightstr,'A')/=0) irighttype=1 !Alpha
-        if (index(rightstr,'B')/=0) irighttype=2 !Beta
-        if (irighttype==0) then
-            read(rightstr,*) orbright(itmp,iexc),exccoeff(itmp,iexc)
-        else
-            do isplit=1,80
-                if (rightstr(isplit:isplit)=='A'.or.rightstr(isplit:isplit)=='B') exit
+!Notice that for unrestricted case, A and B are separately recorded in input file, &
+!however after loading, they are combined as single index, namely if orbital index is larger than nbasis, then it is B, else A
+if (iORCAout==1) then !ORCA output file
+    !Worthnotingly, in at least ORCA 4.0, de-excitation is not separately outputted as <-, but combined into ->
+    !Here we still determine <-, because hopefully Neese may change the convention of ORCA output in the future...
+    do iexc=1,nstates
+        call loclabel(10,"STATE",ifound,0)
+        read(10,*)
+        do itmp=1,nexcitorb(iexc)
+            read(10,"(a)") c80tmp
+            excdir(itmp,iexc)=-1
+            if (index(c80tmp,'->')/=0) excdir(itmp,iexc)=1 !means ->
+            if (index(c80tmp,'<-')/=0) excdir(itmp,iexc)=2 !means <-
+!              write(*,*) trim(c80tmp)
+            do isign=1,80 !Find position of <- or ->
+                if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
             end do
-            read(rightstr(:isplit-1),*) orbright(itmp,iexc)
-            read(rightstr(isplit+1:),*) exccoeff(itmp,iexc)
-            if (irighttype==2) orbright(itmp,iexc)=orbright(itmp,iexc)+nbasis
-        end if
+            !Process left side of <- or ->
+            read(c80tmp(:isign-1),"(a)") leftstr
+            read(leftstr(:len_trim(leftstr)-1),*) orbleft(itmp,iexc)
+            orbleft(itmp,iexc)=orbleft(itmp,iexc)+1 !ORCA counts orbital from 0 rather than 1!!!
+            if (index(leftstr,'b')/=0) orbleft(itmp,iexc)=orbleft(itmp,iexc)+nbasis
+            !Process right side of <- or ->
+            read(c80tmp(isign+2:),*) rightstr
+            read(rightstr(:len_trim(rightstr)-1),*) orbright(itmp,iexc)
+            orbright(itmp,iexc)=orbright(itmp,iexc)+1
+            if (index(rightstr,'b')/=0) orbright(itmp,iexc)=orbright(itmp,iexc)+nbasis
+            if (index(c80tmp,'c=')/=0) then !CIS, TDA task, configuration coefficients are presented
+                read(c80tmp(36:47),*) exccoeff(itmp,iexc)
+            else !TD task, configuration coefficients are not presented. Contribution of i->a and i<-a are summed up and outputted as i->a
+                if (iexc==1.and.itmp==1) then
+                    write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print corresponding contributions of each orbital pair, &
+                    in this case Multiwfn determines configuration coefficients simply as square root of contribution values. However, this treatment is &
+                    evidently inappropriate and the result is nonsense when de-excitation is significant (In this situation you have to use TDA-DFT instead)"
+                    write(*,*) "If you really want to proceed, press ENTER to continue"
+                    read(*,*)
+                end if
+                read(c80tmp(23:32),*) tmpval
+                if (tmpval<0) excdir(itmp,iexc)=2 !Negative contribution is assumed to be de-excitation (of course this is not strict since -> and <- have been combined together)
+                exccoeff(itmp,iexc)=dsqrt(abs(tmpval))
+            end if
+            !Although for closed-shell ground state, ORCA still outputs coefficients as normalization to 100%, &
+            !However, in order to follow the Gaussian convention, we change the coefficient as normalization to 50%
+            if (wfntype==0.or.wfntype==3) exccoeff(itmp,iexc)=exccoeff(itmp,iexc)/dsqrt(2D0)
+        end do
     end do
-end do
+else !Gaussian output or plain text file
+    do iexc=1,nstates
+        call loclabel(10,"Excited State",ifound,0)
+        read(10,*)
+        do itmp=1,nexcitorb(iexc)
+            read(10,"(a)") c80tmp
+            excdir(itmp,iexc)=1 !means ->
+            if (index(c80tmp,'<-')/=0) excdir(itmp,iexc)=2 !means <-
+            do isign=1,80 !Find position of <- or ->
+                if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
+            end do
+            !Process left side of <- or ->
+            read(c80tmp(:isign-1),"(a)") leftstr
+            ilefttype=0 !close
+            if (index(leftstr,'A')/=0) ilefttype=1 !Alpha
+            if (index(leftstr,'B')/=0) ilefttype=2 !Beta
+            if (ilefttype==0) then
+                read(leftstr,*) orbleft(itmp,iexc)
+            else
+                read(leftstr(:len_trim(leftstr)-1),*) orbleft(itmp,iexc)
+                if (ilefttype==2) orbleft(itmp,iexc)=orbleft(itmp,iexc)+nbasis
+            end if
+            !Process right side of <- or ->
+            read(c80tmp(isign+2:),"(a)") rightstr
+            irighttype=0 !close
+            if (index(rightstr,'A')/=0) irighttype=1 !Alpha
+            if (index(rightstr,'B')/=0) irighttype=2 !Beta
+            if (irighttype==0) then
+                read(rightstr,*) orbright(itmp,iexc),exccoeff(itmp,iexc)
+            else
+                do isplit=1,80
+                    if (rightstr(isplit:isplit)=='A'.or.rightstr(isplit:isplit)=='B') exit
+                end do
+                read(rightstr(:isplit-1),*) orbright(itmp,iexc)
+                read(rightstr(isplit+1:),*) exccoeff(itmp,iexc)
+                if (irighttype==2) orbright(itmp,iexc)=orbright(itmp,iexc)+nbasis
+            end if
+        end do
+    end do
+end if
 close(10)
 
 !Test sum of square of the coefficients

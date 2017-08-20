@@ -1053,7 +1053,7 @@ end do
 !$OMP END PARALLEL DO
 CALL CPU_TIME(time_end)
 call walltime(walltime2)
-if (infomode==0.and.functype/=12.and.isys==1) write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,walltime2-walltime1
+if (infomode==0.and.functype/=12) write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,walltime2-walltime1
 if (functype==12) call espcub
 end subroutine
 
@@ -2838,9 +2838,138 @@ end do
 !$OMP end parallel do
 end subroutine
 
-!!-------- Randomly generate the name of Sobereva's lover
+
+
+!!------ Generate natural orbitals based on the density matrix loaded from .fch file
+subroutine gennatorb
+use util
+use defvar
+implicit real*8 (a-h,o-z)
+real*8,allocatable :: tmparr(:)
+real*8 Xmat(nbasis,nbasis)
+character selectyn
+
+open(10,file=filename,status="old")
+call loclabel(10,"Total SCF Density",ifoundDM)
+if (ifoundDM==1) then
+    Ptot=0D0
+    write(*,*) "Loading density matrix..."
+    if (wfntype==0.or.wfntype==3) then
+        read(10,*)
+        read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
+        ptot=ptot+transpose(ptot)
+        do i=1,nbasis
+            ptot(i,i)=ptot(i,i)/2D0
+        end do
+    else if (wfntype==1.or.wfntype==4) then
+        Palpha=0D0
+        Pbeta=0D0
+        read(10,*)
+        read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
+        read(10,*)
+        read(10,"(5(1PE16.8))") ((Palpha(i,j),j=1,i),i=1,nbasis) !Read spin density matrix, use Palpha as temporary slot
+        Pbeta=(Ptot-Palpha)/2
+        Palpha=(Ptot+Palpha)/2D0
+        ptot=ptot+transpose(ptot)
+        Palpha=Palpha+transpose(Palpha)
+        Pbeta=Pbeta+transpose(Pbeta)
+        do i=1,nbasis
+            ptot(i,i)=ptot(i,i)/2D0
+            Palpha(i,i)=Palpha(i,i)/2D0
+            Pbeta(i,i)=Pbeta(i,i)/2D0
+        end do
+!         write(*,*) sum(sbas*Palpha),sum(sbas*Pbeta),sum(sbas*Ptot)
+    end if
+    write(*,*) "Density matrix was loaded from .fch file"
+else
+    write(*,*) "Unable to find density matrix!"
+end if
+close(10)
+
+!To produce natural orbitals, we need to convert P to orthogonalized basis and then diagonalize it
+allocate(tmparr(nbasis))
+selectyn='n'
+if (.not.(wfntype==0.or.wfntype==3)) then
+    write(*,*) "Do you like to generate UNO orbitals? (y/n)"
+    read(*,*) selectyn
+end if
+if ((wfntype==0.or.wfntype==3).or.selectyn=='y') then
+    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
+    call diagsymat(matmul(matmul(transpose(Xmat),Ptot),Xmat),CObasa,MOocc,ierror)
+    MOene=0
+    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
+    CObasa=matmul(Xmat,CObasa) !Convert CObasa to original basis, as what we did in HF calculation
+    do i=1,nbasis
+        do j=i+1,nbasis
+            if (MOocc(i)<MOocc(j)) then
+                tmpocc=MOocc(i)
+                MOocc(i)=MOocc(j)
+                MOocc(j)=tmpocc
+                tmparr=CObasa(:,i)
+                CObasa(:,i)=CObasa(:,j)
+                CObasa(:,j)=tmparr
+            end if
+        end do
+    end do
+    write(*,*) "Natural orbital occupation numbers:"
+    write(*,"(8f9.4)") MOocc(1:nbasis)
+    wfntype=3
+else
+    write(*,*) "Alpha part:"
+    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
+    call diagsymat(matmul(matmul(transpose(Xmat),Palpha),Xmat),CObasa,MOocc(1:nbasis),ierror)
+    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
+    CObasa=matmul(Xmat,CObasa) !Convert CObasa to original basis, as what we did in HF calculation
+    MOene(1:nbasis)=0
+    do i=1,nbasis
+        do j=i+1,nbasis
+            if (MOocc(i)<MOocc(j)) then
+                tmpocc=MOocc(i)
+                MOocc(i)=MOocc(j)
+                MOocc(j)=tmpocc
+                tmparr=CObasa(:,i)
+                CObasa(:,i)=CObasa(:,j)
+                CObasa(:,j)=tmparr
+            end if
+        end do
+    end do
+    write(*,*) "Alpha natural orbital occupation numbers:"
+    write(*,"(8f9.4)") MOocc(1:nbasis)
+    write(*,*)
+    write(*,*) "Beta part:"
+    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
+    call diagsymat(matmul(matmul(transpose(Xmat),Pbeta),Xmat),CObasb,MOocc(nbasis+1:nmo),ierror)
+    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
+    CObasb=matmul(Xmat,CObasb)
+    MOene(nbasis+1:nmo)=0
+    do i=1,nbasis
+        ii=i+nbasis
+        do j=i+1,nbasis
+            jj=j+nbasis
+            if (MOocc(ii)<MOocc(jj)) then
+                tmpocc=MOocc(ii)
+                MOocc(ii)=MOocc(jj)
+                MOocc(jj)=tmpocc
+                tmparr=CObasb(:,i)
+                CObasb(:,i)=CObasb(:,j)
+                CObasb(:,j)=tmparr
+            end if
+        end do
+    end do
+    write(*,*) "Beta natural orbital occupation numbers:"
+    write(*,"(8f9.4)") MOocc(nbasis+1:nmo)
+    wfntype=4
+end if
+write(*,*) "Press ENTER to continue..."
+read(*,*)
+end subroutine
+
+
+
+
+!!-------- Randomly generate name of Sobereva's lover
 subroutine mylover(outname)
-integer,parameter :: nlovers=45
+integer,parameter :: nlovers=46
 character*80 lovername(nlovers),outname
 CALL RANDOM_SEED()
 CALL RANDOM_NUMBER(tmp)
@@ -2889,6 +3018,7 @@ lovername(42)="Hibike!_Euphonium\Reina_Kousaka"
 lovername(43)="Planetarian\Yumemi_Hoshino"
 lovername(44)="Lovelive_sunshine!!\Yoshiko_Tsushima"
 lovername(45)="Lovelive_sunshine!!\You_Watanabe"
+lovername(46)="Tiger_Mask_W\Miss_X"
 !Dear Kanan,
 !
 !You are the only one I deeply love forever in the real world,

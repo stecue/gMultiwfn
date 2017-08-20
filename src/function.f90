@@ -714,6 +714,12 @@ if (iuserfunc==86) userfunc=Lagkin(x,y,z,3) !Z component of Lagrangian kinetic e
 if (iuserfunc==87) userfunc=localcorr(x,y,z,1) !Local total electron correlation function
 if (iuserfunc==88) userfunc=localcorr(x,y,z,2) !Local dynamic electron correlation function
 if (iuserfunc==89) userfunc=localcorr(x,y,z,3) !Local nondynamic electron correlation function
+if (iuserfunc==90) then
+    tmpELF=ELF_LOL(x,y,z,"ELF")
+    userfunc=tmpELF*tmpELF*(x*x+y*y+z*z)
+else if (iuserfunc==91) then
+    userfunc=tmpELF*tmpELF
+end if
 if (iuserfunc==100) userfunc=fdens(x,y,z)**2 !Disequilibrium (also known as semi-similarity), DOI: 10.1002/qua.24510
 if (iuserfunc==101) then !Positive part of ESP
     userfunc=totesp(x,y,z)

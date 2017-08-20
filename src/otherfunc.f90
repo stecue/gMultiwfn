@@ -780,7 +780,7 @@ do while(.true.)
         write(*,*) "4 Redraw convergence trend of last specific number of steps"
         read(*,*) isel
         if (isel==4) then
-            write(*,"(a,i5)") "Input a number, between 1 and",ifincyc
+            write(*,"(a,i5)") " Input a number, between 1 and",ifincyc
             read(*,*) ishow
         else if (isel==2.and.ifincyc>=5) then
             ishow=5
@@ -790,8 +790,8 @@ do while(.true.)
     end if
     !Draw all points variation at first time get into this routine
     !I bracket filename with double quotation marks, otherwise if there have "+" in the filename then Multiwfn crash
-    if (isys==1) call system("copy "//""""//filename//""""//" gauout.out /y")
-    if (isys==2.or.isys==3) call system("cp "//""""//filename//""""//" gauout.out -f")
+    if (isys==1) call system("copy "//""""//trim(filename)//""""//" gauout.out /y")
+    if (isys==2.or.isys==3) call system("cp "//""""//trim(filename)//""""//" gauout.out -f")
     open(10,file="gauout.out",status="old")
     call loclabel(10," Quadratic Convergence",iscfqc)
 
@@ -814,6 +814,11 @@ do while(.true.)
             i=i+1
         end do
         ifincyc=i-1
+        if (ifincyc==0) then
+            write(*,*) "Error: Unable to find SCF convergence information! Did you use #P as requested?"
+            write(*,*) "Press ENTER to exit program"
+            stop
+        end if
         if (isel==1.or.itime==0) ishow=ifincyc !At the first time, draw all point
         istart=ifincyc-ishow+1
 
@@ -831,7 +836,7 @@ do while(.true.)
             end if
             write(*,"(i5,2x,2(1PD8.2,a5,2x),1PD9.2,a5)") i,RMSDP(i),RMSDPconv,MaxDP(i),MaxDPconv,DE(i),DEconv
         end do
-        write(*,"('Goal   ',2(1PD8.2,7x),1PD9.2)") aimRMSDP,aimMaxDP,aimDE
+        write(*,"(' Goal  ',2(1PD8.2,7x),1PD9.2)") aimRMSDP,aimMaxDP,aimDE
     else if (iscfqc==1) then  !For SCF=QC
         i=1
         DE(1)=0D0
@@ -863,6 +868,7 @@ do while(.true.)
     if (isys==2.or.isys==3) call system("rm gauout.out -f")
 
 !  CALL AXSSCL('ELOG','Y')
+    stepx=ceiling((ifincyc-stepnum(istart))/20D0)
     if (iscfqc==0) then
         !Draw RMSDP variation
         constant=aimRMSDP

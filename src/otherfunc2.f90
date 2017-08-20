@@ -1787,6 +1787,7 @@ else if (isel==2.or.isel==6.or.isel==16) then
         write(*,*)
     else if (isel==16) then
         write(*,*) "Input the file recording frequency list, e.g. C:\freqlist.txt"
+        write(*,"(a)") " The file should contain two columns, corresponding to frequency of w1 and w2 in a.u., respectively"
         do while(.true.)
             read(*,"(a)") c200tmp
             inquire(file=c200tmp,exist=alive)
@@ -1984,6 +1985,7 @@ else if (isel==3.or.isel==7.or.isel==17) then
         write(*,*)
     else if (isel==17) then
         write(*,*) "Input the file recording frequency list, e.g. C:\freqlist.txt"
+        write(*,"(a)") " The file should contain three columns, corresponding to frequency of w1, w2 and w3 in a.u., respectively"
         do while(.true.)
             read(*,"(a)") c200tmp
             inquire(file=c200tmp,exist=alive)

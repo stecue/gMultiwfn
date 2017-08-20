@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4.1(dev), release date: 2017-Jun-29"
+write(*,*) "Version 3.4.1(dev), release date: 2017-Aug-19"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -55,6 +55,7 @@ if (trim(filename)=="") then !Haven't defined filename variable
         !Remove the first and the last " or  'symbol, because directly dragging file into the window will result in " or ' symbol, which is unrecognized by Multwifn
         if (filename(1:1)=='"'.or.filename(1:1)=="'") filename(1:1)=" "
         if (filename(ltmp:ltmp)=='"'.or.filename(ltmp:ltmp)=="'") filename(ltmp:ltmp)=" "
+        filename=adjustl(filename)
         if (filename(1:1)=='?') then
             do itmp=len_trim(lastfile),1,-1
                 if (isys==1.and.lastfile(itmp:itmp)=='\') exit
@@ -118,11 +119,8 @@ forall (i=1:nfragatmnum) fragatmbackup(i)=i
 ifragcontri=0
 
 !!-- Call some routine only once
-if (ncenter>5000) then
-    write(*,"(a)") "Warning: There are too many atoms, the distance matrix cannot be generated! Some functions may not work properly"
-else
-    call gendistmat !Generate distance matrix
-end if
+if (ncenter>5000) write(*,"(a)") " Warning: There are very large number of many atoms, please wait very patiently for generating distance matrix..."
+call gendistmat !Generate distance matrix
 !Convert prebuild radii from Angstrom to Bohr. But some radii such as radii_hugo will remain unchanged since it is recorded as Bohr
 if (ifirstMultiwfn==1) then
     vdwr=vdwr/b2a
@@ -251,6 +249,12 @@ end if
 !!!---------------------------------------
 !1!!------------------- Show system structure and view isosurface of MOs or the grid data read from cube file
 if (infuncsel1==0) then !
+    if (.not.(allocated(a).or.allocated(cubmat))) then
+        write(*,*) "Error: Data needed by this function is not presented! Check your input flie!"
+        write(*,*) "Press ENTER to continue"
+        read(*,*)
+        cycle
+    end if
     if (ncenter>0) write(*,*) "Nucleus list:"
     do i=1,ncenter
         write(*,"(i5,'(',a2,')',' --> Charge:',f10.6,'  x,y,z(Bohr):',3f11.6)") i,a(i)%name,a(i)%charge,a(i)%x,a(i)%y,a(i)%z
@@ -2616,7 +2620,7 @@ else if (infuncsel1==98) then
 
 
 !!!---------------------------------------
-!1000!!------------------- Set special parameters
+!1000!!------------------- Special functions
 else if (infuncsel1==1000) then
 1000 write(*,*)
     write(*,*) "0 Return to main menu"
@@ -2630,6 +2634,7 @@ else if (infuncsel1==1000) then
     end if
     write(*,"(a,1PD18.8)") " 5 Set global temporary variable, current:",globaltmp
     write(*,"(a,i3)") " 10 Set the number of threads, current:", getNThreads()
+    write(*,*) "98 Generate natural orbitals based on density matrix in .fch/.fchk"
     write(*,*) "99 Show EDF information (if any)"
     write(*,*) "100 Check the sanity of present wavefunction"
     read(*,*) i
@@ -2672,6 +2677,8 @@ else if (infuncsel1==1000) then
         write(*,*) "Input an integer, e.g. 8"
         read(*,*) iniNThreads
         write(*,*) "Done!"
+    else if (i==98) then
+        call gennatorb
     else if (i==99) then
         if (.not.allocated(b_EDF)) then
             write(*,*) "EDF field was not loaded"
