@@ -721,7 +721,9 @@ do while(.true.)
         !Output discrete lines
         open(10,file="spectrum_line.txt",status="replace")
         do imol=1,nsystem
-            write(10,"(2f16.5)") linexall(imol,1:3*numdataall(imol)),lineyall(imol,1:3*numdataall(imol))
+            do ipt=1,3*numdataall(imol)
+                write(10,"(2f16.5)") linexall(imol,ipt),lineyall(imol,ipt)
+            end do
             write(10,*)
         end do
         close(10)
@@ -825,7 +827,7 @@ do while(.true.)
                     iclrtmp=2 
                 end if
                 if (weight(imol)==1D0) then
-                    write(c200tmp,"(i3,' ',a)") imol,trim(mollegend(imol))
+                    write(c200tmp,"(a)") trim(mollegend(imol))
                 else
                     write(c200tmp,"(i3,' (',f5.1,'%)')") imol,weight(imol)*100
                 end if

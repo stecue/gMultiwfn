@@ -4,7 +4,7 @@ use util
 use function
 use topo
 implicit real*8(a-h,o-z)
-character nowdate*20,nowtime*20,inpstring*80,c200tmp*200,c2000tmp*2000,outcubfile*200,selectyn,lovername*80,settingpath*200
+character nowdate*20,nowtime*20,inpstring*80,c200tmp*200,c200tmp2*200,c2000tmp*2000,outcubfile*200,selectyn,lovername*80,settingpath*200
 real*8 :: inx,iny,inz,tmpvec(3)
 integer :: iprintfunc=1 !The default function whose gradient and Hessian will be outputted at a point by main function 1
 integer,allocatable :: exclfragatm(:),tmparrint(:)
@@ -20,12 +20,12 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4.1(dev), release date: 2017-Aug-19"
+write(*,*) "Version 3.4.1(dev), release date: 2017-Sep-14"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
-write(*,*) "Multiwfn official forum (in Chinese): http://bbs.keinsci.com"
-write(*,*) "Bug reporting, question and suggestion, please contact: Sobereva@sina.com"
+write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
+write(*,*) "Multiwfn Chinese forum: http://bbs.keinsci.com"
 
 !!!!!!!!
 !if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOS version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
@@ -1059,11 +1059,11 @@ else if (infuncsel1==4) then
     end if
     
     write(*,*)
-    write(*,"(' X/Y/Z of origin of the plane:',3f10.5,' Bohr')") orgx2D,orgy2D,orgz2D
+    write(*,"(' X/Y/Z of origin of the plane: ',3f10.5,' Bohr')") orgx2D,orgy2D,orgz2D
     endx2D=orgx2D+v1x*(ngridnum1-1)+v2x*(ngridnum2-1)
     endy2D=orgy2D+v1y*(ngridnum1-1)+v2y*(ngridnum2-1)
     endz2D=orgz2D+v1z*(ngridnum1-1)+v2z*(ngridnum2-1)
-    write(*,"(' X/Y/Z of end of the plane:   ',3f10.5,' Bohr')") endx2D,endy2D,endz2D
+    write(*,"(' X/Y/Z of end of the plane:    ',3f10.5,' Bohr')") endx2D,endy2D,endz2D
     write(*,"(' X/Y/Z of translation vector 1:',3f10.5,' Bohr')") v1x,v1y,v1z
     write(*,"(' X/Y/Z of translation vector 2:',3f10.5,' Bohr')") v2x,v2y,v2z
     write(*,*)
@@ -1401,6 +1401,7 @@ nthreads=getNThreads()
         
         !! After show the plot once, ask user what to do next. 0 and negative options are general options
         write(*,*)
+!         write(*,*) "-11 Translate content of the graph" !For my personal use
 !         write(*,*) "-10 Multiply data by the data in a plane text file"
         if (iatmcontri==0) write(*,*) "-9 Only plot the data around certain atoms"
         if (iatmcontri==1) write(*,*) "-9 Recovery original plane data"
@@ -1482,7 +1483,46 @@ nthreads=getNThreads()
         read(*,*) i
         
         !Below are general options
-        if (i==-9) then
+        if (i==-11) then
+            write(*,*) "Input translate extent in X and Y of the plot, respectively in Bohr"
+            write(*,*) "e.g. 0.8,-0.2"
+            read(*,*) transd1,transd2
+            orgxnew=orgx2D-transd1*v1x/rnorm1-transd2*v2x/rnorm2
+            orgynew=orgy2D-transd1*v1y/rnorm1-transd2*v2y/rnorm2
+            orgznew=orgz2D-transd1*v1z/rnorm1-transd2*v2z/rnorm2
+            write(*,"(a)") " In next time of plot, you should use mode 6 to define the plotting plane with below parameters (in Bohr):"
+            write(*,"(' X/Y/Z of origin of the plane: ',3f10.5)") orgxnew,orgynew,orgznew
+            write(*,"(' X/Y/Z of translation vector 1:',3f10.5)") v1x,v1y,v1z
+            write(*,"(' X/Y/Z of translation vector 2:',3f10.5)") v2x,v2y,v2z
+        else if (i==-10) then !Load plane data in another plain text file and operate to current plane data, the plane settings must be identical
+            write(*,*) "Input file name, e.g. C:\plane.txt"
+            read(*,"(a)") c200tmp
+            write(*,*) "How many columns? (4 or 6. The data in the last column will be loaded)"
+            read(*,*) ncol
+            open(10,file=c200tmp,status="old")
+                do i=0,ngridnum1-1
+                    do j=0,ngridnum2-1
+                        if (ncol==4) then
+                            read(10,*) tmpv,tmpv,tmpv,planemattmp(i+1,j+1)
+                        else
+                            read(10,*) tmpv,tmpv,tmpv,tmpv,tmpv,planemattmp(i+1,j+1)
+                        end if
+                    end do
+                end do
+            close(10)
+            write(*,*) "Which operation? +,-,x,/"
+            read(*,*) c200tmp(1:1)
+            if (c200tmp(1:1)=="+") then
+                planemat=planemat+planemattmp
+            else if (c200tmp(1:1)=="-") then
+                planemat=planemat-planemattmp
+            else if (c200tmp(1:1)=="x") then
+                planemat=planemat*planemattmp
+            else if (c200tmp(1:1)=="/") then
+                planemat=planemat/planemattmp
+            end if
+            write(*,*) "Done!"
+        else if (i==-9) then
             if (iatmcontri==0) then
                 allocate(planemat_bk(ngridnum1,ngridnum2))
                 planemat_bk=planemat
@@ -1522,34 +1562,6 @@ nthreads=getNThreads()
             else if (ilenunit2D==2) then
                 ilenunit2D=1
             end if
-        else if (i==-10) then !Load plane data in another plain text file and operate to current plane data, the plane settings must be identical
-            write(*,*) "Input file name, e.g. C:\plane.txt"
-            read(*,"(a)") c200tmp
-            write(*,*) "How many columns? (4 or 6. The data in the last column will be loaded)"
-            read(*,*) ncol
-            open(10,file=c200tmp,status="old")
-                do i=0,ngridnum1-1
-                    do j=0,ngridnum2-1
-                        if (ncol==4) then
-                            read(10,*) tmpv,tmpv,tmpv,planemattmp(i+1,j+1)
-                        else
-                            read(10,*) tmpv,tmpv,tmpv,tmpv,tmpv,planemattmp(i+1,j+1)
-                        end if
-                    end do
-                end do
-            close(10)
-            write(*,*) "Which operation? +,-,x,/"
-            read(*,*) c200tmp(1:1)
-            if (c200tmp(1:1)=="+") then
-                planemat=planemat+planemattmp
-            else if (c200tmp(1:1)=="-") then
-                planemat=planemat-planemattmp
-            else if (c200tmp(1:1)=="x") then
-                planemat=planemat*planemattmp
-            else if (c200tmp(1:1)=="/") then
-                planemat=planemat/planemattmp
-            end if
-            write(*,*) "Done!"
         else if (i==-7) then        
             write(*,*) "Input a value, e.g. 0.3"
             read(*,*) scaleval
@@ -2319,7 +2331,8 @@ else if (infuncsel1==14) then
 !15!!------------------- Integrate fuzzy atomic space
 else if (infuncsel1==15) then
     call intatomspace(0)
-    
+else if (infuncsel1==-15) then
+    call fuzzySBL    
 
 !!!---------------------------------------
 !16!!------------------- Charge decomposition analysis
@@ -2349,6 +2362,7 @@ else if (infuncsel1==18) then
         write(*,*) "4 Calculate delta_r index to measure charge-transfer length (JCTC,9,3118)"
         write(*,*) "5 Calculate transition dipole moments between all excited states"
         write(*,*) "6 Generate natural transition orbitals (NTOs)"
+        write(*,*) "7 Calculate ghost-hunter index (JCC,38,2151)"
         
         read(*,*) isel
         if (isel==0) then
@@ -2364,11 +2378,19 @@ else if (infuncsel1==18) then
                 write(*,"(a,/)") " Error: Grid data of electron density difference must be calculated by main function 5 or loaded from external file first!"
             end if
         else if (isel==4) then
-            call hetransdipdens(2)
+            call hetransdipdens(2) !Finally call calcdelta_r
         else if (isel==5) then
             call exctransdip
         else if (isel==6) then
             call hetransdipdens(3)
+        else if (isel==7) then
+            write(*,"(a)") " Note: To calculate the ghost-hunter index proposed in JCC, 38, 2151 (2017), you should use option 1 of function 1 &
+            to calculate hole-electron distribution, then the index will be automatically printed, followed by its two terms. See Section 3.21.7 of the manual for more details"
+            write(*,*) "Press ENTER to contineu"
+            read(*,*)
+!             write(*,"(a)") " PS: The index calculated in this way is somewhat different to the original paper, &
+!             in which the 1/D_CT term is calculated based on expensive relaxed density. If you really want to reproduce it, you can use function 3 &
+!             to calculate the 1/D_CT term corresponding to relaxed density, and then manually calculate ghost-hunter index"
         end if
     end do
     
@@ -2380,7 +2402,7 @@ else if (infuncsel1==100) then
         write(*,*) "              ------------ Other functions (Part 1) ------------ "
         write(*,*) "0 Return"
         write(*,*) "1 Draw scatter graph between two functions and generate their cube files"
-        write(*,*) "2 Export .pdb/.xyz/.wfn/.wfx/.molden/.fch/.47 or Gaussian/GAMESS-US input file"
+        write(*,*) "2 Export .pdb/.xyz/.wfn/.wfx/.molden/.fch/.47 files or input file of QC codes"
         write(*,*) "3 Calculate molecular van der Waals Volume"
         write(*,*) "4 Integrate a function in whole space"
         write(*,*) "5 Show overlap integral between alpha and beta orbitals"
@@ -2417,6 +2439,15 @@ else if (infuncsel1==100) then
             write(*,*) "8 Output current wavefunction as .47 file"
             write(*,*) "10 Output current structure to Gaussian input file"
             write(*,*) "11 Output current structure to GAMESS-US input file"
+            write(*,*) "12 Output current structure to ORCA input file"
+            write(*,*) "13 Output current structure to NWChem input file"
+            write(*,*) "14 Output current structure to MOPAC input file"
+            write(*,*) "15 Output current structure to PSI input file"
+            write(*,*) "16 Output current structure to MRCC input file"
+            write(*,*) "17 Output current structure to CFOUR input file"
+            write(*,*) "18 Output current structure to Molpro input file"
+            write(*,*) "19 Output current structure to Dalton input file"
+            write(*,*) "20 Output current structure to Molcas input file"
             read(*,*) itmp
             if (itmp==1) then
                 write(*,*) "Input the path for pdb file, e.g. c:\ltwd.pdb"
@@ -2479,6 +2510,43 @@ else if (infuncsel1==100) then
                 write(*,*) "Input the path, e.g. c:\ltwd.inp"
                 read(*,"(a)") c200tmp
                 call outGAMESSinp(c200tmp,10)
+            else if (itmp==12) then
+                write(*,*) "Input the path, e.g. c:\ltwd.inp"
+                read(*,"(a)") c200tmp
+                call outORCAinp(c200tmp,10)
+            else if (itmp==13) then
+                write(*,*) "Input the path, e.g. c:\ltwd.nw"
+                read(*,"(a)") c200tmp
+                call outNWCheminp(c200tmp,10)
+            else if (itmp==14) then
+                write(*,*) "Input the path, e.g. c:\ltwd.mop"
+                read(*,"(a)") c200tmp
+                call outMOPACinp(c200tmp,10)
+            else if (itmp==15) then
+                write(*,*) "Input the path, e.g. c:\ltwd.inp"
+                read(*,"(a)") c200tmp
+                call outPSIinp(c200tmp,10)
+            else if (itmp==16) then
+                c200tmp="MINP"
+                call outMRCCinp(c200tmp,10)
+            else if (itmp==17) then
+                c200tmp="ZMAT"
+                call outCFOURinp(c200tmp,10)
+            else if (itmp==18) then
+                write(*,*) "Input the path, e.g. c:\ltwd.inp"
+                read(*,"(a)") c200tmp
+                call outmolproinp(c200tmp,10)
+            else if (itmp==19) then
+                c200tmp=" "
+                write(*,"(a)") " Input path of .dal file, e.g. c:\DFT.dal (directly press ENTER if you don't need it)"
+                read(*,"(a)") c200tmp
+                write(*,*) "Input path of .mol file, e.g. c:\ltwd.mol"
+                read(*,"(a)") c200tmp2
+                call outDaltoninp(c200tmp,c200tmp2,10)
+            else if (itmp==20) then
+                write(*,*) "Input the path, e.g. c:\ltwd.inp"
+                read(*,"(a)") c200tmp
+                call outmolcasinp(c200tmp,10)
             end if
         else if (infuncsel2==3) then
             if (MCvolmethod==1) then
@@ -2514,7 +2582,9 @@ else if (infuncsel1==100) then
                 call intfunc(1)
             end if
         else if (infuncsel2==-4) then
-            call intdiffsqr
+            call intdiff(1)
+        else if (infuncsel2==-5) then
+            call intdiff(2)
         else if (infuncsel2==5) then
             call aboverlap
         else if (infuncsel2==6) then
@@ -2743,7 +2813,7 @@ end subroutine
 
 !!!----------------------Set contour line
 subroutine setctr
-integer i,j
+implicit real*8 (a-h,o-z)
 character outfilename*80,selectyn*1
 do while(.true.)
     if (j/=6) then !If last operation is not saving file
@@ -2771,6 +2841,7 @@ do while(.true.)
     write(*,*) "12 Set line style and width for positive contour lines"
     write(*,*) "13 Set color for negative contour lines"
     write(*,*) "14 Set line style and width for negative contour lines"
+    write(*,*) "15 Set line style and width suitable for publication"
     read(*,*) j 
     if (j==1) then
         exit
@@ -2882,6 +2953,7 @@ do while(.true.)
         write(*,*) "Input length of line segment and interstice"
         write(*,*) "e.g. 1,0 means solid line; 1,10 means DOT; 10,10 means DASH"
         write(*,*) "     10,15 means DASH with larger interstice"
+        write(*,*) "Note: 1,0 and 10,15 are default for positive and negative lines, respectively"
         read(*,*) ctrposstyle(1),ctrposstyle(2)
         write(*,*) "Input line width, e.g. 2"
         read(*,*) iwidthposctr
@@ -2895,9 +2967,20 @@ do while(.true.)
         write(*,*) "Input length of line segment and interstice"
         write(*,*) "e.g. 1,0 means solid line; 1,10 means DOT; 10,10 means DASH"
         write(*,*) "     10,15 means DASH with larger interstice"
+        write(*,*) "Note: 1,0 and 10,15 are default for positive and negative lines, respectively"
         read(*,*) ctrnegstyle(1),ctrnegstyle(2)
         write(*,*) "Input line width, e.g. 2"
         read(*,*) iwidthnegctr
+    else if (j==15) then
+        iclrindctrpos=11
+        iclrindctrneg=3
+        ctrposstyle(1)=1
+        ctrposstyle(2)=0
+        iwidthposctr=6
+        ctrnegstyle(1)=10
+        ctrnegstyle(2)=15
+        iwidthnegctr=6
+        write(*,"(a)") " Done. The saved picture with current line setting is suitable for publication purpose"
     end if
 end do
 end subroutine

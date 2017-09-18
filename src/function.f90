@@ -809,7 +809,7 @@ end function
 
 
 !!!------------------------- Output gradient of rho and RDG(reduced density gradient) at a point
-!label=x/y/z output 1-order derivation of x/y/z, =t get norm, =r get RDG
+!label=x/y/z output 1-order derivation of x/y/z, =t get norm, =r get RDG, =s get |der_rho|/rho^(4/3)
 real*8 function fgrad(x,y,z,label)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),gradrho(3),EDFgrad(3),sumgrad2
 character label
@@ -827,11 +827,15 @@ if (allocated(b_EDF)) then
     rho=rho+EDFdens
     gradrho=gradrho+EDFgrad
 end if
-if (label=='x') fgrad=gradrho(1)
-if (label=='y') fgrad=gradrho(2)
-if (label=='z') fgrad=gradrho(3)
-if (label=='t') fgrad=dsqrt( sum(gradrho(:)**2) )
-if (label=='r') then
+if (label=='x') then
+    fgrad=gradrho(1)
+else if (label=='y') then
+    fgrad=gradrho(2)
+else if (label=='z') then
+    fgrad=gradrho(3)
+else if (label=='t') then
+    fgrad=dsqrt( sum(gradrho(:)**2) )
+else if (label=='r') then
     sumgrad2=sum(gradrho(:)**2)
     if (RDG_maxrho/=0.0D0.and.rho>=RDG_maxrho) then
         fgrad=100D0
@@ -840,6 +844,12 @@ if (label=='r') then
         RDG=999D0
     else
         fgrad=0.161620459673995D0*dsqrt(sumgrad2)/rho**(4.0D0/3.0D0) !0.161620459673995D0=1/(2*(3*pi**2)**(1/3))
+    end if
+else if (label=='s') then
+    if (rho==0D0) then
+        fgrad=0
+    else
+        fgrad=dsqrt(sum(gradrho(:)**2))/rho**(4.0D0/3.0D0)
     end if
 end if
 end function
@@ -883,7 +893,8 @@ end subroutine
 
 
 !!!------------------------- Output Laplacian of electron density at a point
-!label=x/y/z output 2-order derivative of electron density respect to xx/yy/zz, =t get their summing
+!label=x/y/z output 2-order derivative of electron density respect to xx/yy/zz; &
+!=t get their summing; =s get der2rho/rho^(5/3), which is used LSB's project
 real*8 function flapl(x,y,z,label)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),laplx,laply,laplz,EDFgrad(3),EDFhess(3,3)
 character label
@@ -898,11 +909,20 @@ if (allocated(b_EDF)) then
     laply=laply+EDFhess(2,2)
     laplz=laplz+EDFhess(3,3)
 end if
-if (label=='x') flapl=laplx
-if (label=='y') flapl=laply
-if (label=='z') flapl=laplz
-if (label=='t') flapl=laplx+laply+laplz
-flapl=flapl*laplfac !laplfac is an external variable
+if (label=='t') then
+    flapl=laplx+laply+laplz
+    flapl=flapl*laplfac !laplfac is an external variable
+else if (label=='x') then
+    flapl=laplx
+else if (label=='y') then
+    flapl=laply
+else if (label=='z') then
+    flapl=laplz
+else if (label=='s') then
+    dens=sum(MOocc(1:nmo)*wfnval(1:nmo)**2)
+    if (allocated(b_EDF)) dens=dens+EDFdens
+    flapl=(laplx+laply+laplz)/dens**(5D0/3D0)
+end if
 end function
 
 
@@ -1127,7 +1147,7 @@ end subroutine
 
 
 !!!-----Output ELF(Electron Localization Function) or LOL(Localized orbital locator) and similar function value at a point
-!label="ELF"/"LOL"
+!label="ELF" or "LOL"
 real*8 function ELF_LOL(x,y,z,label)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo)
 real*8 D,Dh,gradrho(3),gradrhoa(3),gradrhob(3),rho,rhoa,rhob,rhospin,MOoccnow
@@ -1180,11 +1200,8 @@ if (label=="ELF") then
             D=D+MOocc(i)*(sum(wfnderv(:,i)**2)) !Calculate actual kinetic term
         end do        
         Dh=Fc*rho**(5.0D0/3.0D0) !Thomas-Fermi uniform electron gas kinetic energy
-        if (rho==0D0) then
-            ELF_LOL=0.0D0
-            return
-        end if
-        D=D/2.0D0-(sum(gradrho(:)**2))/rho/8D0
+        D=D/2D0
+        if (rho/=0D0) D=D-(sum(gradrho(:)**2))/rho/8D0
     else if (wfntype==1.or.wfntype==2.or.wfntype==4) then !spin-polarized case
         do i=1,nmo
             MOoccnow=MOocc(i)
@@ -1200,13 +1217,16 @@ if (label=="ELF") then
             D=D+MOocc(i)*(sum(wfnderv(:,i)**2)) !Calculate actual kinetic term
         end do
         Dh=Fc_pol*(rhoa**(5.0D0/3.0D0)+rhob**(5.0D0/3.0D0))
-        D=D/2.0D0
+        D=D/2D0
         if (rhoa/=0D0) D=D-(sum(gradrhoa(:)**2))/rhoa/8
         if (rhob/=0D0) D=D-(sum(gradrhob(:)**2))/rhob/8
     end if
-    if (ELF_addminimal==1) D=D+1D-5 !add 1D-5 to avoid D become zero, leads to unity in infinite
-    if (ELFLOL_type==0) ELF_LOL=1/(1+(D/Dh)**2)
-    if (ELFLOL_type==2) ELF_LOL=1/(1+(D/Dh)) !New formalism defined by Tian Lu
+    if (ELFLOL_type==0.or.ELFLOL_type==2) then
+        if (ELF_addminimal==1) D=D+1D-5 !add 1D-5 to avoid D become zero, leads to unity in infinite
+        if (ELFLOL_type==0) ELF_LOL=1/(1+(D/Dh)**2)
+        if (ELFLOL_type==2) ELF_LOL=1/(1+(D/Dh)) !New formalism defined by Tian Lu
+    end if
+    if (ELFLOL_type==3) ELF_LOL=D/Dh
     if (ELFLOL_type==995) ELF_LOL=Dh !Thomas-Fermi kinetic energy density
     if (ELFLOL_type==996) ELF_LOL=D/Dh !For test
     if (ELFLOL_type==997) ELF_LOL=D !For test
@@ -3768,6 +3788,20 @@ else if (wfntype==4) then
     end if
 end if
 end function
+
+
+
+
+
+!*********************************************************************
+!=====================================================================
+!The real space functions below are used for shubins' DFRT 2.0 project
+!=====================================================================
+!*********************************************************************
+
+
+
+
 
 
 end module

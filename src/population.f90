@@ -33,7 +33,8 @@ else
         write(*,*) "12 CHELPG ESP fitting charge"
         write(*,*) "13 Merz-Kollmann (MK) ESP fitting charge"
         write(*,*) "14 AIM charge"
-        write(*,*) "15 Hirshfeld-I"
+        write(*,*) "15 Hirshfeld-I charge"
+        write(*,*) "16 CM5 charge"
         read(*,*) ipopsel
         
         if (ipopsel==0) then
@@ -111,6 +112,8 @@ else
                 if (any(a%index>54)) radpot=60
             end if
             call Hirshfeld_I_wrapper(1)
+        else if (ipopsel==16) then
+            call spacecharge(7)
         end if
         if (imodwfnold==1.and.(ipopsel==1.or.ipopsel==2.or.ipopsel==6.or.ipopsel==11)) then !1,2,6,11 are the methods need to reload the initial wavefunction
             write(*,"(a)") " Note: The wavefunction file has been reloaded, your previous modifications on occupation number will be ignored"
@@ -577,7 +580,7 @@ end subroutine
 
 !!-------------- Calculate charge based on space partition method
 !1=Hirshfeld, 2=VDD, 3=Integrate electron density in voronoi cell
-!4=Adjusted method 3 by Rousseau et al., 5= Becke with/without ADC, 6= ADCH
+!4=Adjusted method 3 by Rousseau et al., 5= Becke with/without ADC, 6= ADCH, 7= CM5
 subroutine spacecharge(chgtype)
 use defvar
 use function
@@ -682,8 +685,8 @@ end if
 !Generate quadrature point and weighs by combination of Gauss-Chebyshev and Lebedev grids
 call gen1cintgrid(gridatmorg,iradcut)
 
-!***** 1=Hirshfeld, 2=VDD, 6=ADCH
-if (chgtype==1.or.chgtype==2.or.chgtype==6) then
+!***** 1=Hirshfeld, 2=VDD, 6=ADCH, 7=CM5
+if (chgtype==1.or.chgtype==2.or.chgtype==6.or.chgtype==7) then
     write(*,*) "This task requests atomic densities, please select how to obtain them"
     write(*,*) "1 Use build-in sphericalized atomic densities in free-states (more convenient)"
     write(*,"(a)") " 2 Provide wavefunction file of involved elements by yourself or invoke Gaussian to automatically calculate them"
@@ -743,7 +746,7 @@ nthreads=getNThreads()
         dipx=0D0
         dipy=0D0
         dipz=0D0
-        if (chgtype==1.or.chgtype==6) then !Hirshfeld, ADCH charge
+        if (chgtype==1.or.chgtype==6.or.chgtype==7) then !Hirshfeld, ADCH charge, CM5 charge
             do i=1,radpot*sphpot
                 if (promol(i)/=0D0) then
                     tmpv=selfdens(i)/promol(i)*molrho(i)*gridatm(i)%value
@@ -778,7 +781,7 @@ nthreads=getNThreads()
         atmdipx(iatm)=dipx
         atmdipy(iatm)=dipy
         atmdipz(iatm)=dipz
-        if (chgtype==1.or.chgtype==6) write(*,"(' Hirshfeld charge of atom ',i5,'(',a2,')',' is',f12.6)") iatm,a_org(iatm)%name,charge(iatm)
+        if (chgtype==1.or.chgtype==6.or.chgtype==7) write(*,"(' Hirshfeld charge of atom ',i5,'(',a2,')',' is',f12.6)") iatm,a_org(iatm)%name,charge(iatm)
         if (chgtype==2) write(*,"(' VDD charge of atom ',i5,'(',a2,')',' is',f12.6)") iatm,a_org(iatm)%name,charge(iatm)
     end do
     
@@ -889,6 +892,7 @@ nthreads=getNThreads()
     end do
 end if
 
+write(*,"(' Summing up all charges:',f15.8)") sum(charge)
 write(*,*)
 write(*,*) "Atomic dipole moments (a.u.):"
 do iatm=1,ncenter
@@ -902,32 +906,27 @@ do i=1,ncenter
     ymoldip=ymoldip+a(i)%y*charge(i)
     zmoldip=zmoldip+a(i)%z*charge(i)
 end do
-write(*,*)
-write(*,"(' Summing up all charges:',f15.8)") sum(charge)
-
 totdip=dsqrt(xmoldip**2+ymoldip**2+zmoldip**2)
-write(*,"(' Total dipole from atomic charges:',f12.6,' a.u.')") totdip
+write(*,"(' Total dipole moment from atomic charges:',f12.6,' a.u.')") totdip
 write(*,"(' X/Y/Z of dipole from atomic charge:',3f12.6,' a.u.')") xmoldip,ymoldip,zmoldip
 totatmdip=dsqrt(sum(atmdipx)**2+sum(atmdipy)**2+sum(atmdipz)**2)
-write(*,"(' Total atomic dipole:',f12.6,' a.u.')") totatmdip
+write(*,"(' Total atomic dipole moment:',f12.6,' a.u.')") totatmdip
 write(*,"(' X/Y/Z of total atomic dipole:',3f12.6,' a.u.')") sum(atmdipx),sum(atmdipy),sum(atmdipz)
-corrdipx=xmoldip+sum(atmdipx)
+corrdipx=xmoldip+sum(atmdipx) !Corresponding to actual molecular dipole moment derived from molecular density
 corrdipy=ymoldip+sum(atmdipy)
 corrdipz=zmoldip+sum(atmdipz)
 realdip=dsqrt(corrdipx**2+corrdipy**2+corrdipz**2)
-if (chgtype/=6) then !Avoid confusing users what does "corrected" means
-    write(*,"(' Total corrected dipole:',f12.6,' a.u.')") realdip
-    write(*,"(' X/Y/Z of corrected dipole:',3f12.6,' a.u.')") corrdipx,corrdipy,corrdipz
-end if
-write(*,*)
-call walltime(nwalltime2)
-write(*,"(' Calculation took up',i8,' seconds wall clock time')")  nwalltime2-nwalltime1
 
 if (chgtype==5) call doADC(atmdipx,atmdipy,atmdipz,charge,realdip,5)
 if (chgtype==6) call doADC(atmdipx,atmdipy,atmdipz,charge,realdip,6)
+if (chgtype==7) call doCM5(charge)
 
 !Show fragment charge
 if (allocated(frag1)) write(*,"(/,' Fragment charge:',f12.6)") sum(charge(frag1))
+
+write(*,*)
+call walltime(nwalltime2)
+write(*,"(' Calculation took up',i8,' seconds wall clock time')")  nwalltime2-nwalltime1
 
 call path2filename(firstfilename,chgfilename)
 write(*,*)
@@ -947,7 +946,8 @@ end subroutine
 
 !!------ Calculate atomic dipole moment corrected charge based on existing atomic charge (charge) and atomic dipole moments (dipx/y/z)
 !This routine is previously specific for ADCH, but can be extended to any other types of atomic charges
-!chgtype 5= Becke with/without ADC, 6= ADCH, used to determine outputting which kind of hints
+!The "charge" is inputted Hirshfeld charge, finally it is replaced by ADC charge 
+!chgtype 5= Becke with/without ADC, 6= ADCH
 subroutine doADC(dipx,dipy,dipz,charge,realdip,chgtype)
 use defvar
 use util
@@ -963,7 +963,7 @@ write(*,*)
 chargecorr=charge
 
 do i=1,ncenter
-    if (ADCtransfer==1) write(*,"('Atom: 'i4,a)") i,a(i)%name !ADCtransfer==1 means output detail of charge transferation process during atomic dipole moment correction
+    if (ishowchgtrans==1) write(*,"('Atom: 'i4,a)") i,a(i)%name !ishowchgtrans==1 means output detail of charge transferation process during atomic dipole moment correction
     !Initialize variables
     totq=0.0D0
     tottmpdipx=0.0D0
@@ -1021,21 +1021,20 @@ do i=1,ncenter
         r=matmul(transpose(eigvecmat),r) ! Get r(i,j) vector in new coordinate
         tmp=w(j)/wtot*matmul(matmul(transpose(r-avgr),mat) ,dip) !delta q, namely the charge which atom i gives atom j
         chargecorr(j)=chargecorr(j)+tmp(1,1) !Charge after corrected
-        if (ADCtransfer==1) write(*,"(' Give atom ',i4,a4,f15.12,'  Weight',2f15.12)") j,a(j)%name,tmp(1,1),w(j)
+        if (ishowchgtrans==1) write(*,"(' Give atom ',i4,a4,f15.12,'  Weight',2f15.12)") j,a(j)%name,tmp(1,1),w(j)
         totq=totq+tmp(1,1)
         tottmpdipx=tottmpdipx+(a(j)%x-a(i)%x)*tmp(1,1)
         tottmpdipy=tottmpdipy+(a(j)%y-a(i)%y)*tmp(1,1)
         tottmpdipz=tottmpdipz+(a(j)%z-a(i)%z)*tmp(1,1)
     end do
-    if (ADCtransfer==1) write(*,*)
+    if (ishowchgtrans==1) write(*,*)
 end do
 
 write(*,*) "   ======= Summary of atomic dipole moment corrected (ADC) charges ======="
 do i=1,ncenter
     write(*,"(' Atom: ',i4,a,'  Corrected charge:',f12.6,'  Before:',f12.6)") i,a(i)%name,chargecorr(i),charge(i)
 end do
-! write(*,"(' Summing up charges before correction',f12.7)") sum(charge)
-! write(*,"(' Summing up charges after correction',f12.7)") sum(chargecorr)
+write(*,"(' Summing up all corrected charges:',f12.7)") sum(chargecorr)
 if (chgtype==5) write(*,"(a)") " Note: The values shown after ""Corrected charge"" are atomic dipole moment corrected Becke charges, the ones after ""Before"" are normal Becke charges"
 if (chgtype==6) write(*,"(a)") " Note: The values shown after ""Corrected charge"" are ADCH charges, the ones after ""Before"" are Hirshfeld charges"
 ADCdipx=sum(a%x*chargecorr)
@@ -1043,10 +1042,129 @@ ADCdipy=sum(a%y*chargecorr)
 ADCdipz=sum(a%z*chargecorr)
 ADCdip=sqrt(ADCdipx**2+ADCdipy**2+ADCdipz**2)
 write(*,*)
-write(*,"(' Total dipole from ADC charge(a.u.)',f11.7,'  Error:',f11.7)") ADCdip,abs(ADCdip-realdip)
-write(*,"(' X/Y/Z of dipole moment from the charge(a.u.)',3f11.7)") ADCdipx,ADCdipy,ADCdipz
+write(*,"(' Total dipole from ADC charges (a.u.)',f11.7,'  Error:',f11.7)") ADCdip,abs(ADCdip-realdip)
+write(*,"(' X/Y/Z of dipole moment from the charge (a.u.)',3f11.7)") ADCdipx,ADCdipy,ADCdipz
 charge=chargecorr !Overlay charge array, then return to Hirshfeld module and output result to .chg file
 end subroutine
+
+
+!!--------- Calculate CM5 charge based on Hirshfeld charge
+subroutine doCM5(charge)
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 charge(ncenter),CMcharge(ncenter),radius(118),Dparm(118)
+alpha=2.474D0
+Dparm=0D0
+Dparm(1)=0.0056D0
+Dparm(2)=-0.1543D0
+Dparm(4)=0.0333D0
+Dparm(5)=-0.1030D0
+Dparm(6)=-0.0446D0
+Dparm(7)=-0.1072D0
+Dparm(8)=-0.0802D0
+Dparm(9)=-0.0629D0
+Dparm(10)=-0.1088D0
+Dparm(11)=0.0184D0
+Dparm(13)=-0.0726D0
+Dparm(14)=-0.0790D0
+Dparm(15)=-0.0756D0
+Dparm(16)=-0.0565D0
+Dparm(17)=-0.0444D0
+Dparm(18)=-0.0767D0
+Dparm(19)=0.0130D0
+Dparm(31)=-0.0512D0
+Dparm(32)=-0.0557D0
+Dparm(33)=-0.0533D0
+Dparm(34)=-0.0399D0
+Dparm(35)=-0.0313D0
+Dparm(36)=-0.0541D0
+Dparm(37)=0.0092D0
+Dparm(49)=-0.0361D0
+Dparm(50)=-0.0393D0
+Dparm(51)=-0.0376D0
+Dparm(52)=-0.0281D0
+Dparm(53)=-0.0220D0
+Dparm(54)=-0.0381D0
+Dparm(55)=0.0065D0
+Dparm(81)=-0.0255D0
+Dparm(82)=-0.0277D0
+Dparm(83)=-0.0265D0
+Dparm(84)=-0.0198D0
+Dparm(85)=-0.0155D0
+Dparm(86)=-0.0269D0
+Dparm(87)=0.0046D0
+Dparm(113)=-0.0179D0
+Dparm(114)=-0.0195D0
+Dparm(115)=-0.0187D0
+Dparm(116)=-0.0140D0
+Dparm(117)=-0.0110D0
+Dparm(118)=-0.0189D0
+!As shown in CM5 paper, the covalent radii used in CM5 equation are tabulated in CRC book 91th, where they are obtained as follows:
+!For Z=1~96, the radii are the average of CSD radii (For Fe, Mn, Co the low-spin is used) and Pyykko radii
+!For Z=97~118, the radii are Pyykko radii
+radius(1:96)=(covr(1:96)+covr_pyy(1:96))/2D0
+radius(97:118)=covr_pyy(97:118)
+radius=radius*b2a !Because the radii have already been converted to Bohr, so we convert them back to Angstrom
+
+if (ishowchgtrans==1) write(*,"(/,a)") " Details of CM5 charge correction:"
+
+do iatm=1,ncenter
+    CMcorr=0
+    iZ=a(iatm)%index
+    do jatm=1,ncenter
+        if (iatm==jatm) cycle
+        jZ=a(jatm)%index
+        Bval=exp( -alpha*(distmat(iatm,jatm)*b2a-radius(iZ)-radius(jZ)) )
+        if (iZ==1.and.jZ==6) then
+            Tval=0.0502D0
+        else if (iZ==6.and.jZ==1) then
+            Tval=-0.0502D0
+        else if (iZ==1.and.jZ==7) then
+            Tval=0.1747D0
+        else if (iZ==7.and.jZ==1) then
+            Tval=-0.1747D0
+        else if (iZ==1.and.jZ==8) then
+            Tval=0.1671D0
+        else if (iZ==8.and.jZ==1) then
+            Tval=-0.1671D0
+        else if (iZ==6.and.jZ==7) then
+            Tval=0.0556D0
+        else if (iZ==7.and.jZ==6) then
+            Tval=-0.0556D0
+        else if (iZ==6.and.jZ==8) then
+            Tval=0.0234D0
+        else if (iZ==8.and.jZ==6) then
+            Tval=-0.0234D0
+        else if (iZ==7.and.jZ==8) then
+            Tval=-0.0346D0
+        else if (iZ==8.and.jZ==7) then
+            Tval=0.0346D0
+        else
+            Tval=Dparm(iZ)-Dparm(jZ)
+        end if
+        CMcorr=CMcorr+Tval*Bval
+        if (ishowchgtrans==1) then
+            write(*,"(i4,a,i4,a,'  B_term:',f10.5,'  T_term:',f10.5,'  Corr. charge:',f10.5)") iatm,a(iatm)%name,jatm,a(jatm)%name,Bval,Tval,Tval*Bval
+        end if
+    end do
+    CMcharge(iatm)=charge(iatm)+CMcorr
+end do
+write(*,*)
+write(*,*) "                    ======= Summary of CM5 charges ======="
+do i=1,ncenter
+    write(*,"(' Atom: ',i4,a,'  CM5 charge:',f12.6,'  Hirshfeld charge:',f12.6)") i,a(i)%name,CMcharge(i),charge(i)
+end do
+write(*,"(' Summing up all CM5 charges:',f15.8)") sum(CMcharge)
+CM5dipx=sum(a%x*CMcharge)
+CM5dipy=sum(a%y*CMcharge)
+CM5dipz=sum(a%z*CMcharge)
+CM5dip=sqrt(CM5dipx**2+CM5dipy**2+CM5dipz**2)
+write(*,*)
+write(*,"(' Total dipole moment from CM5 charges',f12.7,' a.u.')") CM5dip
+write(*,"(' X/Y/Z of dipole moment from CM5 charges',3f10.5, ' a.u.')") CM5dipx,CM5dipy,CM5dipz
+charge=chargecorr
+end subroutine
+
 
 
 !!------------ Calculate charges by fitting ESP, currently CHELPG grid and MK grid are used

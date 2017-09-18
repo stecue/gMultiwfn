@@ -3134,8 +3134,8 @@ call loclabel(20,'laplfac=')
 read(20,*) c80tmp,laplfac
 call loclabel(20,'ipolarpara=')
 read(20,*) c80tmp,ipolarpara
-call loclabel(20,'ADCtransfer=')
-read(20,*) c80tmp,ADCtransfer
+call loclabel(20,'ishowchgtrans=')
+read(20,*) c80tmp,ishowchgtrans
 call loclabel(20,'SpherIVgroup=')
 read(20,*) c80tmp,SpherIVgroup
 call loclabel(20,'MCvolmethod=')

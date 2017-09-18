@@ -1140,10 +1140,11 @@ end do
 end subroutine
 
 
-
-!--- Integrate (D_wfn1 - D_wfn2)**2, where D_wfn1 means real space function for wavefunction file 1, D_wfn1 is that for wavefunction file 2
+!itype=1 : Integrate (f_wfn1 - f_wfn2)**2
+!itype=2 : Integrate |f_wfn1 - f_wfn2|
+!where f_wfn1 means real space function for wavefunction file 1, f_wfn2 is that for wavefunction file 2
 !This function was specifically written for realizing Michael G. Medvedev's idea
-subroutine intdiffsqr
+subroutine intdiff(itype)
 use function
 use util
 implicit real*8 (a-h,o-z)
@@ -1152,6 +1153,10 @@ real*8 funcval1all(radpot*sphpot,ncenter) !For reuse data
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 character*200 filename2,reusename*200
 
+if (itype==1) write(*,*) "Note: The integrand is (f_wfn1 - f_wfn2)**2"
+if (itype==2) write(*,*) "Note: The integrand is |f_wfn1 - f_wfn2|"
+if (ifiletype/=2.and.ifiletype/=3) write(*,"(a)") " Hint: If you use .wfx or .wfn file as input instead, the calculation speed may be improved significantly!"
+write(*,*)
 write(*,*) "Select the function to be integrated over the whole space"
 call funclist
 read(*,*) ifunc
@@ -1193,7 +1198,7 @@ do iatm=1,ncenter
     
     if (ireuse==0) then !Calculate data for wfn1
 nthreads=getNThreads()
-!$OMP parallel do shared(funcval1) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
+!$OMP parallel do shared(funcval1) private(i,rnowx,rnowy,rnowz) num_threads(nthreads) schedule(DYNAMIC)
         do i=1+iradcut*sphpot,radpot*sphpot
             rnowx=gridatm(i)%x
             rnowy=gridatm(i)%y
@@ -1210,7 +1215,7 @@ nthreads=getNThreads()
     call dealloall
     call readinfile(filename2,1)
 nthreads=getNThreads()
-!$OMP parallel do shared(funcval2) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
+!$OMP parallel do shared(funcval2) private(i,rnowx,rnowy,rnowz) num_threads(nthreads) schedule(DYNAMIC)
     do i=1+iradcut*sphpot,radpot*sphpot
         rnowx=gridatm(i)%x
         rnowy=gridatm(i)%y
@@ -1232,7 +1237,11 @@ nthreads=getNThreads()
             end if
             if (tmpdens>denscut) cycle
         end if
-        intval=intval+(funcval1(i)-funcval2(i))**2 *gridatmorg(i)%value*beckeweigrid(i)
+        if (itype==1) then
+            intval=intval+(funcval1(i)-funcval2(i))**2 *gridatmorg(i)%value*beckeweigrid(i)
+        else
+            intval=intval+abs(funcval1(i)-funcval2(i)) *gridatmorg(i)%value*beckeweigrid(i)
+        end if
     end do
     write(*,"(' Accumulated value:',f20.10,'  Current center:',f20.10)") intval,intval-intvalold
     intvalold=intval
@@ -2031,7 +2040,7 @@ do imo=1,nmo
         if (iprim==nprims) then
             piorblist(imo)=1
             pinelec=pinelec+MOocc(imo)
-            write(*,"(2i6,2f14.6)") imo,imo,MOocc(imo),MOene(imo)*au2ev
+            write(*,"(i6,2f14.6)") imo,MOocc(imo),MOene(imo)*au2ev
         end if
     end do
 end do
@@ -2051,7 +2060,7 @@ ndelelec=innerel/2
 write(*,"(' Total number of inner electrons:',i6)") innerel
 write(*,*)
 write(*,*) "How to deal with these orbitals?"
-write(*,*) "0 Don't do anything"
+write(*,*) "0 Do nothing"
 write(*,*) "1 Set occupation number of these pi orbitals to zero"
 write(*,*) "2 Set occupation number of all other orbitals to zero"
 if (imodwfn==0) write(*,*) "3 Set occupation number of valence pi orbitals to zero"

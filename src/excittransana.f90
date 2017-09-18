@@ -33,7 +33,6 @@ real*8,allocatable :: exccoeff2(:)
 real*8,allocatable :: cubx(:),cuby(:),cubz(:)
 ! real*8 eigvecmat(nbasis,nbasis),eigvalarr(nbasis)
 
-
 if (.not.allocated(CObasa)) then
     write(*,*) "Error: The input file does not contain basis function information!"
     write(*,*) "Please read manual to make clear which kinds of input file could be used!"
@@ -1153,6 +1152,32 @@ tz=disz-Hz
 tnorm=dsqrt(tx**2+ty**2+tz**2)
 write(*,"(' t index in x,y,z:',3f8.3,'   Norm:',f8.3,' Angstrom')") tx*b2a,ty*b2a,tz*b2a,tnorm*b2a
 
+!Calculate ghost state diagnostic index proposed by Adamo (DOI: 10.1002/jcc.24862)
+ghostp2=1/disnorm !in a.u.
+!Definition 1 (the original paper definition). The original paper doesn't clearly mention how to deal with de-excitation, so I treat it as usual
+sumC=sum(exccoeff(1:nexcitorb))
+ghostp1=0
+do itmp=1,nexcitorb
+    ghostp1=ghostp1+exccoeff(itmp)/sumC*(-MOene(orbleft(itmp))-MOene(orbright(itmp)))
+end do
+ghostidx=ghostp1-ghostp2
+write(*,"(' Ghost-hunter index (defin. 1):',f8.3,' eV, 1st/2nd terms:',2f9.3,' eV')") ghostidx*au2eV,ghostp1*au2eV,ghostp2*au2eV
+!Definition 2 (defined by Tian Lu, more reasonable)
+sumCsqr=0
+do itmp=1,nexcitorb
+    if (excdir(itmp)==2) cycle !Skip de-excitation
+    sumCsqr=sumCsqr+exccoeff(itmp)**2
+end do
+ghostp1=0
+do itmp=1,nexcitorb
+    if (excdir(itmp)==2) cycle !Skip de-excitation
+    ghostp1=ghostp1+exccoeff(itmp)**2/sumCsqr*(-MOene(orbleft(itmp))-MOene(orbright(itmp)))
+end do
+ghostidx=ghostp1-ghostp2
+write(*,"(' Ghost-hunter index (defin. 2):',f8.3,' eV, 1st/2nd terms:',2f9.3,' eV')") ghostidx*au2eV,ghostp1*au2eV,ghostp2*au2eV
+write(*,"(' Excitation energy of this state:',f10.3,' eV')") excenergy
+if (excenergy<ghostidx*au2eV) write(*,*) "Warning: Probably this is a ghost state"
+
 if (allocated(Cele)) deallocate(Cele,Chole)
 allocate(Cele(nx,ny,nz),Chole(nx,ny,nz))
 do i=1,nx
@@ -1447,6 +1472,7 @@ end subroutine
 
 
 !!--- Calculate delta_r index, see J. Chem. Theory Comput., 9, 3118 (2013)
+!excitation and de-excitation cofficients are summed together, according to Eq.9 of the original paper
 subroutine calcdelta_r(nexcitorb,orbleft,orbright,excdir,exccoeff)
 use defvar
 implicit real*8 (a-h,o-z)

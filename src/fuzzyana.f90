@@ -382,8 +382,8 @@ else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel=
                     end do
                     nmatsizeb=nmatsizeb-iendalpha
                 end if
-                if (iendalpha-nmatsizea>0) write(*,"('Note: The highest',i6,' alpha virtual orbitals will not be taken into account')") iendalpha-nmatsizea
-                if (nmo-iendalpha-nmatsizeb>0) write(*,"('Note: The highest',i6,' beta virtual orbitals will not be taken into account')") nmo-iendalpha-nmatsizeb
+                if (iendalpha-nmatsizea>0) write(*,"(' Note: The highest',i6,' alpha virtual orbitals will not be taken into account')") iendalpha-nmatsizea
+                if (nmo-iendalpha-nmatsizeb>0) write(*,"(' Note: The highest',i6,' beta virtual orbitals will not be taken into account')") nmo-iendalpha-nmatsizeb
             end if
             if (allocated(AOMa)) deallocate(AOMa,AOMb,AOMsuma,AOMsumb)
             allocate( AOMa(nmatsizea,nmatsizea,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter) )
@@ -1680,82 +1680,5 @@ end subroutine
 
 
 
-!!------ Integrate function in Hirshfeld space with molecular grid (i.e. the grid is the same as integating over the whole space)
-!! The grid used in function 1 of fuzzy space analysis is only the grid centered at the atom to be studied, this lead to inaccurate integration result
-!! when the integrand varies fast at the tail region of the Hirshfeld atom (commonly close to the other nuclei). In this case we must use the molecular grid.
-!! Because incorporate molecular grid integration into "intatomspace" routine will break the structure of the routine, I decide to write this new routine
-!! dedicated to this purpose. This routine is mainly used in shubin's study.
-subroutine intHirsh_molgrid
-use defvar
-use function
-use util
-implicit real*8 (a-h,o-z)
-real*8 funcval(radpot*sphpot),beckeweigrid(radpot*sphpot),atmdens(radpot*sphpot,ncenter),atmintval(ncenter) !Integration value of each atom
-type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 
-write(*,*) "Select the real space function"
-call selfunc_interface(ifunc)
 
-call setpromol
-call gen1cintgrid(gridatmorg,iradcut)
-
-!funcval: real space function at all grid of current center
-!weival: Becke * single-center integraton weight at all grid of current center
-!atmdens: Free-state density of every atom at all grid of current center
-write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
-
-call walltime(iwalltime1)
-CALL CPU_TIME(time_begin)
-atmintval=0
-
-do iatm=1,ncenter !Cycle each atom
-    write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
-    gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-    gridatm%y=gridatmorg%y+a(iatm)%y
-    gridatm%z=gridatmorg%z+a(iatm)%z
-    
-    !Calculate real space function value
-nthreads=getNThreads()
-!$OMP parallel do shared(funcval) private(i) num_threads(nthreads)
-    do i=1+iradcut*sphpot,radpot*sphpot
-        funcval(i)=calcfuncall(ifunc,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
-    end do
-!$OMP end parallel do
-    
-    !Calculate Becke weight
-    call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
-    
-    !Calculate Hirshfeld weight
-    do jatm=1,ncenter_org
-        call dealloall
-        call readwfn(custommapname(jatm),1)
-nthreads=getNThreads()
-!$OMP parallel do shared(atmdens) private(ipt) num_threads(nthreads)
-        do ipt=1+iradcut*sphpot,radpot*sphpot
-            atmdens(ipt,jatm)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
-        end do
-!$OMP end parallel do
-    end do
-    call dealloall
-    call readinfile(firstfilename,1) !Retrieve to the first loaded file(whole molecule) to calc real rho again
-    
-    !Generate Hirshfeld weight and integrate the function
-    do i=1+iradcut*sphpot,radpot*sphpot
-        promol=sum(atmdens(i,:))
-        do jatm=1,ncenter
-            Hirshwei=atmdens(i,jatm)/promol !Hirshfeld weight of jatm at i point
-            atmintval(jatm)=atmintval(jatm)+funcval(i)*Hirshwei*beckeweigrid(i)*gridatmorg(i)%value
-        end do
-    end do
-    
-end do
-
-CALL CPU_TIME(time_end)
-call walltime(iwalltime2)
-write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s',/)") time_end-time_begin,iwalltime2-iwalltime1
-
-do iatm=1,ncenter
-    write(*,"(' Atom',i6,'(',a2,'):',f20.8)") iatm,a(iatm)%name,atmintval(iatm)
-end do
-write(*,"(' Total:',f20.8,/)") sum(atmintval(:)) 
-end subroutine
