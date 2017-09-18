@@ -1,4 +1,6 @@
 #!/bin/bash
+#Try update_src_delta.sh first!
+#This will apply the "gnu" patch to the new src.
 dirdiff=vdiff
 function clean_noGUI {
     rm GUI.f90 plot.f90 && rm *.a

@@ -1,5 +1,5 @@
 #!/bin/bash
-# update the source by using the "delta" patch of the ifort source.
+# update the source by using the "delta" patch (apply the diff between the old src and new src to the gnunized src) of the ifort source.
 dirdiff=vdiff
 function clean_noGUI {
     rm GUI.f90 plot.f90 && rm *.a
@@ -30,7 +30,7 @@ if [ -d ../src.orig ]; then
 else
     cp -pr ../src src_gnu
 fi
-diff -uNr src_old src_gnu > patch_gnu.diff
+#diff -uNr src_old src_gnu > patch_gnu.diff
 #Get the new src and get the delta diff from the old to new ifort src
 ln -s ../latest_src.zip ./
 unzip latest_src.zip
