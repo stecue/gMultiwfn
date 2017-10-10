@@ -1597,7 +1597,7 @@ write(*,"(' Number of points in X,Y,Z is',3i5,'   Total',i10)") nx,ny,nz,nx*ny*n
 !     read(c80tmp,*) tmpval
 !     write(*,*) i," z ",tmpval
 ! end do
-! read (*,*)
+! read(*,*)
 end subroutine
 
 
@@ -2766,7 +2766,7 @@ do iatt=1,numrealatt !Cycle each attractors
         end if
         nintgrid=nintgrid+sphpotAIM
 !         write(*,"(i8,i8,f16.8,f12.4)") iatt,ish,radr,angmax
-!         read (*,*)
+!         read(*,*)
     end do
     if (isettrustrad==0) then
         trustrad(iatt)=1000 !Infinite, for atom

@@ -385,7 +385,7 @@ else if (infuncsel1==3) then
 301    write(*,"(a,f8.4,a)") " 0 Set extension distance for mode 1, current:",aug1D," Bohr"
     write(*,*) "1 Input index of two nuclei to define a line"
     write(*,*) "2 Input coordinate of two points to define a line"
-    read (*,*) infuncsel3
+    read(*,*) infuncsel3
     
     if (infuncsel3==0) then
         write(*,*) "Input augment distance (in Bohr, e.g. 2.5)"

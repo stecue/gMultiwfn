@@ -3051,7 +3051,7 @@ if (itype==2) then
 end if
 ! if (kintot<0) then
 !     write(*,"(5f16.10)") kintot,TFkin,x,y,z
-!     read (*,*)
+!     read(*,*)
 ! end if
 rlambda=5D0/3D0+log(4D0*pi*ck/3D0)
 if (kintot<0) then

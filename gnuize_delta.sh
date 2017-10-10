@@ -14,6 +14,7 @@ do
 #    done
     sed -i -e 's/\t/    /g' "${srcF}"
     sed -i -e 's/pause/read(*,*)/g' "${srcF}"
+    sed -i -e 's/read (\*,\*)/read(*,*)/g' "${srcF}"
 #    sed -i -e 's/\(^ *\)read *(\*,\*)\( *\)$/\1pause\2/g' "${srcF}"
 #Note that following will add too many "getNThreads". It should only work for _delta_ update!
     sed -i -e 's/^[\t ]*\!\$/!$/' "${srcF}"
