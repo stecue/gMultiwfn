@@ -725,7 +725,7 @@ do while(.true.)
         fminivol=dx*dy*dz
         avgtot=sumuptot/numpt
         stddev=0
-        !calculate standard deviation
+        !Calculate standard deviation
         do i=1,nx
             if ((orgx+(i-1)*dx)<rlowx.or.(orgx+(i-1)*dx)>rhighx) cycle
             do j=1,ny

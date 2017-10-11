@@ -1141,6 +1141,8 @@ sigzhole=dsqrt(sigzhole*dvol/rnormhole)
 signormhole=dsqrt(sigxhole**2+sigyhole**2+sigzhole**2)
 write(*,"(' RMSD of electron in x,y,z:',3f8.3,'   Total:',f8.3,' Angstrom')") sigxele*b2a,sigyele*b2a,sigzele*b2a,signormele*b2a
 write(*,"(' RMSD of hole in x,y,z:    ',3f8.3,'   Total:',f8.3,' Angstrom')") sigxhole*b2a,sigyhole*b2a,sigzhole*b2a,signormhole*b2a
+delta_sigCT=dsqrt((sigxele-sigxhole)**2+(sigyele-sigyhole)**2+(sigzele-sigzhole)**2)
+write(*,"(' Difference between RMSD of hole and electron:',f8.3,' Angstrom')") delta_sigCT*b2a
 Hx=(sigxele+sigxhole)/2D0
 Hy=(sigyele+sigyhole)/2D0
 Hz=(sigzele+sigzhole)/2D0
@@ -1152,7 +1154,7 @@ tz=disz-Hz
 tnorm=dsqrt(tx**2+ty**2+tz**2)
 write(*,"(' t index in x,y,z:',3f8.3,'   Norm:',f8.3,' Angstrom')") tx*b2a,ty*b2a,tz*b2a,tnorm*b2a
 
-!Calculate ghost state diagnostic index proposed by Adamo (DOI: 10.1002/jcc.24862)
+!---- Calculate ghost state diagnostic index proposed by Adamo (DOI: 10.1002/jcc.24862)
 ghostp2=1/disnorm !in a.u.
 !Definition 1 (the original paper definition). The original paper doesn't clearly mention how to deal with de-excitation, so I treat it as usual
 sumC=sum(exccoeff(1:nexcitorb))
@@ -2206,13 +2208,9 @@ disx=abs(Rxpos-Rxneg)
 disy=abs(Rypos-Ryneg)
 disz=abs(Rzpos-Rzneg)
 disnorm=dsqrt(disx**2+disy**2+disz**2)
-write(*,*) "Note: All units below are atomic unit unless otherwise specified"
 write(*,"(' Transferred charge (positive and negative parts):',2f8.3)") sumpos,sumneg
-write(*,"(' Barycenter of positive part in x,y,z (Bohr):',3f8.3)") Rxpos,Rypos,Rzpos
 write(*,"(' Barycenter of positive part in x,y,z (Angstrom):',3f8.3)") Rxpos*b2a,Rypos*b2a,Rzpos*b2a
-write(*,"(' Barycenter of negative part in x,y,z (Bohr):',3f8.3)") Rxneg,Ryneg,Rzneg
 write(*,"(' Barycenter of negative part in x,y,z (Angstrom):',3f8.3)") Rxneg*b2a,Ryneg*b2a,Rzneg*b2a
-write(*,"(' Distance of CT in x,y,z (Bohr):',3f8.3,' Norm:',f8.3)") disx,disy,disz,disnorm
 write(*,"(' Distance of CT in x,y,z (Angstrom):',3f8.3,' Norm:',f8.3)") disx*b2a,disy*b2a,disz*b2a,disnorm*b2a
 dipx=-(Rxpos-Rxneg)*sumpos
 dipy=-(Rypos-Ryneg)*sumpos
@@ -2250,19 +2248,19 @@ sigxneg=dsqrt(sigxneg/(sumneg/dvol))
 sigyneg=dsqrt(sigyneg/(sumneg/dvol))
 sigzneg=dsqrt(sigzneg/(sumneg/dvol))
 signormneg=dsqrt(sigxneg**2+sigyneg**2+sigzneg**2)
-write(*,"(' RMSD of positive part in x,y,z:',3f8.3,' Total:',f8.3)") sigxpos,sigypos,sigzpos,signormpos
-write(*,"(' RMSD of negative part in x,y,z:',3f8.3,' Total:',f8.3)") sigxneg,sigyneg,sigzneg,signormneg
+write(*,"(' RMSD of positive part in x,y,z (Angstrom):',3f8.3,' Tot:',f7.3)") sigxpos*b2a,sigypos*b2a,sigzpos*b2a,signormpos*b2a
+write(*,"(' RMSD of negative part in x,y,z (Angstrom):',3f8.3,' Tot:',f7.3)") sigxneg*b2a,sigyneg*b2a,sigzneg*b2a,signormneg*b2a
+delta_sigCT=dsqrt((sigxpos-sigxneg)**2+(sigypos-sigyneg)**2+(sigzpos-sigzneg)**2)
+write(*,"(' Difference between RMSD of positive and negative parts (Angstrom):',f8.3)") delta_sigCT*b2a
 Hx=(sigxpos+sigxneg)/2D0
 Hy=(sigypos+sigyneg)/2D0
 Hz=(sigzpos+sigzneg)/2D0
 Hnorm=dsqrt(Hx**2+Hy**2+Hz**2)
-write(*,"(' H index in x,y,z (Bohr):',3f8.3,' Norm:',f8.3)") Hx,Hy,Hz,Hnorm
 write(*,"(' H index in x,y,z (Angstrom):',3f8.3,' Norm:',f8.3)") Hx*b2a,Hy*b2a,Hz*b2a,Hnorm*b2a
 tx=disx-Hx
 ty=disy-Hy
 tz=disz-Hz
 tnorm=dsqrt(tx**2+ty**2+tz**2)
-write(*,"(' t index in x,y,z (Bohr):',3f8.3,' Norm:',f8.3)") tx,ty,tz,tnorm
 write(*,"(' t index in x,y,z (Angstrom):',3f8.3,' Norm:',f8.3)") tx*b2a,ty*b2a,tz*b2a,tnorm*b2a
 
 allocate(Cpos(nx,ny,nz),Cneg(nx,ny,nz),tmpmat(nx,ny,nz))

@@ -728,6 +728,7 @@ else if (iuserfunc==102) then !Negative part of ESP
     userfunc=totesp(x,y,z)
     if (userfunc>0D0) userfunc=0D0
 end if
+if (iuserfunc>=800) userfunc=funcvalLSB(x,y,z,iuserfunc-800)
 if (iuserfunc==900) userfunc=x !X coordinate
 if (iuserfunc==901) userfunc=y !Y coordinate
 if (iuserfunc==902) userfunc=z !Z coordinate
@@ -3790,6 +3791,16 @@ end if
 end function
 
 
+!For visually examine functions used in DFRT2.0 project
+real*8 function funcvalLSB(x,y,z,itype)
+integer itype
+real*8 x,y,z,valarr(6),rho,gradrho(3)
+iexpcutoffold=expcutoff
+expcutoff=1
+call valaryyLSB(x,y,z,valarr,rho,gradrho)
+funcvalLSB=valarr(itype)
+expcutoff=iexpcutoffold
+end function
 
 
 

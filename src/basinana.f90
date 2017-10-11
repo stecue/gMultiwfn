@@ -497,7 +497,7 @@ do while(.true.)
     else if (isel==2) then
         call integratebasin
         
-    else if (isel==3.or.isel==4.or.isel==5.or.isel==7.or.isel==8) then
+    else if (isel==3.or.isel==4.or.isel==5.or.isel==7.or.isel==-7.or.isel==8) then
         if (.not.allocated(b)) then
             write(*,"(a)") " Note: No GTF (gauss type function) information is available in your input file, please input the file &
             containing GTF information of your system, such as .wfn/.wfx and .fch file. e.g. c:\abc.wfn"
@@ -519,9 +519,9 @@ do while(.true.)
             write(*,*) "Accuracy: 2>=3>>1     Time spent: 2>3>>1     Memory requirement: 3>2=1"
     !         write(*,*) "Robost: 1=2>3"
             read(*,*) iseltmp
-            if (iseltmp==1) call integratebasinmix(1)
-            if (iseltmp==2) call integratebasinmix(2)
-            if (iseltmp==3) call integratebasinmix(3)
+            call integratebasinmix(iseltmp)
+        else if (isel==-7) then
+            call integratebasinmix_LSB
         else if (isel==8) then
             call integratebasinmix(10)
         end if
@@ -2594,7 +2594,7 @@ real*8 trustrad(numrealatt),intbasinthread(numrealatt),intbasin(numrealatt)
 real*8 dens,grad(3),hess(3,3),k1(3),k2(3),k3(3),k4(3),xarr(nx),yarr(ny),zarr(nz)
 real*8,allocatable :: potx(:),poty(:),potz(:),potw(:)
 real*8,allocatable :: rhogrid(:,:,:),rhograd2grid(:,:,:),prorhogrid(:,:,:) !rhogrid and rhograd2grid are used for shubin's 2nd project, prorhogrid for integrating deformation density
-type(content),allocatable :: gridatt(:)
+type(content),allocatable :: gridatt(:) !Record correspondence between attractor and grid
 integer att2atm(numrealatt) !The attractor corresponds to which atom. If =0, means this is a NNA
 real*8 eleint(-1:numrealatt),xint(-1:numrealatt),yint(-1:numrealatt),zint(-1:numrealatt),&
 xxint(-1:numrealatt),yyint(-1:numrealatt),zzint(-1:numrealatt),xyint(-1:numrealatt),yzint(-1:numrealatt),xzint(-1:numrealatt)
@@ -2697,11 +2697,12 @@ do iatt=1,numrealatt !Cycle each attractors
     !Determine trust radius and set integration points and weight
     radpotAIM=200
     parm=1
-    nintgrid=0
-    if (allocated(gridatt)) deallocate(gridatt)
     isettrustrad=0
+    nintgrid=0 !Then number of integration grids within trust radius
+    if (allocated(gridatt)) deallocate(gridatt) !Used to record grids in trust sphere of this attractor
     allocate(gridatt(radpotAIM*500))
     do ish=1,radpotAIM !Cycle each radial shell. Radius distance is from near to far
+        if (isettrustrad==1) exit !The trust radius has been finally determined in last shell cycle
         !Becke, namely the second-kind Gauss-Chebyshev
         itmp=radpotAIM+1-ish !Invert ish to make radr from near to far
         radx=cos(itmp*pi/(radpotAIM+1D0))
@@ -2713,6 +2714,7 @@ do iatt=1,numrealatt !Cycle each attractors
 !         radw=2*radx**5/dfloat(radpotAIM+1)/(1-radx)**7*parm**3 *4*pi
         
         !Set Lebedev grids according to shell radius
+        !For more inner shell, the distribution is more akin to spherically symmetric, therefore lower number of grids could be used
         if (att2atm(iatt)==0) then !NNA
             sphpotAIM=302
         else
@@ -2727,7 +2729,6 @@ do iatt=1,numrealatt !Cycle each attractors
                 sphpotAIM=194
             end if
         end if
-!         sphpotAIM=302
         if (allocated(potx)) deallocate(potx,poty,potz,potw)
         allocate(potx(sphpotAIM),poty(sphpotAIM),potz(sphpotAIM),potw(sphpotAIM))
         call Lebedevgen(sphpotAIM,potx,poty,potz,potw)
@@ -2736,7 +2737,9 @@ do iatt=1,numrealatt !Cycle each attractors
         gridatt( nintgrid+1:nintgrid+sphpotAIM )%y=radr*poty+CPpos(2,numcp)
         gridatt( nintgrid+1:nintgrid+sphpotAIM )%z=radr*potz+CPpos(3,numcp)
         gridatt( nintgrid+1:nintgrid+sphpotAIM )%value=radw*potw
-        !Find out actual trust radius for each attractor
+        !Find out trust radius for present attractor
+        !If in a shell, the angle between "linking line between nucleus and a shell point" and "gradient vector of this point" &
+        !is larger than 45 degree, then this shell is trust radius
         angmax=0
         if (att2atm(iatt)==0) then
             radinit=0
@@ -2754,23 +2757,20 @@ do iatt=1,numrealatt !Cycle each attractors
                 diry=CPpos(2,numcp)-ytmp
                 dirz=CPpos(3,numcp)-ztmp
                 angtmp=vecang(dirx,diry,dirz,grad(1),grad(2),grad(3))
-    !             write(*,"(i6,i6,f16.10)") ish,isphpt,angtmp
                 if (angtmp>angmax) angmax=angtmp
                 if (angtmp>45) then
                     write(*,"(' The trust radius of attractor',i6,' is',f10.3,' Bohr',/)") iatt,trustrad(iatt)
-                    isettrustrad=1
+                    isettrustrad=1 !The radius of last shell should be the final trust radius. Now exit
                     exit
                 end if
             end do
-            if (isettrustrad==0) trustrad(iatt)=radr !Passed this shell. Constantly try to enlarge the trust radius, until one angtmp>45 degree
+            if (isettrustrad==0) trustrad(iatt)=radr !Passed this shell and temporarily set the radius as trust radius. Continue to enlarge the trust radius, until reached angmax>45 degree
         end if
         nintgrid=nintgrid+sphpotAIM
-!         write(*,"(i8,i8,f16.8,f12.4)") iatt,ish,radr,angmax
-!         read(*,*)
     end do
-    if (isettrustrad==0) then
-        trustrad(iatt)=1000 !Infinite, for atom
-        if (ispecial==2) trustrad(iatt)=20 !For Shubin's 2nd project, should not be as large as 1000, because a the point very far from nucleus the relative entropy cannot be evaluated
+    if (isettrustrad==0) then !Trust radius was not set after run over all shells
+        trustrad(iatt)=1000 !Infinite, for isolated atom
+        if (ispecial==2) trustrad(iatt)=20 !For Shubin's 2nd project, should not be as large as 1000, because for a point very far from nucleus the relative entropy cannot be evaluated
         write(*,"(' The trust radius of attractor',i6,' is',f10.3,' Bohr',/)") iatt,trustrad(iatt)
     end if
     
@@ -2866,6 +2866,7 @@ nthreads=getNThreads()
 !$OMP end CRITICAL
 !$OMP END PARALLEL
     
+    !Some special cases:
     if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and Fisher entropy. density and gradient^2 have been stored in gridval(1/2)
         call dealloall
         write(*,"(' Loading ',a,/)") trim(custommapname(att2atm(iatt)))
@@ -2885,7 +2886,7 @@ nthreads=getNThreads()
         end do
         call dealloall
         call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule) to calc real rho again
-    else if (ifuncint==-1) then !Deformation density
+    else if (ifuncint==-1) then !Integrate deformation density
         gridval(:,2)=0D0
         do iatm=1,ncenter_org !Cycle each atom to calculate deformation density at all integration grid
             call dealloall
@@ -2923,6 +2924,7 @@ if (itype==1.or.itype==2.or.itype==3) then
     end if
 end if
 
+!Set coordinate of uniform grids
 dvol=dx*dy*dz
 do ix=1,nx
     xarr(ix)=orgx+(ix-1)*dx

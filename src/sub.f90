@@ -583,7 +583,10 @@ do while(.true.)
     else if (iselect==34) then
         innerel=0
         do i=1,ncenter
-            if (int(a(i)%charge)/=a(i)%index) cycle !For the atom used ECP, skip it
+            if (int(a(i)%charge)/=a(i)%index) then
+                write(*,"(' Note: Atom',i5,' is not taken into account since it utilizes pseudopotential')") i
+                cycle
+            end if
             if (a(i)%index>2.and.a(i)%index<=10) innerel=innerel+2
             if (a(i)%index>10.and.a(i)%index<=18) innerel=innerel+10
             if (a(i)%index>18.and.a(i)%index<=36) innerel=innerel+18
@@ -600,10 +603,10 @@ do while(.true.)
                 if (motype(j)==2) exit
             end do
             MOocc(1:j+innerel/2-1)=0D0
-            write(*,"(' The effect of ',i7,' lowest energy orbitals have been discarded')") innerel
+            write(*,"(' The occupation of',i7,' lowest energy orbitals have been set to zero')") innerel
         else if (wfntype==0.or.wfntype==2.or.wfntype==3) then !restricted(=0) or RO(=2) or post-R(=3) wavefunction
             MOocc(1:innerel/2)=0D0
-            write(*,"(' The effect of ',i7,' lowest energy orbitals have been discarded')") innerel/2
+            write(*,"(' The occupation of',i7,' lowest energy orbitals have been set to zero')") innerel/2
         end if
         if (wfntype==3.or.wfntype==4) write(*,"(' Warning: Discarding inner orbitals for post-HF wavefunction will lead to unexpected result!')") 
         imodwfn=1
