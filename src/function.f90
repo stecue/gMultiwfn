@@ -1,12 +1,10 @@
 !! ----------------- Show the list of all supported real space functions
 subroutine funclist
 use defvar
-! write(*,*) "            ----------- Avaliable real space functions -----------"
+write(*,*) "            ----------- Avaliable real space functions -----------"
 if (allocated(b)) then
-    write(*,*) "1 Electron density"
-    write(*,*) "2 Gradient norm of electron density"
-    write(*,*) "3 Laplacian of electron density"
-    write(*,*) "4 Value of orbital wavefunction"
+    write(*,*) "1 Electron density                 2 Gradient norm of electron density"
+    write(*,*) "3 Laplacian of electron density    4 Value of orbital wavefunction"
     if (ipolarpara==0) write(*,*) "5 Electron spin density"
     if (ipolarpara==1) write(*,*) "5 Spin polarization parameter function"
     write(*,*) "6 Hamiltonian kinetic energy density K(r)"
@@ -24,10 +22,8 @@ if (allocated(b)) then
     if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator (LOL) defined by Lu, Tian" 
     write(*,*) "11 Local information entropy"
     write(*,*) "12 Total electrostatic potential (ESP)"
-    write(*,*) "13 Reduced density gradient (RDG)"
-    write(*,*) "14 Reduced density gradient (RDG) with promolecular approximation"
-    write(*,*) "15 Sign(lambda2)*rho"
-    write(*,*) "16 Sign(lambda2)*rho with promolecular approximation"
+    write(*,*) "13 Reduced density gradient (RDG)     14 RDG with promolecular approximation"
+    write(*,*) "15 Sign(lambda2)*rho    16 Sign(lambda2)*rho with promolecular approximation"
     !Fermi hole function only available to single-determinant wavefunction
     if (pairfunctype==1) write(*,"(a,3f10.5)") " 17 Correlation hole for alpha, ref. point:",refx,refy,refz
     if (pairfunctype==2) write(*,"(a,3f10.5)") " 17 Correlation hole for beta, ref. point:",refx,refy,refz
@@ -40,8 +36,10 @@ if (allocated(b)) then
     if (pairfunctype==12) write(*,"(a,3f10.5)") " 17 Pair density for all electrons, ref. point:",refx,refy,refz
     write(*,*) "18 Average local ionization energy"
     write(*,"(a,i2,a,3f10.5)") " 19 Source function, mode:",srcfuncmode,", ref. point:",refx,refy,refz
-    write(*,"(a,i5)") " 100 User defined real space function, iuserfunc=",iuserfunc
-else
+    write(*,*) "20 Electron delocalization range function EDR(r;d)"
+    write(*,*) "21 Orbital overlap distance function D(r)"
+    write(*,"(a,i5)") " 100 User-defined real space function, iuserfunc=",iuserfunc
+else !No wavefunction information is available
     if (ifiletype==4) then
         write(*,*) "8 Electrostatic potential from atomic charges"
     else
@@ -49,20 +47,67 @@ else
     end if
     write(*,*) "14 Reduced density gradient(RDG) with promolecular approximation"
     write(*,*) "16 Sign(lambda2)*rho with promolecular approximation"
-    write(*,"(a,i3)") " 100 User defined real space function, iuserfunc=",iuserfunc
+    write(*,"(a,i3)") " 100 User-defined real space function, iuserfunc=",iuserfunc
 end if
 end subroutine
+
 
 !---- Standard interface for selecting real space function
 !Note that iorbsel is a global variable
 subroutine selfunc_interface(ifunc)
 use defvar
-integer ifunc
+integer ifunc,edrmaxpara,wrtnumedr
+real*8 wrtstart
 call funclist
 read(*,*) ifunc
 if (ifunc==4) then
     write(*,"(a,i10)") " Input orbital index, between 1 and",nmo
     read(*,*) iorbsel
+else if (ifunc==20) then !Read length scale to evaluate EDR(r;d)
+    write(*,*) "The EDR(r;d) computing code was contributed by Arshad Mehmood"
+    write(*,"(a,/)") " References: J. Chem. Phys., 141, 144104 (2014); J. Chem. Theory Comput., 12, 79 (2016); Angew. Chem. Int. Ed., 56, 6878 (2017)"
+    write(*,*) "Input length scale d (Bohr)   e.g. 0.85"
+    read(*,*) dedr
+else if (ifunc==21) then 
+    write(*,*) "The D(r) computing code was contributed by Arshad Mehmood"
+    write(*,"(a,/)") " References: J. Chem. Theory Comput., 12, 3185 (2016); Phys. Chem. Chem. Phys., 17, 18305 (2015)"
+    write(*,*) "1 Manually input total number, start and increment in EDR exponents"
+    write(*,*) "2 Use default values   i.e. 20,2.50,1.50"
+    read(*,*) edrmaxpara
+    if (edrmaxpara==1) then  
+        write(*,*) "Please input in order: exponents start increment   e.g. 20 2.5 1.5"
+        write(*,*) "Note: Max. allowed exponents are 50 and min. allowed increment is 1.01"
+        read(*,*) nedr,edrastart,edrainc
+        if (nedr<1) then
+            write(*,*) "Error: Bad Number of EDR exponents. Should be between 1 to 50"
+            write(*,*) "Press ENTER to exit"
+            read(*,*)
+            stop
+        else if (nedr>50) then
+            write(*,*) "Error: Bad Number of EDR exponents. Should be between 1 to 50"
+            write(*,*) "Press ENTER to exit"
+            read(*,*)
+            stop
+        end if
+        if (edrainc<1.01d0) then
+            write(*,*) "Error: Bad increment in EDR exponents. Should not be less than 1.01"
+            write(*,*) "Press ENTER to exit"
+            read(*,*)
+            stop
+        end if
+    else if (edrmaxpara==2) then
+        nedr=20
+        edrastart=2.5d0
+        edrainc=1.5d0
+    end if
+    write(*,*) "The following EDR exponents will be used in calculation:"
+    wrtstart=edrastart
+    do wrtnumedr=1,nedr
+        wrtexpo(wrtnumedr)=wrtstart
+        wrtstart=wrtstart/edrainc
+        write(*,"(E13.5)") wrtexpo(wrtnumedr) 
+    end do
+    write(*,*)
 end if
 end subroutine
 
@@ -124,6 +169,10 @@ else if (ifunc==18) then
 calcfuncall=avglocion(x,y,z)
 else if (ifunc==19) then
 calcfuncall=srcfunc(x,y,z,srcfuncmode)
+else if (ifunc==20) then
+calcfuncall=edr(x,y,z) 
+else if (ifunc==21) then
+calcfuncall=edrdmax(x,y,z) 
 else if (ifunc==100) then
 calcfuncall=userfunc(x,y,z)
 end if
@@ -341,6 +390,7 @@ do j=1,nprims
 end do
 end subroutine
 
+
 !!!----------- Calculate contribution from EDFs (recorded in wfx file) to density and corresponding derivatives (up to third-order)
 !Only S-type GTFs are supported
 ! In wfx files, GTFs are used to expand core density
@@ -421,6 +471,7 @@ do i=1,nEDFprims
 end do
 end subroutine
 
+
 !!!------ A general routine used to calculate value, gradient and Hessian matrix at a given point for some real space functions
 ! itype=1 Only calculate value and grad
 ! itype=2 Calculate value, gradient and Hessian
@@ -434,7 +485,7 @@ denom=2D0*diff
 if (ifunc==9) selELFLOL="ELF"
 if (ifunc==10) selELFLOL="LOL"
 
-!Evaluate both gradient and Hessian analytically then return directly
+!For a few functions whose both analytic gradient and Hessian are available, evaluate them and then return
 if (ifunc==1) then
     call calchessmat_dens(itype,x,y,z,value,grad,hess)
     return
@@ -443,8 +494,8 @@ else if (ifunc==4) then
     return
 end if
     
-!For other functions, analytical Hessian or even gradient hasn't been realized
-!Now calculate gradient
+!Calculate gradient
+!For other functions aside from above ones, analytical Hessian or even gradient hasn't been realized
 if (ifunc==3) then
     call calchessmat_lapl(1,x,y,z,value,grad,hess)
 else if (ifunc==9.or.ifunc==10) then
@@ -562,7 +613,7 @@ if (itype==2) then
         xminzadd=totesp(x-diff,y,z+diff)
         xaddzmin=totesp(x+diff,y,z-diff)
         xminzmin=totesp(x-diff,y,z-diff)
-    else if (ifunc==100) then !pure numerical Hessian for user defined function
+    else if (ifunc==100) then !pure numerical Hessian for user-defined function
         xaddxadd=userfunc(x+2D0*diff,y,z)
         xminxmin=userfunc(x-2D0*diff,y,z)
         yaddyadd=userfunc(x,y+2D0*diff,z)
@@ -608,7 +659,7 @@ end subroutine
 !============================================================
 
 
-!!!--------- User defined function, the content is needed to be filled by users or selected by iuserfunc
+!!!--------- User-defined function, the content is needed to be filled by users or selected by iuserfunc
 !The units should be given in a.u.
 real*8 function userfunc(x,y,z)
 real*8 x,y,z
@@ -705,6 +756,8 @@ if (iuserfunc==75) userfunc=magmomdens(x,y,z,1) !X component of magnetic dipole 
 if (iuserfunc==76) userfunc=magmomdens(x,y,z,2) !Y component of magnetic dipole moment density
 if (iuserfunc==77) userfunc=magmomdens(x,y,z,3) !Z component of magnetic dipole moment density
 if (iuserfunc==78) userfunc=magmomdens(x,y,z,0) !Magnitude of magnetic dipole moment density
+if (iuserfunc==79) userfunc=energydens_grdn(x,y,z) !Gradient norm of electron density
+if (iuserfunc==80) userfunc=energydens_lapl(x,y,z) !Laplacian of electron density
 if (iuserfunc==81) userfunc=hamkin(x,y,z,1) !X component of Hamiltonian kinetic energy density
 if (iuserfunc==82) userfunc=hamkin(x,y,z,2) !Y component of Hamiltonian kinetic energy density
 if (iuserfunc==83) userfunc=hamkin(x,y,z,3) !Z component of Hamiltonian kinetic energy density
@@ -728,7 +781,8 @@ else if (iuserfunc==102) then !Negative part of ESP
     userfunc=totesp(x,y,z)
     if (userfunc>0D0) userfunc=0D0
 end if
-if (iuserfunc>=800) userfunc=funcvalLSB(x,y,z,iuserfunc-800)
+if (iuserfunc>=802.and.iuserfunc<=807) userfunc=funcvalLSB(x,y,z,iuserfunc-800)
+if (iuserfunc>=812.and.iuserfunc<=817) userfunc=1/funcvalLSB(x,y,z,iuserfunc-810)
 if (iuserfunc==900) userfunc=x !X coordinate
 if (iuserfunc==901) userfunc=y !Y coordinate
 if (iuserfunc==902) userfunc=z !Z coordinate
@@ -1080,6 +1134,47 @@ else if (idir==3) then
 end if
 Hamkin=-Hamkin/2D0
 end function
+
+
+!!------- Output analytic gradient vector of energy density (i.e. negative of K(r))
+subroutine energydens_grad(x,y,z,grad)
+real*8 x,y,z,grad(3),wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),wfntens(3,3,3,nmo)
+call orbderv(5,1,nmo,x,y,z,wfnval,wfnderv,wfnhess,wfntens)
+grad=0
+do imo=1,nmo
+    wfnlapl=wfnhess(1,1,imo)+wfnhess(2,2,imo)+wfnhess(3,3,imo)
+    gx=wfnderv(1,imo)*wfnlapl+wfnval(imo)*(wfntens(1,1,1,imo)+wfntens(1,2,2,imo)+wfntens(1,3,3,imo))
+    gy=wfnderv(2,imo)*wfnlapl+wfnval(imo)*(wfntens(1,1,2,imo)+wfntens(2,2,2,imo)+wfntens(2,3,3,imo))
+    gz=wfnderv(3,imo)*wfnlapl+wfnval(imo)*(wfntens(1,1,3,imo)+wfntens(2,2,3,imo)+wfntens(3,3,3,imo))
+    grad(1)=grad(1)+gx*MOocc(imo)
+    grad(2)=grad(2)+gy*MOocc(imo)
+    grad(3)=grad(3)+gz*MOocc(imo)
+end do
+grad=grad/2
+end subroutine
+!!------- Output gradient norm of energy density (i.e. negative of K(r))
+real*8 function energydens_grdn(x,y,z)
+real*8 x,y,z,grad(3)
+call energydens_grad(x,y,z,grad)
+energydens_grdn=dsqrt(sum(grad**2))
+end function
+!!------- Output Laplacian of energy density (i.e. negative of K(r))
+real*8 function energydens_lapl(x,y,z)
+real*8 x,y,z,gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
+diff=1D-5
+denom=2*diff
+call energydens_grad(x+diff,y,z,gradaddx)
+call energydens_grad(x-diff,y,z,gradminx)
+call energydens_grad(x,y+diff,z,gradaddy)
+call energydens_grad(x,y-diff,z,gradminy)
+call energydens_grad(x,y,z+diff,gradaddz)
+call energydens_grad(x,y,z-diff,gradminz)
+xlapl=(gradaddx(1)-gradminx(1))/denom
+ylapl=(gradaddy(2)-gradminy(2))/denom
+zlapl=(gradaddz(3)-gradminz(3))/denom
+energydens_lapl=xlapl+ylapl+zlapl
+end function
+
 
 
 !!!--------- Output electron linear momentum density in 3D representation at a point. idir=0/1/2/3 means magnitude/x/y/z component
@@ -3794,7 +3889,8 @@ end function
 !For visually examine functions used in DFRT2.0 project
 real*8 function funcvalLSB(x,y,z,itype)
 integer itype
-real*8 x,y,z,valarr(6),rho,gradrho(3)
+integer,parameter :: nfunc=7
+real*8 x,y,z,valarr(nfunc),rho,gradrho(3)
 iexpcutoffold=expcutoff
 expcutoff=1
 call valaryyLSB(x,y,z,valarr,rho,gradrho)
@@ -3804,14 +3900,187 @@ end function
 
 
 
-!*********************************************************************
-!=====================================================================
-!The real space functions below are used for shubins' DFRT 2.0 project
-!=====================================================================
-!*********************************************************************
 
 
+!!=================================================================================!!
+!! Below codes are contributed by Arshad Mehmood for calculating EDR(r;d) and D(r) !!
+!!=================================================================================!!
 
+!!----- For three-point numerical fit to evaluate D(r)
+subroutine three_point_interpolation(n,x,y,xmax,ymax)
+integer, intent(in) :: n
+real*8, intent(in) :: x(max_edr_exponents),y(max_edr_exponents)
+real*8, intent(out) :: xmax,ymax
+integer i , imax
+real*8  x1,x2,x3, y1,y2,y3, a,b
+100 format ('XXX ',3F9.5)
+ymax = -1.0d0
+imax = -1 
+do i=1,n
+  if(y(i) .gt. ymax) then 
+     ymax = y(i)
+     imax = i
+     endif 
+  end do 
+if(imax<1 .or. imax>n) then
+    write(*,*) "Error: Bad imax"
+    call EXIT()
+end if
+if(imax .eq. 1 .or. imax.eq.n) then
+   xmax = x(imax)**(-0.5d0)
+   return 
+endif
+x1 = x(imax-1)**(-0.5d0)
+x2 = x(imax  )**(-0.5d0)
+x3 = x(imax+1)**(-0.5d0)
+y1 = y(imax-1)
+y2 = y(imax  )
+y3 = y(imax+1)
+a = ( (y3-y2)/(x3-x2) -(y2-y1)/(x2-x1) )/(x3-x1)
+b = ( (y3-y2)/(x3-x2)*(x2-x1) + (y2-y1)/(x2-x1)*(x3-x2) )&
+      /(x3-x1)
+xmax = x2 - b/(2d0*a)
+ymax = y2 - b**(2d0)/(4d0*a)
+end subroutine 
+
+!!----- Function to calculate EDR(r,d)
+!J. Chem. Phys. 141, 144104(2014), J. Chem. Theory Comput. 12, 79(2016), Angew. Chem. Int. Ed. 56, 6878(2017)
+real*8 function edr(x,y,z)
+real*8 :: ed(max_edr_exponents),edrval(max_edr_exponents)
+nedr=1
+ed(1)=dedr**(-2.0d0)
+call EDRcal(1,x,y,z,nedr,ed,edrval,edrdmaxval)
+edr=edrval(1)
+end function
+
+!!----- Function to calculate D(r)
+!J. Chem. Theory Comput. 12, 3185(2016), Phys. Chem. Chem. Phys. 17, 18305(2015)
+real*8 function edrdmax(x,y,z)    
+real*8 :: ed(max_edr_exponents),edrdmaxval,edrval(max_edr_exponents)
+real*8 :: edrexponent
+integer iedr
+edrexponent = edrastart  
+do iedr=1,nedr
+   ed(iedr)=edrexponent
+   edrexponent=edrexponent/edrainc
+end do
+call EDRcal(2,x,y,z,nedr,ed,edrval,edrdmaxval)
+edrdmax=edrdmaxval
+end function
+
+!!----- Working routine used to evaluate EDR(r;d) and D(r)
+subroutine EDRcal(runtype,x,y,z,nedr,ed,edrval,edrdmaxval) 
+real*8, intent(in) :: x,y,z,ed(max_edr_exponents)
+integer, intent(in) :: nedr
+real*8, intent(out):: edrdmaxval,edrval(max_edr_exponents) 
+real*8 :: rho,dmaxdummy  
+real*8 :: psi(nmo),AMUVal(max_edr_exponents),Bint(nmo,max_edr_exponents) 
+real*8 :: xamu(3,max_edr_exponents),amu0(max_edr_exponents)  
+integer :: j,ixyz,i,iedr,runtype
+edrval = 0D0
+if (runtype==2) then
+    edrdmaxval = 0D0
+end if
+
+rho=fdens(x,y,z)
+
+if(rho.gt.1D-10) then 
+    psi = 0d0
+    Bint=0d0 
+    do j=1,nprims    
+        ix=type2ix(b(j)%functype)
+        iy=type2iy(b(j)%functype)
+        iz=type2iz(b(j)%functype)
+        ep=b(j)%exp    
+        sftx=x-a(b(j)%center)%x
+        sfty=y-a(b(j)%center)%y
+        sftz=z-a(b(j)%center)%z
+        sftx2=sftx*sftx
+        sfty2=sfty*sfty
+        sftz2=sftz*sftz
+        rr=sftx2+sfty2+sftz2     
+        expterm=0.0
+        amu0 = 0d0
+        if (expcutoff>0.or.-ep*rr>expcutoff) then
+            expterm=exp(-ep*rr) 
+            do iedr=1,nedr
+               amu0(iedr)=(2d0*ed(iedr)/pi)**(3d0/4d0) *(pi/(ep+ed(iedr)))**(3d0/2d0)&
+               * exp(-ep*ed(iedr)/(ep+ed(iedr))*rr)
+            end do
+        end if 
+ 
+        if (expterm==0D0) cycle
+         
+        GTFval=sftx**ix *sfty**iy *sftz**iz *expterm
+        do iedr=1,nedr
+            do ixyz=1,3
+                ival=ix
+                sftval=sftx
+                if(ixyz.eq.2) then
+                    ival=iy
+                    sftval=sfty
+                else if(ixyz.eq.3) then
+                    ival=iz
+                    sftval=sftz
+                end if
+                If(ival.eq.0) then
+                    xamu(ixyz,iedr)=1d0 
+                else if(ival.eq.1) then 
+                    xamu(ixyz,iedr)=sftval*ed(iedr)/(ed(iedr)+ep)
+                else If(ival.eq.2) then
+                    xamu(ixyz,iedr)=(sftval*ed(iedr)/(ed(iedr)+ep))**2d0 + 1d0/(2d0*(ed(iedr)+ep))
+                else If(ival.eq.3) then
+                    xamu(ixyz,iedr)=(sftval*ed(iedr)/(ed(iedr)+ep))**3d0 + sftval*3d0*ed(iedr)/(2d0*(ed(iedr)+ep)**2d0)
+                else If(ival.eq.4) then
+                    xamu(ixyz,iedr)=sftval**4d0* (ed(iedr)/(ed(iedr)+ep))**4d0 + sftval**2d0 *3d0*ed(iedr)**2d0/(ed(iedr)+ep)**3d0 &
+                        + 3d0/(4d0*(ed(iedr)+ep)**2d0)
+                else If(ival.eq.5) then
+                    xamu(ixyz,iedr)=sftval**5d0*  ed(iedr)**5d0/(ed(iedr)+ep)**5d0 + sftval**3d0* 5d0*ed(iedr)**3d0/(ed(iedr)+ep)**4d0 &
+                        + sftval *15d0*ed(iedr)/(4d0*(ed(iedr)+ep)**3d0)
+                else 
+                    write(*,*) "Angular momentum out of range"
+                    Call EXIT()
+                end if
+            end do
+        end do
+        do iedr=1,nedr
+            AMUVal(iedr)=amu0(iedr)*xamu(1,iedr)*xamu(2,iedr)*xamu(3,iedr)
+        end do
+        
+        do i=1,nmo
+            if (nint(MOocc(i)).GE.1D0) then    
+                psi(i)=psi(i)+co(i,j)*GTFval
+            end if
+        end do
+
+        do iedr=1,nedr
+            do i=1,nmo
+                if (nint(MOocc(i)).GE.1D0) then    
+                    Bint(i,iedr)=Bint(i,iedr)+co(i,j)*AMUVal(iedr)
+                end if
+            end do
+        end do
+    end do  
+
+    edrval = 0d0
+    do i=1,nmo
+        do iedr=1,nedr
+            edrval(iedr)=edrval(iedr)+psi(i)*Bint(i,iedr)
+        end do
+    end do
+    if (runtype==2) then
+        call three_point_interpolation(nedr,ed,edrval,edmax,dmaxdummy)
+        edrdmaxval=edmax
+    else if (runtype==1) then
+        do iedr=1,nedr
+            edrval(iedr)=edrval(iedr)*rho**(-0.5D0)
+        end do
+    else    
+        write(*,*) "EDRcal runtype out of range"
+        call EXIT()
+    end if
+end if  
+end subroutine 
 
 
 

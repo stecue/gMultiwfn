@@ -74,7 +74,7 @@ do while(.true.)
         if (ELFLOL_type==0) write(*,*) "10 Localized orbital locator(LOL)"
         if (ELFLOL_type==1) write(*,*) "10 Localized orbital locator(LOL) defined by Tsirelson" 
         if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator(LOL) defined by Lu, Tian"
-        write(*,"(a,i5)") " 100 User defined real space function, iuserfunc=",iuserfunc
+        write(*,"(a,i5)") " 100 User-defined real space function, iuserfunc=",iuserfunc
 !         write(*,*) "12 Total electrostatic potential"
         read(*,*) ifunctopo
         if (ifunctopo==4) then

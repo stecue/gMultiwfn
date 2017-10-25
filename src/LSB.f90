@@ -54,6 +54,10 @@ write(*,"(a)") " 1 Becke partition"
 write(*,"(a)") " 2 Hirshfeld partition"
 read(*,*) ipartition
 
+invfunc=0
+write(*,*) "If replacing real space functions with their reciprocals?  0=No  1=Yes"
+read(*,*) invfunc 
+
 atmcontri=0D0
 checkacc=0
 call setpromol
@@ -188,7 +192,7 @@ nthreads=getNThreads()
             Pvec=Pvec*smat(:,ii)
         end do
         Pvec=Pvec/sum(Pvec)
-        atmBeckewei(i)=Pvec(iatm) !Normalized Pvec, Pvec contain partition weight of each atom in current point, namely i
+        atmBeckewei(i)=Pvec(iatm) !Normalized Pvec. Pvec contains partition weight of each atom in current point, namely i
     end do
 !$OMP end parallel do
     
@@ -212,24 +216,31 @@ nthreads=getNThreads()
         do ipt=1+iradcut*sphpot,radpot*sphpot
             weitot=atmBeckewei(ipt)*gridatm(ipt)%value
             do ifunc=0,nfunc
-                !Value of function itself
-                atmcontri(iatm,ifunc,0)=atmcontri(iatm,ifunc,0)+weitot*funcval(ipt,ifunc)
-                if (ifunc/=3) then !Because the variable in log must be positive everywhere
-                    !Shannon entropy
-                    atmcontri(iatm,ifunc,1)=atmcontri(iatm,ifunc,1)+weitot*( -funcval(ipt,ifunc)*log(funcval(ipt,ifunc)) )
-                    !Information gain
-                    atmcontri(iatm,ifunc,5)=atmcontri(iatm,ifunc,5)+weitot*( funcval(ipt,ifunc)*log(funcval(ipt,ifunc)/funcref(ipt,ifunc)) )
+                if (invfunc==0) then
+                    fv=funcval(ipt,ifunc)
+                    fgrdn=funcgrdn(ipt,ifunc)
+                    fref=funcref(ipt,ifunc)
+                else if (invfunc==1) then
+                    fv=1/funcval(ipt,ifunc)
+                    fgrdn=1/funcgrdn(ipt,ifunc)
+                    fref=1/funcref(ipt,ifunc)
                 end if
+                !Value of function itself
+                atmcontri(iatm,ifunc,0)=atmcontri(iatm,ifunc,0)+weitot*fv
+                !Shannon entropy
+                atmcontri(iatm,ifunc,1)=atmcontri(iatm,ifunc,1)+weitot*( -fv*log(fv) )
                 !Fisher information
-                atmcontri(iatm,ifunc,2)=atmcontri(iatm,ifunc,2)+weitot*( funcgrdn(ipt,ifunc)**2 /funcval(ipt,ifunc) )
+                atmcontri(iatm,ifunc,2)=atmcontri(iatm,ifunc,2)+weitot*( fgrdn**2 /fv )
                 !Onicescu information energy of order 2
-                atmcontri(iatm,ifunc,3)=atmcontri(iatm,ifunc,3)+weitot*( funcval(ipt,ifunc)**2 )
+                atmcontri(iatm,ifunc,3)=atmcontri(iatm,ifunc,3)+weitot*( fv**2 )
                 !Onicescu information energy of order 3
-                atmcontri(iatm,ifunc,4)=atmcontri(iatm,ifunc,4)+weitot*( funcval(ipt,ifunc)**3 )
+                atmcontri(iatm,ifunc,4)=atmcontri(iatm,ifunc,4)+weitot*( fv**3 )
+                !Information gain
+                atmcontri(iatm,ifunc,5)=atmcontri(iatm,ifunc,5)+weitot*( fv*log(fv/fref) )
                 !Relative Renyi entropy of orders 2
-                atmcontri(iatm,ifunc,6)=atmcontri(iatm,ifunc,6)+weitot*( funcval(ipt,ifunc)**2/funcref(ipt,ifunc) )
+                atmcontri(iatm,ifunc,6)=atmcontri(iatm,ifunc,6)+weitot*( fv**2/fref )
                 !Relative Renyi entropy of orders 3
-                atmcontri(iatm,ifunc,7)=atmcontri(iatm,ifunc,7)+weitot*( funcval(ipt,ifunc)**3/funcref(ipt,ifunc)**2 )
+                atmcontri(iatm,ifunc,7)=atmcontri(iatm,ifunc,7)+weitot*( fv**3/fref**2 )
             end do
         end do
         
@@ -237,7 +248,6 @@ nthreads=getNThreads()
         do ifunc=0,nfunc
             write(*,"(/,' Function:',a)") trim(functionname(ifunc))
             do iquant=0,nquant !0 corresponds to function itself
-                if (ifunc==3.and.(iquant==1.or.iquant==5)) cycle
                 write(*,"(a,':',1E16.8)") quantityname(iquant),atmcontri(iatm,ifunc,iquant)
             end do
         end do
@@ -247,24 +257,31 @@ nthreads=getNThreads()
             do ipt=1+iradcut*sphpot,radpot*sphpot
                 weitot=atmBeckewei(ipt)*atmHirshwei(ipt,jatm)*gridatm(ipt)%value
                 do ifunc=0,nfunc
-                    !Value of function itself
-                    atmcontri(jatm,ifunc,0)=atmcontri(jatm,ifunc,0)+weitot*funcval(ipt,ifunc)
-                    if (ifunc/=3) then !Because the variable in log must be positive everywhere
-                        !Shannon entropy
-                        atmcontri(jatm,ifunc,1)=atmcontri(jatm,ifunc,1)+weitot*( -funcval(ipt,ifunc)*log(funcval(ipt,ifunc)) )
-                        !Information gain
-                        atmcontri(jatm,ifunc,5)=atmcontri(jatm,ifunc,5)+weitot*( funcval(ipt,ifunc)*log(funcval(ipt,ifunc)/funcref(ipt,ifunc)) )
+                    if (invfunc==0) then
+                        fv=funcval(ipt,ifunc)
+                        fgrdn=funcgrdn(ipt,ifunc)
+                        fref=funcref(ipt,ifunc)
+                    else if (invfunc==1) then
+                        fv=1/funcval(ipt,ifunc)
+                        fgrdn=1/funcgrdn(ipt,ifunc)
+                        fref=1/funcref(ipt,ifunc)
                     end if
+                    !Value of function itself
+                    atmcontri(jatm,ifunc,0)=atmcontri(jatm,ifunc,0)+weitot*fv
+                    !Shannon entropy
+                    atmcontri(jatm,ifunc,1)=atmcontri(jatm,ifunc,1)+weitot*( -fv*log(fv) )
                     !Fisher information
-                    atmcontri(jatm,ifunc,2)=atmcontri(jatm,ifunc,2)+weitot*( funcgrdn(ipt,ifunc)**2 /funcval(ipt,ifunc) )
+                    atmcontri(jatm,ifunc,2)=atmcontri(jatm,ifunc,2)+weitot*( fgrdn**2 /fv )
                     !Onicescu information energy of order 2
-                    atmcontri(jatm,ifunc,3)=atmcontri(jatm,ifunc,3)+weitot*( funcval(ipt,ifunc)**2 )
+                    atmcontri(jatm,ifunc,3)=atmcontri(jatm,ifunc,3)+weitot*( fv**2 )
                     !Onicescu information energy of order 3
-                    atmcontri(jatm,ifunc,4)=atmcontri(jatm,ifunc,4)+weitot*( funcval(ipt,ifunc)**3 )
+                    atmcontri(jatm,ifunc,4)=atmcontri(jatm,ifunc,4)+weitot*( fv**3 )
+                    !Information gain
+                    atmcontri(jatm,ifunc,5)=atmcontri(jatm,ifunc,5)+weitot*( fv*log(fv/fref) )
                     !Relative Renyi entropy of orders 2
-                    atmcontri(jatm,ifunc,6)=atmcontri(jatm,ifunc,6)+weitot*( funcval(ipt,ifunc)**2/funcref(ipt,ifunc) )
+                    atmcontri(jatm,ifunc,6)=atmcontri(jatm,ifunc,6)+weitot*( fv**2/fref )
                     !Relative Renyi entropy of orders 3
-                    atmcontri(jatm,ifunc,7)=atmcontri(jatm,ifunc,7)+weitot*( funcval(ipt,ifunc)**3/funcref(ipt,ifunc)**2 )
+                    atmcontri(jatm,ifunc,7)=atmcontri(jatm,ifunc,7)+weitot*( fv**3/fref**2 )
                 end do
             end do
         end do
@@ -279,7 +296,6 @@ if (ipartition==2) then
         do ifunc=0,nfunc
             write(*,"(/,' Function:',a)") trim(functionname(ifunc))
             do iquant=0,nquant !0 corresponds to function itself
-                if (ifunc==3.and.(iquant==1.or.iquant==5)) cycle
                 write(*,"(a,':',1E16.8)") quantityname(iquant),atmcontri(iatm,ifunc,iquant)
             end do
         end do
@@ -293,7 +309,6 @@ write(*,*) "========================================="
 do ifunc=0,nfunc
     write(*,"(/,' Function:',a)") trim(functionname(ifunc))
     do iquant=0,nquant
-        if (ifunc==3.and.(iquant==1.or.iquant==5)) cycle
         write(*,"(a,':',1E16.8)") quantityname(iquant),sum(atmcontri(:,ifunc,iquant))
     end do
 end do
@@ -317,7 +332,8 @@ subroutine valaryyLSB(x,y,z,valarr,rho,gradrho)
 use defvar
 use function
 implicit real*8 (a-h,o-z)
-real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),gradrho(3),hess(3,3),valarr(6)
+integer,parameter :: nfunc=7
+real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),gradrho(3),hess(3,3),valarr(nfunc)
 real*8 gradrhoa(3),gradrhob(3),MOoccnow
 real*8 :: Fc=2.871234000D0 ! Fermi constant = (3/10)*(3*Pi^2)**(2/3) = 2.871234, 1/2.871234=0.34828
 real*8 :: Fc_pol=4.557799872D0 ! Fermi constant for spin polarized = (3/10)*(6*Pi^2)**(2/3) = 4.5578, 1/4.5578=0.2194
@@ -570,6 +586,10 @@ quantityname(5)=" Information gain"
 quantityname(6)=" Relative Renyi entropy of orders 2"
 quantityname(7)=" Relative Renyi entropy of orders 3"
 
+invfunc=0
+write(*,*) "If replacing real space functions with their reciprocals?  0=No  1=Yes"
+read(*,*) invfunc 
+
 call walltime(walltime1)
 CALL CPU_TIME(time_begin)
 
@@ -742,24 +762,31 @@ nthreads=getNThreads()
         
         weitot=switchwei*gridatt(ipt)%value
         do ifunc=0,nfunc
-            !Value of function itself
-            atmcontri(iatm,ifunc,0)=atmcontri(iatm,ifunc,0)+weitot*funcval(ipt,ifunc)
-            if (ifunc/=3) then !Because the variable in log must be positive everywhere
-                !Shannon entropy
-                atmcontri(iatm,ifunc,1)=atmcontri(iatm,ifunc,1)+weitot*( -funcval(ipt,ifunc)*log(funcval(ipt,ifunc)) )
-                !Information gain
-                atmcontri(iatm,ifunc,5)=atmcontri(iatm,ifunc,5)+weitot*( funcval(ipt,ifunc)*log(funcval(ipt,ifunc)/funcref(ipt,ifunc)) )
+            if (invfunc==0) then
+                fv=funcval(ipt,ifunc)
+                fgrdn=funcgrdn(ipt,ifunc)
+                fref=funcref(ipt,ifunc)
+            else if (invfunc==1) then
+                fv=1/funcval(ipt,ifunc)
+                fgrdn=1/funcgrdn(ipt,ifunc)
+                fref=1/funcref(ipt,ifunc)
             end if
+            !Value of function itself
+            atmcontri(iatm,ifunc,0)=atmcontri(iatm,ifunc,0)+weitot*fv
+            !Shannon entropy
+            atmcontri(iatm,ifunc,1)=atmcontri(iatm,ifunc,1)+weitot*( -fv*log(fv) )
             !Fisher information
-            atmcontri(iatm,ifunc,2)=atmcontri(iatm,ifunc,2)+weitot*( funcgrdn(ipt,ifunc)**2 /funcval(ipt,ifunc) )
+            atmcontri(iatm,ifunc,2)=atmcontri(iatm,ifunc,2)+weitot*( fgrdn**2 /fv )
             !Onicescu information energy of order 2
-            atmcontri(iatm,ifunc,3)=atmcontri(iatm,ifunc,3)+weitot*( funcval(ipt,ifunc)**2 )
+            atmcontri(iatm,ifunc,3)=atmcontri(iatm,ifunc,3)+weitot*( fv**2 )
             !Onicescu information energy of order 3
-            atmcontri(iatm,ifunc,4)=atmcontri(iatm,ifunc,4)+weitot*( funcval(ipt,ifunc)**3 )
+            atmcontri(iatm,ifunc,4)=atmcontri(iatm,ifunc,4)+weitot*( fv**3 )
+            !Information gain
+            atmcontri(iatm,ifunc,5)=atmcontri(iatm,ifunc,5)+weitot*( fv*log(fv/fref) )
             !Relative Renyi entropy of orders 2
-            atmcontri(iatm,ifunc,6)=atmcontri(iatm,ifunc,6)+weitot*( funcval(ipt,ifunc)**2/funcref(ipt,ifunc) )
+            atmcontri(iatm,ifunc,6)=atmcontri(iatm,ifunc,6)+weitot*( fv**2/fref )
             !Relative Renyi entropy of orders 3
-            atmcontri(iatm,ifunc,7)=atmcontri(iatm,ifunc,7)+weitot*( funcval(ipt,ifunc)**3/funcref(ipt,ifunc)**2 )
+            atmcontri(iatm,ifunc,7)=atmcontri(iatm,ifunc,7)+weitot*( fv**3/fref**2 )
         end do
     end do
     
@@ -767,7 +794,6 @@ nthreads=getNThreads()
 !     do ifunc=0,nfunc
 !         write(*,"(/,' Function:',a)") trim(functionname(ifunc))
 !         do iquant=0,nquant !0 corresponds to function itself
-!             if (ifunc==3.and.(iquant==1.or.iquant==5)) cycle
 !             write(*,"(a,':',1E16.8)") quantityname(iquant),atmcontri(iatm,ifunc,iquant)
 !         end do
 !     end do
@@ -1015,24 +1041,31 @@ nthreads=getNThreads()
         
         weitot=switchwei*dvol
         do ifunc=0,nfunc
-            !Value of function itself
-            atmcontri(iatm,ifunc,0)=atmcontri(iatm,ifunc,0)+weitot*funcval(ipt,ifunc)
-            if (ifunc/=3) then !Because the variable in log must be positive everywhere
-                !Shannon entropy
-                atmcontri(iatm,ifunc,1)=atmcontri(iatm,ifunc,1)+weitot*( -funcval(ipt,ifunc)*log(funcval(ipt,ifunc)) )
-                !Information gain
-                atmcontri(iatm,ifunc,5)=atmcontri(iatm,ifunc,5)+weitot*( funcval(ipt,ifunc)*log(funcval(ipt,ifunc)/funcref(ipt,ifunc)) )
+            if (invfunc==0) then
+                fv=funcval(ipt,ifunc)
+                fgrdn=funcgrdn(ipt,ifunc)
+                fref=funcref(ipt,ifunc)
+            else if (invfunc==1) then
+                fv=1/funcval(ipt,ifunc)
+                fgrdn=1/funcgrdn(ipt,ifunc)
+                fref=1/funcref(ipt,ifunc)
             end if
+            !Value of function itself
+            atmcontri(iatm,ifunc,0)=atmcontri(iatm,ifunc,0)+weitot*fv
+            !Shannon entropy
+            atmcontri(iatm,ifunc,1)=atmcontri(iatm,ifunc,1)+weitot*( -fv*log(fv) )
             !Fisher information
-            atmcontri(iatm,ifunc,2)=atmcontri(iatm,ifunc,2)+weitot*( funcgrdn(ipt,ifunc)**2 /funcval(ipt,ifunc) )
+            atmcontri(iatm,ifunc,2)=atmcontri(iatm,ifunc,2)+weitot*( fgrdn**2 /fv )
             !Onicescu information energy of order 2
-            atmcontri(iatm,ifunc,3)=atmcontri(iatm,ifunc,3)+weitot*( funcval(ipt,ifunc)**2 )
+            atmcontri(iatm,ifunc,3)=atmcontri(iatm,ifunc,3)+weitot*( fv**2 )
             !Onicescu information energy of order 3
-            atmcontri(iatm,ifunc,4)=atmcontri(iatm,ifunc,4)+weitot*( funcval(ipt,ifunc)**3 )
+            atmcontri(iatm,ifunc,4)=atmcontri(iatm,ifunc,4)+weitot*( fv**3 )
+            !Information gain
+            atmcontri(iatm,ifunc,5)=atmcontri(iatm,ifunc,5)+weitot*( fv*log(fv/fref) )
             !Relative Renyi entropy of orders 2
-            atmcontri(iatm,ifunc,6)=atmcontri(iatm,ifunc,6)+weitot*( funcval(ipt,ifunc)**2/funcref(ipt,ifunc) )
+            atmcontri(iatm,ifunc,6)=atmcontri(iatm,ifunc,6)+weitot*( fv**2/fref )
             !Relative Renyi entropy of orders 3
-            atmcontri(iatm,ifunc,7)=atmcontri(iatm,ifunc,7)+weitot*( funcval(ipt,ifunc)**3/funcref(ipt,ifunc)**2 )
+            atmcontri(iatm,ifunc,7)=atmcontri(iatm,ifunc,7)+weitot*( fv**3/fref**2 )
         end do
     end do
     
@@ -1044,7 +1077,6 @@ do iatm=1,ncenter
     do ifunc=0,nfunc
         write(*,"(/,' Function:',a)") trim(functionname(ifunc))
         do iquant=0,nquant !0 corresponds to function itself
-            if (ifunc==3.and.(iquant==1.or.iquant==5)) cycle
             write(*,"(a,':',1E16.8)") quantityname(iquant),atmcontri(iatm,ifunc,iquant)
         end do
     end do
@@ -1056,7 +1088,6 @@ write(*,*) "========================================="
 do ifunc=0,nfunc
     write(*,"(/,' Function:',a)") trim(functionname(ifunc))
     do iquant=0,nquant
-        if (ifunc==3.and.(iquant==1.or.iquant==5)) cycle
         write(*,"(a,':',1E16.8)") quantityname(iquant),sum(atmcontri(:,ifunc,iquant))
     end do
 end do

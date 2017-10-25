@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4.1(dev), release date: 2017-Oct-10"
+write(*,*) "Version 3.4.1(dev), release date: 2017-Oct-24"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -163,7 +163,7 @@ write(*,*) "3 Output and plot specific property in a line"
 write(*,*) "4 Output and plot specific property in a plane"
 write(*,*) "5 Output and plot specific property within a spatial region (calc. grid data)"
 write(*,*) "6 Check & modify wavefunction"
-write(*,*) "7 Population analysis"
+write(*,*) "7 Population analysis and atomic charges"
 write(*,*) "8 Orbital composition analysis"
 write(*,*) "9 Bond order analysis"
 write(*,*) "10 Plot Total/Partial/Overlap population density-of-states (DOS)"
@@ -268,6 +268,7 @@ if (infuncsel1==0) then !
                 write(*,"('       LUMO/HOMO gap:',f12.6,' a.u.',f12.6,' eV',f14.6,' kJ/mol')") gapene,gapene*au2eV,gapene*au2kJ
             end if
         else if (wfntype==1) then
+            write(*,"(' Range of alpha orbitals:',i5,' -',i5,'      Range of Beta orbitals:',i5,' -',i5)") 1,nbasis,nbasis+1,nmo
             write(*,"(' Note: Orbital',i6,' is HOMO of alpha spin, orbital',i6,' is HOMO of beta spin')") nint(naelec),nbasis+nint(nbelec)
             if (nbasis>=nint(naelec)+1) then
                 gapenea=MOene(nint(naelec)+1)-MOene(nint(naelec))
@@ -307,9 +308,10 @@ else if (infuncsel1==1) then
             if (ELFLOL_type==1) write(*,*) "10 Localized orbital locator(LOL) defined by Tsirelson" 
             if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator(LOL) defined by Lu, Tian"
             write(*,*) "12 Total electrostatic potential"
-            write(*,*) "100 User defined real space function"
+            write(*,*) "100 User-defined real space function"
         else if (inpstring(1:1)=='f') then    
             read(inpstring(2:),*) iprintfunc
+            write(*,"(' Real space function',i5,' is selected')") iprintfunc
         else if (inpstring(1:1)=='a') then
             read(inpstring(2:),*) iatm
             if (iatm>0.and.iatm<=ncenter) then
@@ -505,7 +507,7 @@ nthreads=getNThreads()
             call dealloall
             write(*,"(' Reloading:  ',a)") trim(firstfilename)
             call readinfile(firstfilename,1)
-            !Recovery user defined fragatm from the backup
+            !Recovery user-defined fragatm from the backup
             deallocate(fragatm)
             nfragatmnum=nfragatmnumbackup
             allocate(fragatm(nfragatmnum))
@@ -547,6 +549,7 @@ nthreads=getNThreads()
         if (ilog10y==1) write(*,"(a,f8.3)") " 10 Set the stepsize in X axis, current:",steplabx
         if (ilenunit1D==1) write(*,*) "11 Change length unit of the graph to Angstrom"
         if (ilenunit1D==2) write(*,*) "11 Change length unit of the graph to Bohr"
+        write(*,"(a,i3)") " 12 Set width of curve line, current:",icurvethick
 
         read(*,*) i
         if (i==-1) then
@@ -645,6 +648,9 @@ nthreads=getNThreads()
             else if (ilenunit1D==2) then
                 ilenunit1D=1 !Bohr
             end if
+        else if (i==12) then
+            write(*,*) "Input line width, e.g. 5"
+            read(*,*) icurvethick
         end if
     end do
 
@@ -675,6 +681,51 @@ else if (infuncsel1==4) then
         else
             read(c200tmp,*) iorbsel
         end if
+    else if (infuncsel2==20) then !Input length scale to evaluate EDR(r;d)
+        write(*,*) "The EDR(r;d) computing code was contributed by Arshad Mehmood"
+        write(*,"(a,/)") " References: J. Chem. Phys., 141, 144104 (2014); J. Chem. Theory Comput., 12, 79 (2016); Angew. Chem. Int. Ed., 56, 6878 (2017)"
+        write(*,*) " Input length scale d (Bohr)   e.g. 0.85"
+        read(*,*) dedr
+    else if (infuncsel2==21) then !Input parameters to evaluate D(r)
+        write(*,*) "The D(r) computing code was contributed by Arshad Mehmood"
+        write(*,"(a,/)") " References: J. Chem. Theory Comput., 12, 3185 (2016); Phys. Chem. Chem. Phys., 17, 18305 (2015)"
+        write(*,*) "1 Manually input total number, start and increment in EDR exponents"
+        write(*,*) "2 Use default values   i.e. 20,2.50,1.50"
+        read(*,*) edrmaxpara
+        if (edrmaxpara==1) then  
+            write(*,*) "Please input in order: exponents start increment   e.g. 20,2.5,1.5"
+            write(*,*) "Note: Max. allowed exponents are 50 and min. allowed increment is 1.01"
+            read(*,*) nedr,edrastart,edrainc
+            if (nedr<1) then
+                write(*,*) "Error: Bad Number of EDR exponents. Should be between 1 to 50"
+                write(*,*) "Press ENTER to exit"
+                read(*,*)
+                stop
+            else if (nedr>50) then
+                write(*,*) "Error: Bad Number of EDR exponents. Should be between 1 to 50"
+                write(*,*) "Press ENTER to exit"
+                read(*,*)
+                stop
+            end if
+            if (edrainc<1.01d0) then
+                write(*,*) "Error: Bad increment in EDR exponents. Should not be less than 1.01"
+                write(*,*) "Press ENTER to exit"
+                read(*,*)
+                stop
+            end if
+        else if (edrmaxpara==2) then
+            nedr=20
+            edrastart=2.5d0
+            edrainc=1.5d0
+        end if
+        write(*,*) "The following EDR exponents will be used in calculation:"
+        wrtstart=edrastart
+        do wrtnumedr=1,nedr
+            wrtexpo(wrtnumedr)=wrtstart
+            wrtstart=wrtstart/edrainc
+            write(*,"(E13.5)") wrtexpo(wrtnumedr) 
+        end do
+        write(*,*)
     else if (infuncsel2==111) then !Calculate Becke weighting function
         write(*,*) "Input indices of two atoms to calculate Becke overlap weight, e.g. 1,4"
         write(*,*) "or input index of an atom and zero to calculate Becke atomic weight, e.g. 5,0"
@@ -1264,7 +1315,7 @@ nthreads=getNThreads()
             call dealloall
             write(*,"(' Reloading:  ',a)") trim(firstfilename)
             call readinfile(firstfilename,1)
-            !Recovery user defined fragatm from the backup
+            !Recovery user-defined fragatm from the backup
             deallocate(fragatm)
             nfragatmnum=nfragatmnumbackup
             allocate(fragatm(nfragatmnum))
@@ -1971,7 +2022,7 @@ nthreads=getNThreads()
                 call dealloall
                 write(*,"(' Reloading:  ',a)") trim(firstfilename)
                 call readinfile(firstfilename,1)
-                !Recovery user defined fragatm from the backup
+                !Recovery user-defined fragatm from the backup
                 deallocate(fragatm)
                 nfragatmnum=nfragatmnumbackup
                 allocate(fragatm(nfragatmnum))
@@ -2071,7 +2122,7 @@ nthreads=getNThreads()
                     call dealloall
                     write(*,"(' Reloading:  ',a)") trim(firstfilename)
                     call readinfile(firstfilename,1)
-                    !Recovery user defined fragatm from the backup
+                    !Recovery user-defined fragatm from the backup
                     deallocate(fragatm)
                     nfragatmnum=nfragatmnumbackup
                     allocate(fragatm(nfragatmnum))
@@ -2146,6 +2197,10 @@ nthreads=getNThreads()
             outcubfile="avglocion.cub"
         else if (infuncsel2==19) then
             outcubfile="srcfunc.cub"
+        else if (infuncsel2==20) then
+            outcubfile="EDR.cub"
+        else if (infuncsel2==21) then
+            outcubfile="EDRDmax.cub"
         else if (infuncsel2==100) then
             outcubfile="userfunc.cub"
         else if (infuncsel2==111) then
@@ -2704,6 +2759,7 @@ else if (infuncsel1==1000) then
     end if
     write(*,"(a,1PD18.8)") " 5 Set global temporary variable, current:",globaltmp
     write(*,"(a,i3)") " 10 Set the number of threads, current:", getNThreads()
+    write(*,*) "90 Calculate nuclear attractive energy between a fragment and an orbital"
     write(*,*) "98 Generate natural orbitals based on density matrix in .fch/.fchk"
     write(*,*) "99 Show EDF information (if any)"
     write(*,*) "100 Check the sanity of present wavefunction"
@@ -2747,6 +2803,8 @@ else if (infuncsel1==1000) then
         write(*,*) "Input an integer, e.g. 8"
         read(*,*) iniNThreads
         write(*,*) "Done!"
+    else if (i==90) then
+        call attene_orb_fragnuc
     else if (i==98) then
         call gennatorb
     else if (i==99) then

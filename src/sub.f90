@@ -12,18 +12,18 @@ do while(.true.)
     write(*,"(' Number of GTFs:',i6,', Orb:',i6,', Atoms:',i5,', A/B elec:',2f8.3)") nprims,nmo,ncenter,naelec,nbelec
     write(*,*) "-1 Return"
     write(*,*) "0 Save the modified wavefunction to a new .wfn file"
-    write(*,*) "1 List all primitive function"
-    if (allocated(CObasa)) write(*,*) "2 List all basis function"
-    write(*,*) "3 List all orbitals"
-    write(*,*) "4 Print detail information of an orbital"
+    if (allocated(CObasa)) then
+        write(*,*) "1 List all primitive function      2 List all basis function"
+    else
+        write(*,*) "1 List all primitive function"
+    end if
+    write(*,*) "3 List all orbitals                4 Print detail information of an orbital"
     if (allocated(CObasa)) write(*,*) "5 Print coefficient matrix in basis function"
     if (allocated(CObasa)) write(*,*) "6 Print density matrix in basis function"
     if (allocated(CObasa)) write(*,*) "7 Print various kinds of integral matrix between basis functions"
     write(*,*) "11 Swap some information of two primitive functions"
-    write(*,*) "21 Set center of a primitive function"
-    write(*,*) "22 Set type of a primitive function"
-    write(*,*) "23 Set exponent of a primitive function"
-    write(*,*) "24 Set coefficient of a primitive function"
+    write(*,*) "21 Set center of a primitive       22 Set type of a primitive"
+    write(*,*) "23 Set exponent of a primitive     24 Set coefficient of a primitive"
     if (allocated(CObasa)) then
         write(*,*) "25 Set coefficients of GTFs/basis functions that satisfied certain conditions"
     else
@@ -31,12 +31,11 @@ do while(.true.)
     end if
     write(*,*) "26 Set occupation number of some orbitals"
     write(*,*) "27 Set type of some orbitals"
-    write(*,*) "31 Translate the system"
-    write(*,*) "32 Translate and duplicate the system"
-!     write(*,*) "33 Rotate wavefunction, namely X->Y, Y->Z, Z->X"
+    write(*,*) "31 Translate the system            32 Translate and duplicate the system"
+    write(*,*) "33 Rotate wavefunction, namely X->Y, Y->Z, Z->X"
     if (imodwfn==0) write(*,*) "34 Set occupation number of inner orbitals to zero" !If occupation has been modified, don't do this to complicate things
     if (allocated(MOsym)) write(*,*) "35 Keep or discard orbital contributions according to irreducible rep."
-!     write(*,*) "36 Invert phase of an orbital"
+    write(*,*) "36 Invert phase of some orbitals"
     read(*,*) iselect
     
     write(*,*)
@@ -186,7 +185,7 @@ do while(.true.)
         end if
         if (imattype==1) then
             call showmatgau(Sbas,"Overlap matrix",1,fileid=ides)
-            call diagsymat(tmpmat,eigvec,eigval,ierror)
+            call diagsymat(Sbas,eigvec,eigval,ierror)
             write(ides,*)
             write(ides,*) "Eigenvalues:"
             write(ides,"(6f12.8)") eigval
@@ -615,9 +614,11 @@ do while(.true.)
         call SelMO_IRREP
     
     else if (iselect==36) then
-        write(*,*) "Input lower and upper limits of orbital index, e.g. 8,15"
-        read(*,*) ilow,ihigh
-        do idx=ilow,ihigh
+        write(*,*) "Input index of the orbitals, e.g. 2,3,7-10"
+        read(*,"(a)") c1000tmp
+        call str2arr(c1000tmp,ntmp,orbarr)
+        do idxtmp=1,ntmp
+            idx=orbarr(idxtmp)
             CO(idx,:)=-CO(idx,:)
             if (allocated(CObasa)) then
                 if (idx<=nbasis) then
@@ -641,7 +642,7 @@ end subroutine
 subroutine SelMO_IRREP
 use defvar
 use util
-character symlab(nmo)*4,c200tmp*200,symstat(nmo)*9 !Allocate the array lengths as upper limit
+character symlab(nmo)*4,c2000tmp*2000,symstat(nmo)*9 !Allocate the array lengths as upper limit
 integer tmparr(nmo),symNorb(nmo) !Allocate the array lengths as upper limit
 if (wfntype/=0.and.wfntype/=1) then
     write(*,"(a)") " Error: This function only works for RHF or UHF wavefunctions (or the DFT counterparts)"
@@ -693,8 +694,8 @@ do while(.true.)
     else if (isel==1.or.isel==3) then
         if (isel==1) then
             write(*,*) "Input the index of the irreducible representations to be discarded, e.g. 1,3-5"
-            read(*,"(a)") c200tmp
-            call str2arr(c200tmp,nsymsel,tmparr)
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,nsymsel,tmparr)
             do isym=1,nsymsel
                 symstat(tmparr(isym))="Discarded"
             end do
@@ -1413,7 +1414,7 @@ end subroutine
 
 
 
-!!!------------------------- Generate density matrix, currently only for .fch file
+!!!------------------ Generate density matrix, can be used when basis function information is available
 subroutine genP
 use defvar
 implicit real*8 (a-h,o-z)
@@ -1429,22 +1430,26 @@ if (wfntype==1.or.wfntype==2.or.wfntype==4) then !open-shell
     Pbeta=0D0
 end if
 
-if (wfntype==0) then !RHF
+!For SCF wavefunction, if the wavefunction has not been modified (imodwfn==0), use fast way to construct it
+!However, if the wavefunction has been modified, the case may be complicated, for example, there is a hole orbital. In these cases
+!We use general way (as used for post-HF) to construct density matrix
+
+if (wfntype==0.and.imodwfn==0) then !RHF
     Ptot=2*matmul(CObasa(:,1:nint(naelec)),transpose(CObasa(:,1:nint(naelec))))
-else if (wfntype==1) then !UHF
+else if (wfntype==1.and.imodwfn==0) then !UHF
     Palpha=matmul(CObasa(:,1:nint(naelec)),transpose(CObasa(:,1:nint(naelec))))
     Pbeta=matmul(CObasb(:,1:nint(nbelec)),transpose(CObasb(:,1:nint(nbelec))))
     Ptot=Palpha+Pbeta
-else if (wfntype==2) then !ROHF
+else if (wfntype==2.and.imodwfn==0) then !ROHF
     Palpha=matmul(CObasa(:,1:nint(naelec)),transpose(CObasa(:,1:nint(naelec))))
     Pbeta=matmul(CObasa(:,1:nint(nbelec)),transpose(CObasa(:,1:nint(nbelec))))
     Ptot=Palpha+Pbeta
-else if (wfntype==3) then !Restricted post-HF
+else if (wfntype==3.or.((wfntype==0.or.wfntype==2).and.imodwfn==1)) then !Restricted post-HF
     do imo=1,nmo
         if (MOocc(imo)==0D0) cycle
         Ptot=Ptot+MOocc(imo)*matmul(CObasa(:,imo:imo),transpose(CObasa(:,imo:imo)))
     end do
-else if (wfntype==4) then
+else if (wfntype==4.or.(wfntype==1.and.imodwfn==1)) then !Unrestricted post-HF
     do imo=1,nbasis
         if (MOocc(imo)==0D0) cycle
         Palpha=Palpha+MOocc(imo)*matmul(CObasa(:,imo:imo),transpose(CObasa(:,imo:imo)))
@@ -2029,7 +2034,7 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
     else if (iALIEdecomp==1) then
         call avglociondecomp(ifileid,inx,iny,inz)
     end if
-    write(ifileid,"(' User defined real space function:',E18.10)") userfunc(inx,iny,inz)
+    write(ifileid,"(' User-defined real space function:',E18.10)") userfunc(inx,iny,inz)
     fesptmp=nucesp(inx,iny,inz)
     if (ifiletype==4) then
         write(ifileid,"(' ESP from atomic charges:',E18.10)") fesptmp
@@ -2052,7 +2057,7 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
         if (ifuncsel==9) write(ifileid,*) "Note: Below information are for electron localization function"
         if (ifuncsel==10) write(ifileid,*) "Note: Below information are for localized orbital locator"
         if (ifuncsel==12) write(ifileid,*) "Note: Below information are for total ESP"
-        if (ifuncsel==100) write(ifileid,*) "Note: Below information are for user defined real space function"
+        if (ifuncsel==100) write(ifileid,*) "Note: Below information are for user-defined real space function"
         call gencalchessmat(2,ifuncsel,inx,iny,inz,funcvalue,funcgrad,funchess)
     end if
     write(ifileid,*)
@@ -2081,7 +2086,6 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
         write(ifileid,"(a,f12.6)") " Ellipticity of electron density:",eigmin/eigmed-1
         write(ifileid,"(a,f12.6)") " eta index:",abs(eigmin)/eigmax
     end if
-!     diffstep=1D-5
 
 else !Only loaded structure, use YWT promolecule density
     if (ifiletype==4) then
@@ -2095,7 +2099,7 @@ else !Only loaded structure, use YWT promolecule density
     write(ifileid,"(' Density of electrons:',E18.10)") elerho
     write(ifileid,"(' Reduced density gradient:',E18.10)") RDGprodens(inx,iny,inz)
     write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho_prodens(inx,iny,inz)
-    write(ifileid,"(' User defined real space function:',E18.10)") userfunc(inx,iny,inz)
+    write(ifileid,"(' User-defined real space function:',E18.10)") userfunc(inx,iny,inz)
     write(ifileid,*)
     write(ifileid,*) "Components of gradient in x/y/z are:"
     write(ifileid,"(3E18.10)") elegrad(1),elegrad(2),elegrad(3)

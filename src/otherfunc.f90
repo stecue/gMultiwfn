@@ -543,9 +543,9 @@ nbasis=sum(numbas)
 naelec=sum(numaelec)
 nbelec=sum(numbelec)
 itotmulti=abs(naelec-nbelec)+1
-write(*,"('Total charge and multiplicity:',2i4)") nchargetot,itotmulti
-write(*,"('Total number of alpha and beta electrons:',2i6)") nint(naelec),nint(nbelec)
-write(*,"('Total number of basis functions:',i8)") nbasis
+write(*,"(' Total charge and multiplicity:',2i4)") nchargetot,itotmulti
+write(*,"(' Total number of alpha and beta electrons:',2i6)") nint(naelec),nint(nbelec)
+write(*,"(' Total number of basis functions:',i8)") nbasis
 allocate(cobasa(nbasis,nbasis))
 cobasa=0D0
 allocate(wherefraga(nbasis)) !If wherefraga(i)=j means alpha orbital i in complex is contributed from fragment j
@@ -2990,5 +2990,58 @@ write(*,*) "   Atom            X               Y               Z            Tota
 do iatm=1,ncenter
     write(*,"(i5,'(',a,')',4f16.8)") iatm,a(iatm)%name,HFforce_tot(iatm,:),dsqrt(sum(HFforce_tot(iatm,:)**2))
 end do
+end subroutine
 
+
+!!------ Calculate attractive energy between an orbital and nuclei in a fragment
+subroutine attene_orb_fragnuc
+use function
+use util
+implicit real*8 (a-h,o-z)
+character c2000tmp*2000
+real*8 intval,intvalold,funcval(radpot*sphpot),beckeweigrid(radpot*sphpot)
+type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
+write(*,*) "Input orbital index, e.g. 5"
+read(*,*) iorb
+write(*,"(a)") " Input atomic indices to define the fragment. e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
+read(*,"(a)") c2000tmp
+if (allocated(frag1)) deallocate(frag1)
+call str2arr(c2000tmp,nfragatm)
+allocate(frag1(nfragatm))
+call str2arr(c2000tmp,nfragatm,frag1)
+write(*,"(i6,' atoms are selected',/)") nfragatm
+
+write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+call gen1cintgrid(gridatmorg,iradcut)
+intval=0
+intvalold=0
+do iatm=1,ncenter
+    write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+    gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+    gridatm%y=gridatmorg%y+a(iatm)%y
+    gridatm%z=gridatmorg%z+a(iatm)%z
+nthreads=getNThreads()
+!$OMP parallel do shared(funcval) private(i,jatmtmp,jatm,potnuc,rnowx,rnowy,rnowz) num_threads(nthreads)
+    do i=1+iradcut*sphpot,radpot*sphpot
+        rnowx=gridatm(i)%x
+        rnowy=gridatm(i)%y
+        rnowz=gridatm(i)%z
+        potnuc=0
+        do jatmtmp=1,nfragatm
+            jatm=frag1(jatmtmp)
+            potnuc=potnuc+a(jatm)%charge/dsqrt((rnowx-a(jatm)%x)**2+(rnowy-a(jatm)%y)**2+(rnowz-a(jatm)%z)**2)
+        end do
+         funcval(i)=-potnuc*fmo(rnowx,rnowy,rnowz,iorb)**2
+!          funcval(i)=-potnuc*fdens(rnowx,rnowy,rnowz) !debug
+    end do
+!$OMP end parallel do
+    
+    call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
+    do i=1+iradcut*sphpot,radpot*sphpot
+        intval=intval+funcval(i)*gridatmorg(i)%value*beckeweigrid(i)
+    end do
+    write(*,"(' Accumulated value:',f20.10,'  Current center:',f20.10)") intval,intval-intvalold
+    intvalold=intval
+end do
+write(*,"(' Final result:',f14.6,' Hartree  ',f14.3,' kJ/mol')") intval,intval*au2kJ
 end subroutine

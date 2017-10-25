@@ -12,7 +12,7 @@ integer tmpintarr3(3)
 character pdbfilename*200,c200tmp*200,c80tmp*80,c2000tmp*2000,c10000tmp*10000,selectyn,grdfilename*200,char1tmp
 real*8 fragsurarea(ncenter,3),fragsuravg(ncenter,3),fragsurvar(ncenter,3) !Area, average value and variance of each atom surface. 1,2,3 corresponds to all,positive,negative part
 real*8 fragsurmax(ncenter),fragsurmin(ncenter),fragsurchgsep(ncenter)
-integer surfrag(ncenter),ifatmfrag(ncenter) !User defined fragment contain which atoms; ifatmfrag(iatm)=1/0 means iatm belong / doesn't belong to user defined fragment
+integer surfrag(ncenter),ifatmfrag(ncenter) !User-defined fragment contain which atoms; ifatmfrag(iatm)=1/0 means iatm belong / doesn't belong to user-defined fragment
 integer,allocatable :: surtrifrag(:) !Each surface triangle belongs to which fragment
 real*8 nucchgbackup(ncenter) !Backup nuclear charge, because which may be flushed by .chg file
 integer isurftype !How to define the surface. 1=Isosurface of electron density, 2=A certain real space function, 5/6=Hirshfeld/Becke surface, 10=Isosurface of existing grid data
@@ -47,12 +47,14 @@ do while(.true.)
     if (isurftype==6) write(*,"(a,i5,a)") " 1 Select the way to define surface, current: Becke surface, for",nHirBecatm," atoms"
     if (isurftype==10) write(*,"(a,f9.5)") " 1 Select the way to define surface, current: Existing grid data, iso:",surfisoval
     
-    if (imapfunc==-1) write(*,*) "2 Select mapped function, current: User defined real space function"
+    if (imapfunc==-1) write(*,*) "2 Select mapped function, current: User-defined real space function"
     if (imapfunc==0) write(*,*) "2 Select mapped function, current: A function loaded from external file"
     if (imapfunc==1) write(*,*) "2 Select mapped function, current: Electrostatic potential"
     if (imapfunc==2) write(*,*) "2 Select mapped function, current: Average local ionization energy"
     if (imapfunc==3) write(*,"(a)") " 2 Select mapped function, current: Electrostatic potential from atomic charge"
     if (imapfunc==4) write(*,*) "2 Select mapped function, current: Local electron affinity"
+    if (imapfunc==5) write(*,*) "2 Select mapped function, current: Electron delocalization range function EDR(r;d)" 
+    if (imapfunc==6) write(*,*) "2 Select mapped function, current: Orbital overlap distance function D(r)"    
     if (imapfunc==10) write(*,*) "2 Select mapped function, current: Pair density"
     if (imapfunc==11) write(*,*) "2 Select mapped function, current: Electron density"
     if (imapfunc==12) write(*,*) "2 Select mapped function, current: Sign(lambda2)*rho"
@@ -141,12 +143,14 @@ do while(.true.)
     else if (isel==2) then
         if (imapfunc==3) a%charge=nucchgbackup !If .chg file is loaded previously, recovery actual nuclear charges
         write(*,*) "Select to real space function to be mapped on the molecular surface"
-        write(*,*) "-1 User defined function (determined by ""iuserfunc"" in settings.ini)"
+        write(*,*) "-1 User-defined function (determined by ""iuserfunc"" in settings.ini)"
         write(*,*) "0 Certain function loaded from external file"
         write(*,*) "1 Electrostatic potential" !If we have loaded chg file, the atomic charges will be disappear
         write(*,*) "2 Average local ionization energy"
         write(*,*) "3 Electrostatic potential from atomic charge"
         write(*,*) "4 Local electron affinity"
+        write(*,*) "5 Electron delocalization range function EDR(r;d)"    
+        write(*,*) "6 Orbital overlap length function D(r) which maximizes EDR(r;d)"    
 !         write(*,*) "10 Pair density"
         write(*,*) "11 Electron density"
         write(*,*) "12 Sign(lambda2)*rho"
@@ -157,13 +161,59 @@ do while(.true.)
         end if
         read(*,*) imapfunc
         
-        if (imapfunc==0) then
+        if (imapfunc==0) then !Determine appropriate grid spacing
             ireadextmapval=1
             grdspc=0.2D0
         else
             ireadextmapval=0
             if (imapfunc==1.or.imapfunc==11.or.imapfunc==12) grdspc=0.25D0
-            if (imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-1.or.imapfunc==10) grdspc=0.2D0
+            if (imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==5.or.imapfunc==6.or.imapfunc==-1.or.imapfunc==10) grdspc=0.2D0
+        end if
+        if (imapfunc==5) then !Input length scale to evaluate EDR(r;d)
+            write(*,*) "The EDR(r;d) computing code was contributed by Arshad Mehmood"
+            write(*,"(a,/)") " References: J. Chem. Phys., 141, 144104 (2014); J. Chem. Theory Comput., 12, 79 (2016); Angew. Chem. Int. Ed., 56, 6878 (2017)"
+            write(*,*) " Input length scale d (Bohr)   e.g. 0.85"
+            read(*,*) dedr
+        end if
+        if (imapfunc==6) then !Input parameters to evaluate D(r)
+            write(*,*) "The D(r) computing code was contributed by Arshad Mehmood"
+            write(*,"(a,/)") " References: J. Chem. Theory Comput., 12, 3185 (2016); Phys. Chem. Chem. Phys., 17, 18305 (2015)"
+            write(*,*) "1 Manually input total number, start and increment in EDR exponents"
+            write(*,*) "2 Use default values   i.e. 20,2.50,1.50"
+            read(*,*) edrmaxpara
+            if (edrmaxpara==1) then  
+                write(*,*) "Please input in order: exponents start increment   e.g. 20,2.5,1.5"
+                write(*,*) "Note: Max. allowed exponents are 50 and min. allowed increment is 1.01"
+                read(*,*) nedr,edrastart,edrainc
+                if (nedr<1) then
+                    write(*,*) "Error: Bad Number of EDR exponents. Should be between 1 to 50"
+                    write(*,*) "Press ENTER to exit"
+                    read(*,*)
+                    stop
+                else if (nedr>50) then
+                    write(*,*) "Error: Bad Number of EDR exponents. Should be between 1 to 50"
+                    write(*,*) "Press ENTER to exit"
+                    read(*,*)
+                    stop
+                end if
+                if (edrainc<1.01d0) then
+                    write(*,*) "Error: Bad increment in EDR exponents. Should not be less than 1.01"
+                    write(*,*) "Press ENTER to exit"
+                    read(*,*)
+                    stop
+                end if
+            else if (edrmaxpara==2) then
+                nedr=20
+                edrastart=2.5d0
+                edrainc=1.5d0
+            end if
+            write(*,*) " The following EDR exponents will be used in calculation:"
+            wrtstart=edrastart
+            do wrtnumedr=1,nedr
+                wrtexpo(wrtnumedr)=wrtstart
+                wrtstart=wrtstart/edrainc
+                write(*,"(E13.5)") wrtexpo(wrtnumedr) 
+            end do
         end if
         critmerge=grdspc*spcmergeratio
         if (imapfunc==3) then
@@ -735,8 +785,12 @@ if (ireadextmapval==0) then
         write(*,*) "Calculating average local ionization energy at surface vertices..."
     else if (imapfunc==4) then
         write(*,*) "Calculating local electron affinity at surface vertices..."
+    else if (imapfunc==5) then        
+        write(*,*) "Calculating EDR(r;d) at surface vertices..."
+    else if (imapfunc==6) then        
+        write(*,*) "Calculating orbital overlap length D(r) at surface vertices..."
     else if (imapfunc==-1) then
-        write(*,*) "Calculating user defined real space function at surface vertices..."
+        write(*,*) "Calculating user-defined real space function at surface vertices..."
     else
         write(*,*) "Calculating mapped function value at surface vertices..."
     end if
@@ -755,6 +809,10 @@ nthreads=getNThreads()
             survtx(icyc)%value=nucesp(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)
         else if (imapfunc==4) then
             survtx(icyc)%value=loceleaff(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)
+        else if (imapfunc==5) then
+            survtx(icyc)%value=edr(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)
+        else if (imapfunc==6) then
+            survtx(icyc)%value=edrdmax(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)
         else if (imapfunc==-1) then
             survtx(icyc)%value=userfunc(survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z)
         else if (imapfunc==10) then

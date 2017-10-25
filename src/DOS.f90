@@ -17,7 +17,7 @@ real*8,allocatable :: OPfrag12(:) !Overlap population between fragment 1 and 2
 real*8,allocatable :: LDOScomp(:) !Composition at a point of each orbital
 real*8,allocatable :: LDOSptscomp(:,:) !Composition of each MO, ipt in a given line
 real*8,allocatable :: LDOS2Dmap(:,:) !LDOS curve, ipt in a given line
-integer :: nfragDOS(nfragmax)
+integer :: nfragDOS(nfragmax),iDOSwidth=1
 integer,allocatable :: fragDOS(:,:) !The index of basis functions in fragments. nfragDOS is the number of basis functions in them (0=undefined)
 real*8,pointer :: tmpmat(:,:)
 real*8 HOMOlevx(2),HOMOlevy(2)
@@ -630,10 +630,6 @@ nthreads=getNThreads()
                 end do
                 if (ishowOPDOScurve==1.or.ishowOPDOSline==1) numleg=numleg+1
 
-                !Draw TDOS
-                if (ishowTDOScurve==1.or.ishowTDOSline==1) then
-                    ileg=ileg+1
-                end if
                 
                 !Draw a vertical dashed line to highlight HOMO level
                 if (ishowHOMOlev==1) then
@@ -647,6 +643,11 @@ nthreads=getNThreads()
                     HOMOlevx=MOene_dos(iFermi)
                     HOMOlevy(1)=ylowerleft
                     HOMOlevy(2)=yupperleft
+                end if
+                
+                !Draw TDOS
+                if (ishowTDOScurve==1.or.ishowTDOSline==1) then
+                    ileg=ileg+1
                 end if
                 
                 !Draw PDOS of each defined fragment
@@ -703,6 +704,7 @@ nthreads=getNThreads()
             if (idoOPDOS==1) write(*,"(a,f10.5)") " 14 Set scale factor of Y-axis for OPDOS, current:",Yrightscafac
             write(*,*) "15 Toggle showing vertical dashed line to highlight HOMO level"
             write(*,*) "16 Set the texts in the legends"
+            write(*,"(a,i3)") " 17 Set width of lines and curves, current:",iDOSwidth
             read(*,*) isel2
 
             if (isel2==0) then
@@ -878,6 +880,9 @@ nthreads=getNThreads()
                         PDOSstring(iseltmp)=c80tmp
                     end if
                 end do
+            else if (isel2==17) then
+                write(*,*) "Input width of lines and curves, e.g. 5"
+                read(*,*) iDOSwidth
             end if
             
         else if (isel==10) then !LDOS in 1D

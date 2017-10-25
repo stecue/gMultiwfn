@@ -287,7 +287,7 @@ integer :: iatom_on_contour,iatom_on_contour_far=0,plesel,IGRAD_ARROW=0,ILABEL_O
 integer :: iclrindctrpos=5,iclrindctrneg=5,ivdwclrindctr=3,iclrindgradline=6,vdwctrstyle(2)=(/ 1,0 /),ctrposstyle(2)=(/ 1,0 /),ctrnegstyle(2)=(/ 10,15 /)
 integer :: isavepic=0,icurve_vertlinex=0,iclrindatmlab=1,imarkrefpos=0,ilog10y=0,iclrcurve=1,inowhiteblack=0
 integer :: ifragcontri,nfragatmnum,nfragatmnumbackup,ipromol,inucespplot=0,idrawmol=1,idrawisosur=0,isosursec=0,idrawtype=1,idrawcontour=1
-integer :: iinvgradvec=0,icolorvecfield=0,vecclrind=30,idrawplanevdwctr=0,iplaneoutall=0
+integer :: iinvgradvec=0,icolorvecfield=0,vecclrind=30,idrawplanevdwctr=0,iplaneoutall=0,icurvethick=5
 real*8 :: surcolorzmin,surcolorzmax !fillctr is the contour value will be draw on fillcolor map
 real*8 :: curve_vertlinex=0D0,curvexyratio=0.618D0 !Gold partition
 real*8 :: gradplotstep=0.002D0,gradplotdis=0.01D0,gradplottest=0.2D0,cutgradvec=0.3D0
@@ -349,6 +349,12 @@ integer :: ngridnum1=100,ngridnum2=100 !The number of points in two directions
 real*8 :: steric_addminimal=1D-4,steric_potcutrho=0D0,steric_potcons=0D0
 !Other
 integer :: ifirstMultiwfn=1 !If 1, means we re-load file via main function -11 and don't need to do some initializations
+
+!Used for EDR(r;d) and D(r)
+integer,parameter :: max_edr_exponents=50 !Maximum EDR exponents used to calculate EDR(r;d) and D(r). 
+real*8 :: dedr,edrastart,edrainc    !Length scale to define EDR(r;d), start and increment in exponents to evaluate D(r) 
+real*8 :: wrtexpo(max_edr_exponents) !For users write the number of EDR exponents that will be used in calculation. 
+integer nedr    !No of EDR exponents used to evaluate D(r). 
 
 contains
   integer function getNThreads()
