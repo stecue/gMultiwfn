@@ -7,7 +7,7 @@ implicit real*8(a-h,o-z)
 character nowdate*20,nowtime*20,inpstring*80,c200tmp*200,c200tmp2*200,c2000tmp*2000,outcubfile*200,selectyn,lovername*80,settingpath*200
 real*8 :: inx,iny,inz,tmpvec(3)
 integer :: iprintfunc=1 !The default function whose gradient and Hessian will be outputted at a point by main function 1
-integer,allocatable :: exclfragatm(:),tmparrint(:)
+integer,allocatable :: tmparrint(:)
 integer walltime1,walltime2
 real*8,allocatable :: d1add(:,:),d1min(:,:),d2add(:,:),d2min(:,:),d1addtmp(:,:),d1mintmp(:,:),d2addtmp(:,:),d2mintmp(:,:) !Store temporary data for drawing gradient map
 real*8,allocatable :: planemat_cust(:,:) !For storing temporary data of doing custom map
@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4.1(dev), release date: 2017-Oct-24"
+write(*,*) "Version 3.4.1, release date: 2017-Nov-1"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -153,8 +153,6 @@ if (allocated(cubmat)) write(*,*) "Note: A set of grid data presents in memory"
 write(*,*) "                   ------------ Main function menu ------------"
 ! write(*,*) "-11 Load a new file"
 ! write(*,*) "-10 Exit program"
-if (ifragcontri/=1) write(*,*) "-4 Exclude some atoms contribution to property"
-if (ifragcontri/=1) write(*,*) "-3 Obtain a fragment contribution to property"
 if (ifiletype/=7.and.ifiletype/=8) write(*,*) "0 Show molecular structure and view orbitals"
 if (ifiletype==7.or.ifiletype==8) write(*,*) "0 Show molecular structure and view isosurface"
 write(*,*) "1 Output all properties at a point"
@@ -181,8 +179,6 @@ write(*,*) "200 Other functions (Part2)"
 ! write(*,*) "1000 Set some parameters"
 read(*,*) infuncsel1
 
-!!! Setting various content before implement formal functions
-
 if (infuncsel1==-10) then !Exit program
     stop
 else if (infuncsel1==-11) then !Load a new file
@@ -191,58 +187,7 @@ else if (infuncsel1==-11) then !Load a new file
     deallocate(a_org,b_org,CO_org,MOocc_org,fragatm,fragatmbackup)
     ifirstMultiwfn=0
     goto 11
-else if (infuncsel1==-3.or.infuncsel1==-4) then
-    deallocate(fragatm) !fragatm has been defined previously by default, fragatm contains all atoms
-    if (infuncsel1==-3) then
-        ! "fragatm" is convertion relationship from fragment to the whole,
-        ! e.g. fragatm(4) is the actual atom index corresponding the 4th atom in fragment list
-        write(*,"(a)") " Input atomic indices to define the fragment, e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
-        read(*,"(a)") c2000tmp
-        call str2arr(c2000tmp,nfragatmnum)
-        allocate(fragatm(nfragatmnum))
-        call str2arr(c2000tmp,nfragatmnum,fragatm)
-        call sorti4(fragatm,"val")
-    else if(infuncsel1==-4) then
-        write(*,*) "How many atoms will be excluded?"
-        write(*,*) "e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will be excluded"
-        read(*,"(a)") c2000tmp
-        call str2arr(c2000tmp,nexclatm)
-        nfragatmnum=ncenter-nexclatm
-        allocate(fragatm(nfragatmnum),exclfragatm(nexclatm))
-        call str2arr(c2000tmp,nexclatm,exclfragatm)
-        j=0
-        do i=1,ncenter
-            if (all(exclfragatm/=i)) then
-                j=j+1
-                fragatm(j)=i
-            end if
-        end do
-    end if
-    j=0
-    do i=1,nprims
-        if (any(fragatm==b(i)%center)) then
-            j=j+1      !Move function in the fragment to head of list
-            CO(:,j)=CO(:,i)
-            b(j)=b(i)
-        end if
-    end do
-    ifragcontri=1 !We have defined fragment
-    write(*,"(' Done,',i8,' GTFs have been discarded,',i8,' GTFs reserved')") nprims-j,j
-    nprims=j !Cut list at j, all functions after j seem non exist
-    if (infuncsel1==-4) deallocate(exclfragatm)
-
-    !Modification of wavefunction has finished, now reduce size of b, CO... to current nprims and nmo to avoid potential problems
-    if (allocated(b)) then !Only for input file contains wavefunctions
-        call resizebynmo(nmo,nprims) !Reduce size of CO, MOene, MOocc, MOtype
-        allocate(b_tmp(nprims))
-        b_tmp(:)=b(1:nprims)
-        deallocate(b)
-        allocate(b(nprims))
-        b=b_tmp
-        deallocate(b_tmp)
-    end if
 end if
-
 
 !!! Every actual thing start from now on...
 
@@ -2224,7 +2169,7 @@ nthreads=getNThreads()
 
         !Reinitialize plot parameter
         bondcrit=1.15D0
-        textheigh=30.0D0
+        textheigh=38.0D0
         ratioatmsphere=1.0D0
         bondradius=0.2D0
         ishowatmlab=1

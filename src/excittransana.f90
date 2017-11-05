@@ -1762,7 +1762,7 @@ real*8 tdvec(3),grounddip(3),tmpvec(3)
 
 ! excitfilename="c:\gtest\acetic_acid.out"
 if (excitfilename==" ") then
-    write(*,*) " Input the path of the Gaussian/ORCA output file or plain text file"
+    write(*,*) "Input the path of the Gaussian/ORCA output file or plain text file"
     write(*,*) "e.g. c:\lovelive\sunshine\yosoro.out"
     do while(.true.)
         read(*,"(a)") excitfilename

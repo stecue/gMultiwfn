@@ -60,10 +60,11 @@ end module
 subroutine procgriddata
 use deftype
 use defvar
+use util
 implicit real*8(a-h,o-z)
 real*8,allocatable :: avgdata(:,:),intcurve(:),locintcurve(:),intcurvepos(:)
 integer,allocatable :: atmlist(:),atmlist2(:)
-character gridfile2*200,gridfilenew*200,atmidxfile*200,atmidxfile2*200,c200tmp*200,tmpchar
+character gridfile2*200,gridfilenew*200,atmidxfile*200,atmidxfile2*200,c200tmp*200,tmpchar,c2000tmp*2000
 type(content) useratom(3),maxv,minv
 
 do while(.true.)
@@ -469,18 +470,30 @@ do while(.true.)
         read(*,*) vdwscale
         write(*,*) "Set to what value? e.g. 100"
         read(*,*) setval
-        write(*,*) "Input the filename that recorded atom indices, e.g. C:\niconiconi\atmlist.txt"
-        do while(.true.)
-            read(*,"(a)") atmidxfile
-            inquire(file=atmidxfile,exist=alive)
-            if (alive) exit
-            write(*,*) "Cannot find the file, input again"
-        end do
-        open(10,file=atmidxfile,status="old")
-        read(10,*) numatmidx
-        allocate(atmlist(numatmidx))
-        read(10,*) atmlist
-        close(10)
+        write(*,*) "Select mode of inputting atomic indices"
+        write(*,*) "1 Load atomic indices from a plain text file"
+        write(*,*) "2 Inputting atomic indices by hand"
+        read(*,*) imodinput
+        if (imodinput==1) then
+            write(*,*) "Input the filename that recorded atom indices, e.g. C:\niconiconi\atmlist.txt"
+            do while(.true.)
+                read(*,"(a)") atmidxfile
+                inquire(file=atmidxfile,exist=alive)
+                if (alive) exit
+                write(*,*) "Cannot find the file, input again"
+            end do
+            open(10,file=atmidxfile,status="old")
+            read(10,*) numatmidx
+            allocate(atmlist(numatmidx))
+            read(10,*) atmlist
+            close(10)
+        else if (imodinput==2) then
+            write(*,*) "Input atomic indices, e.g. 3,5,7-20,25"
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,numatmidx)
+            allocate(atmlist(numatmidx))
+            call str2arr(c2000tmp,numatmidx,atmlist)
+        end if
 
         do i=1,nx
             xnow=orgx+(i-1)*dx
@@ -517,33 +530,50 @@ do while(.true.)
         read(*,*) vdwscale
         write(*,*) "Set to what value?"
         read(*,*) setval
-        write(*,*) "Input filename that recorded atom indices of fragment 1"
-        write(*,*) "e.g. C:\nicomaki\frag1.txt"
-        do while(.true.)
-            read(*,"(a)") atmidxfile
-            inquire(file=atmidxfile,exist=alive)
-            if (alive) exit
-            write(*,*) "Cannot find the file, input again"
-        end do
-        write(*,*) "Input filename that recorded atom indices of fragment 2"
-        write(*,*) "e.g. C:\nicomaki\frag2.txt"
-        do while(.true.)
-            read(*,"(a)") atmidxfile2
-            inquire(file=atmidxfile2,exist=alive)
-            if (alive) exit
-            write(*,*) "Cannot find the file, input again"
-        end do
+        write(*,*) "Select mode of inputting atomic indices"
+        write(*,*) "1 Load atomic indices from a plain text file"
+        write(*,*) "2 Inputting atomic indices by hand"
+        read(*,*) imodinput
+        if (imodinput==1) then
+            write(*,*) "Input filename that recorded atom indices of fragment 1"
+            write(*,*) "e.g. C:\nicomaki\frag1.txt"
+            do while(.true.)
+                read(*,"(a)") atmidxfile
+                inquire(file=atmidxfile,exist=alive)
+                if (alive) exit
+                write(*,*) "Cannot find the file, input again"
+            end do
+            write(*,*) "Input filename that recorded atom indices of fragment 2"
+            write(*,*) "e.g. C:\nicomaki\frag2.txt"
+            do while(.true.)
+                read(*,"(a)") atmidxfile2
+                inquire(file=atmidxfile2,exist=alive)
+                if (alive) exit
+                write(*,*) "Cannot find the file, input again"
+            end do
 
-        open(10,file=atmidxfile,status="old")
-        read(10,*) numatmidx
-        allocate(atmlist(numatmidx))
-        read(10,*) atmlist
-        close(10)
-        open(10,file=atmidxfile2,status="old")
-        read(10,*) numatmidx2
-        allocate(atmlist2(numatmidx2))
-        read(10,*) atmlist2
-        close(10)
+            open(10,file=atmidxfile,status="old")
+            read(10,*) numatmidx
+            allocate(atmlist(numatmidx))
+            read(10,*) atmlist
+            close(10)
+            open(10,file=atmidxfile2,status="old")
+            read(10,*) numatmidx2
+            allocate(atmlist2(numatmidx2))
+            read(10,*) atmlist2
+            close(10)
+        else if (imodinput==2) then
+            write(*,*) "Input atomic indices for fragment 1, e.g. 3,5,7-20,25"
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,numatmidx)
+            allocate(atmlist(numatmidx))
+            call str2arr(c2000tmp,numatmidx,atmlist)
+            write(*,*) "Input atomic indices for fragment 2, e.g. 3,5,7-20,25"
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,numatmidx2)
+            allocate(atmlist2(numatmidx2))
+            call str2arr(c2000tmp,numatmidx2,atmlist2)
+        end if
 
         do i=1,nx
             do j=1,ny

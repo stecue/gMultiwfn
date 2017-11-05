@@ -756,8 +756,8 @@ if (iuserfunc==75) userfunc=magmomdens(x,y,z,1) !X component of magnetic dipole 
 if (iuserfunc==76) userfunc=magmomdens(x,y,z,2) !Y component of magnetic dipole moment density
 if (iuserfunc==77) userfunc=magmomdens(x,y,z,3) !Z component of magnetic dipole moment density
 if (iuserfunc==78) userfunc=magmomdens(x,y,z,0) !Magnitude of magnetic dipole moment density
-if (iuserfunc==79) userfunc=energydens_grdn(x,y,z) !Gradient norm of electron density
-if (iuserfunc==80) userfunc=energydens_lapl(x,y,z) !Laplacian of electron density
+if (iuserfunc==79) userfunc=energydens_grdn(x,y,z) !Gradient norm of energy density
+if (iuserfunc==80) userfunc=energydens_lapl(x,y,z) !Laplacian of energy density
 if (iuserfunc==81) userfunc=hamkin(x,y,z,1) !X component of Hamiltonian kinetic energy density
 if (iuserfunc==82) userfunc=hamkin(x,y,z,2) !Y component of Hamiltonian kinetic energy density
 if (iuserfunc==83) userfunc=hamkin(x,y,z,3) !Z component of Hamiltonian kinetic energy density

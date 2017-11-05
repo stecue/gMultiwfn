@@ -286,7 +286,7 @@ integer :: ifixorbsign=0 !if 1, during generating orbital isosurface by drawmolg
 integer :: iatom_on_contour,iatom_on_contour_far=0,plesel,IGRAD_ARROW=0,ILABEL_ON_CONTOUR,LASTCTRVAL,ictrlabsize=20,ivdwctrlabsize=0,iwidthvdwctr=10,iwidthposctr=1,iwidthnegctr=1,iwidthgradline=1
 integer :: iclrindctrpos=5,iclrindctrneg=5,ivdwclrindctr=3,iclrindgradline=6,vdwctrstyle(2)=(/ 1,0 /),ctrposstyle(2)=(/ 1,0 /),ctrnegstyle(2)=(/ 10,15 /)
 integer :: isavepic=0,icurve_vertlinex=0,iclrindatmlab=1,imarkrefpos=0,ilog10y=0,iclrcurve=1,inowhiteblack=0
-integer :: ifragcontri,nfragatmnum,nfragatmnumbackup,ipromol,inucespplot=0,idrawmol=1,idrawisosur=0,isosursec=0,idrawtype=1,idrawcontour=1
+integer :: ifragcontri=0,nfragatmnum,nfragatmnumbackup,ipromol,inucespplot=0,idrawmol=1,idrawisosur=0,isosursec=0,idrawtype=1,idrawcontour=1
 integer :: iinvgradvec=0,icolorvecfield=0,vecclrind=30,idrawplanevdwctr=0,iplaneoutall=0,icurvethick=5
 real*8 :: surcolorzmin,surcolorzmax !fillctr is the contour value will be draw on fillcolor map
 real*8 :: curve_vertlinex=0D0,curvexyratio=0.618D0 !Gold partition
@@ -307,7 +307,7 @@ integer :: ishowatmlab=1,ishowCPlab=0,ishowpathlab=0,ishowaxis=1,isosurshowboth=
 integer :: isosur1style=1,isosur2style=1 !isosurface style,1/2/3/4/5=solid,mesh,points,solid+mesh,transparent
 integer :: ishowlocminlab=0,ishowlocmaxlab=0,ishowlocminpos=0,ishowlocmaxpos=0 !For molecular surface analysis
 integer :: ishow3n3=0,ishow3n1=0,ishow3p1=0,ishow3p3=0
-real*8 :: bondcrit=1.15D0,textheigh=30.0D0,ratioatmsphere=1.0D0,ratioCPsphere=0.8D0,bondradius=0.2D0,attsphsize=0.1D0
+real*8 :: bondcrit=1.15D0,textheigh=38.0D0,ratioatmsphere=1.0D0,ratioCPsphere=0.8D0,bondradius=0.2D0,attsphsize=0.1D0
 real*8 :: XVU=150.0D0,YVU=30.0D0,ZVU=6.0D0 !3D view angle
 !Parameter for drawing domain defined by isosurfaces as grids
 integer :: idrawdomainidx=0,idrawdomain=0,ndomain=0

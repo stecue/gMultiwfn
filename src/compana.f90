@@ -1085,7 +1085,14 @@ if (isel==0.or.isel==1) then
     end do
     !Read MO in NAO basis
     call loclabel(10,"MOs in the NAO basis:",ifound,0) !Don't rewind
-    call readmatgau(10,NAOMO,0,"f8.4 ",16,8,3)
+    !Check format before reading, NBO6 use different format to NBO3
+    read(10,"(a)") c80tmp
+    backspace(10)
+    if (c80tmp(2:2)==" ") then !NBO6
+        call readmatgau(10,NAOMO,0,"f8.4 ",17,8,3)
+    else !NBO3
+        call readmatgau(10,NAOMO,0,"f8.4 ",16,8,3)
+    end if
 end if
 
 if (isel==0) then

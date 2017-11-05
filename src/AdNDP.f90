@@ -111,8 +111,14 @@ if (ifound==0) then
     write(*,*) "Error: Cannot found NAO density matrix field in the input file"
     return
 end if
-!Note that the format of DMNAO matrix outputted by NBO6 <=2016 is seemingly problmatic and thus Mutliwfn fails to load it. Present Multiwfn is able to support NBO6 >=2017
-call readmatgau(10,DMNAO,0,"f8.4 ",16,8,3) !For open-shell case, DMNAO doesn't print for total, so the first time loaded DMNAO is alpha(open-shell) or total(close-shell)
+
+!Check format before reading, NBO6 use different format to NBO3
+!For open-shell case, DMNAO doesn't print for total, so the first time loaded DMNAO is alpha(open-shell) or total(close-shell)
+read(10,"(a)") c80tmp
+backspace(10)
+nskipcol=16 !NBO3
+if (c80tmp(2:2)==" ") nskipcol=17 !NBO6
+call readmatgau(10,DMNAO,0,"f8.4 ",nskipcol,8,3)
 iusespin=0
 !Check if this is open-shell calculation
 call loclabel(10," Alpha spin orbitals ",iopenshell)
@@ -124,7 +130,7 @@ if (iopenshell==1) then
         allocate(DMNAObeta(numNAO,numNAO))
         call loclabel(10,"*******         Beta  spin orbitals         *******",ifound)
         call loclabel(10,"NAO density matrix:",ifound,0)
-        call readmatgau(10,DMNAObeta,0,"f8.4 ",16,8,3)
+        call readmatgau(10,DMNAObeta,0,"f8.4 ",nskipcol,8,3)
         if (iusespin==0) then
             DMNAO=DMNAO+DMNAObeta
         else if (iusespin==2) then
@@ -891,6 +897,10 @@ integer ifound
 !Note that even for open-shell case, AONAO only be printed once, namely for density
 open(10,file=filename,status="old")
 call loclabel(10,"NAOs in the AO basis:",ifound,1)
+read(10,"(a)") c80tmp
+backspace(10)
+nskipcol=16 !NBO3
+if (c80tmp(2:2)==" ") nskipcol=17 !NBO6
 if (ifound==0) then
     write(*,"(a)") " Error: Cannot found NAOs in the AO basis field in the Gaussian output file!"
     write(*,*)
@@ -912,13 +922,13 @@ backspace(10)
 backspace(10)
 backspace(10)
 if (if8col/=0) then !8 columns
-    call readmatgau(10,AONAO,0,"f8.4 ",16,8,3)
+    call readmatgau(10,AONAO,0,"f8.4 ",nskipcol,8,3)
 else if (if7col/=0) then !7 columns
-    call readmatgau(10,AONAO,0,"f9.4 ",16,7,3)
+    call readmatgau(10,AONAO,0,"f9.4 ",nskipcol,7,3)
 else if (if6col/=0) then !6 columns
-    call readmatgau(10,AONAO,0,"f10.4",16,6,3)
+    call readmatgau(10,AONAO,0,"f10.4",nskipcol,6,3)
 else if (if5col/=0) then !5 columns
-    call readmatgau(10,AONAO,0,"f11.4",16,5,3)
+    call readmatgau(10,AONAO,0,"f11.4",nskipcol,5,3)
 end if
 close(10)
 end subroutine

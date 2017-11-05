@@ -491,10 +491,10 @@ nbelec=0
 
 do i=1,nfrag
     if (i==1) then
-        write(*,"('Filename of fragment 1: ',a)") trim(filename)
+        write(*,"(' Filename of fragment 1: ',a)") trim(filename)
     else if (i/=1) then
         do while(.true.)
-            write(*,"('Input Gaussian outputted filename of fragment',i4)") i
+            write(*,"(' Input Gaussian outputted filename of fragment',i4)") i
             read(*,"(a)") filename
             inquire(file=filename,exist=alive)
             if (alive) exit
@@ -525,7 +525,7 @@ do i=1,nfrag
     call loclabel(10,"Beta Molecular Orbital",ifunrestrict(i))
     close(10)
 
-    write(*,"('Charge and multiplicity of this fragment:',2i4)") icharge,numaelec(i)-numbelec(i)+1
+    write(*,"(' Charge and multiplicity of this fragment:',2i4)") icharge,numaelec(i)-numbelec(i)+1
     nchargetot=nchargetot+icharge
     if (imulti>1) then
         write(*,*) "Flip electron spin of this fragment? (y/n)"
@@ -1807,7 +1807,14 @@ if (ifound==0) then
     write(*,*)
     return
 end if
-call readmatgau(10,NAOMO,0,"f8.4 ",16,8,3)
+!Check format before reading, NBO6 use different format to NBO3
+read(10,"(a)") c80tmp
+backspace(10)
+if (c80tmp(2:2)==" ") then !NBO6
+    call readmatgau(10,NAOMO,0,"f8.4 ",17,8,3)
+else !NBO3
+    call readmatgau(10,NAOMO,0,"f8.4 ",16,8,3)
+end if
 close(10)
 
 Fermiene=(MOene(iHOMO)+MOene(iLUMO))/2D0

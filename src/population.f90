@@ -74,7 +74,7 @@ else
             call spacecharge(4)
         else if (ipopsel==5) then
             write(*,*) "0 Return"
-            write(*,*) "1 Output Mulliken charges and decompose them to MO's contribution"
+            write(*,*) "1 Output Mulliken population/charges and decompose them to MO's contribution"
             write(*,*) "2 Output gross atomic population matrix and decompose it"
             write(*,*) "3 Output gross basis function population matrix and decompose it"
             read(*,*) ipopsel2

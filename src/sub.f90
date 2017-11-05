@@ -3,13 +3,17 @@ subroutine modwfn
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-character seltmpc*10,orbtype*5,selectyn,c1000tmp*1000
+character seltmpc*10,orbtype*5,selectyn,c1000tmp*1000,c2000tmp*2000
 real*8 eigval(nbasis),eigvec(nbasis,nbasis),tmpmat(nbasis,nbasis)
 integer orbarr(nmo)
+integer,allocatable :: exclfragatm(:),tmparrint(:)
+
 ! write(*,*) wfntype
 do while(.true.)
     write(*,*) "          ============ Modify & Check wavefunction ============ "
     write(*,"(' Number of GTFs:',i6,', Orb:',i6,', Atoms:',i5,', A/B elec:',2f8.3)") nprims,nmo,ncenter,naelec,nbelec
+    if (ifragcontri/=1) write(*,*) "-4 Exclude contribution of some atoms to real space functions"
+    if (ifragcontri/=1) write(*,*) "-3 Only retain contribution of some atoms to real space functions"
     write(*,*) "-1 Return"
     write(*,*) "0 Save the modified wavefunction to a new .wfn file"
     if (allocated(CObasa)) then
@@ -47,6 +51,56 @@ do while(.true.)
         end if
         exit
         
+    else if (iselect==-3.or.iselect==-4) then
+        deallocate(fragatm) !fragatm has been defined previously by default, fragatm contains all atoms
+        if (iselect==-3) then
+            ! "fragatm" is convertion relationship from fragment to the whole,
+            ! e.g. fragatm(4) is the actual atom index corresponding the 4th atom in fragment list
+            write(*,"(a)") " Input atomic indices to define the fragment, e.g. 1,3-6,8,10-11 means atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,nfragatmnum)
+            allocate(fragatm(nfragatmnum))
+            call str2arr(c2000tmp,nfragatmnum,fragatm)
+            call sorti4(fragatm,"val")
+        else if (iselect==-4) then
+            write(*,*) "How many atoms will be excluded?"
+            write(*,*) "e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will be excluded"
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,nexclatm)
+            nfragatmnum=ncenter-nexclatm
+            allocate(fragatm(nfragatmnum),exclfragatm(nexclatm))
+            call str2arr(c2000tmp,nexclatm,exclfragatm)
+            j=0
+            do i=1,ncenter
+                if (all(exclfragatm/=i)) then
+                    j=j+1
+                    fragatm(j)=i
+                end if
+            end do
+        end if
+        j=0
+        do i=1,nprims
+            if (any(fragatm==b(i)%center)) then
+                j=j+1      !Move function in the fragment to head of list
+                CO(:,j)=CO(:,i)
+                b(j)=b(i)
+            end if
+        end do
+        ifragcontri=1 !Fragment has been defined by users
+        write(*,"(' Done,',i8,' GTFs have been discarded,',i8,' GTFs reserved')") nprims-j,j
+        nprims=j !Cut list at j, all functions after j seem non exist
+        if (iselect==-4) deallocate(exclfragatm)
+
+        !Modification of wavefunction has finished, now reduce size of b, CO... to current nprims and nmo to avoid potential problems
+        if (allocated(b)) then !Only for input file contains wavefunctions
+            call resizebynmo(nmo,nprims) !Reduce size of CO, MOene, MOocc, MOtype
+            allocate(b_tmp(nprims))
+            b_tmp(:)=b(1:nprims)
+            deallocate(b)
+            allocate(b(nprims))
+            b=b_tmp
+            deallocate(b_tmp)
+        end if
     else if (iselect==0) then
         call outwfn("new.wfn",1,1,10)
         write(*,*) "New .wfn file has been outputted to new.wfn in current folder"
