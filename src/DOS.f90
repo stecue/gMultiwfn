@@ -734,15 +734,15 @@ nthreads=getNThreads()
                 open(10,file="DOS_curve.txt",status="replace")
                 if (idoOPDOS==1) then
                     do i=1,num1Dpoints
-                        write(10,"(f10.5,12(1PE15.6))") curvexpos(i),TDOScurve(i),OPDOScurve(i),PDOScurve(i,:)
+                        write(10,"(f10.5,12f12.6)") curvexpos(i),TDOScurve(i),OPDOScurve(i),PDOScurve(i,:)
                     end do
                 else if (idoPDOS==1) then
                     do i=1,num1Dpoints
-                        write(10,"(f10.5,11(1PE15.6))") curvexpos(i),TDOScurve(i),PDOScurve(i,:)
+                        write(10,"(f10.5,11f12.6)") curvexpos(i),TDOScurve(i),PDOScurve(i,:)
                     end do
                 else
                     do i=1,num1Dpoints
-                        write(10,"(f10.5,1PE15.6)") curvexpos(i),TDOScurve(i)
+                        write(10,"(f10.5,f12.6)") curvexpos(i),TDOScurve(i)
                     end do
                 end if
                 close(10)

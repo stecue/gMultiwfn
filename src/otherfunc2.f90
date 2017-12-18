@@ -3565,7 +3565,9 @@ integer :: ifunciso=13,ifuncint=1
 integer,allocatable :: mergelist(:),grididx(:,:,:),dogrid(:,:)
 character :: defdomain*20="<0.5",c1000tmp*1000
 
-if (allocated(gridxyz)) deallocate(gridxyz,domainsize,domaingrid)
+if (allocated(gridxyz)) deallocate(gridxyz)
+if (allocated(domainsize)) deallocate(domainsize)
+if (allocated(domaingrid)) deallocate(domaingrid)
 do while(.true.)
     write(*,*)
     if (allocated(cubmat)) write(*,*) "-1 Directly use the grid data in memory to yield domains"
@@ -3847,4 +3849,46 @@ do while(.true.)
         write(*,"(' Volume (Total):    ',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volneg+volpos
     end if
 end do
+end subroutine
+
+
+!------ Calculate electron correlation index proposed by Matito et al.
+subroutine elecorridx
+use defvar
+real*8 occ(nmo),I_ND,I_D,I_T
+write(*,*) "Citation: Phys. Chem. Chem. Phys., 18, 24015 (2016)"
+I_ND=0
+I_D=0
+if (wfntype==3) then
+    occ=MOocc/2
+    where(occ>1) occ=1 !Remove unphysical occupation number larger than unity
+    where(occ<0) occ=0 !Remove unphysical negative occupation number
+    do i=1,nmo
+        I_D=I_D+ dsqrt(occ(i)*(1-occ(i))) - 2*occ(i)*(1-occ(i))
+    end do
+    I_D=I_D/4
+    do i=1,nmo
+        I_ND=I_ND+ occ(i)*(1-occ(i))
+    end do
+    I_ND=I_ND/2
+    !Above we only consider half part, another part is identical to that, so double the result
+    I_D=I_D*2
+    I_ND=I_ND*2
+else if (wfntype==4) then
+    occ=MOocc
+    where(occ>1) occ=1
+    where(occ<0) occ=0
+    do i=1,nmo
+        I_D=I_D+ dsqrt(occ(i)*(1-occ(i))) - 2*occ(i)*(1-occ(i))
+    end do
+    I_D=I_D/4
+    do i=1,nmo
+        I_ND=I_ND+ occ(i)*(1-occ(i))
+    end do
+    I_ND=I_ND/2
+end if
+I_T=I_ND+I_D
+write(*,"(' Nondynamic correlation index:',f12.8)") I_ND
+write(*,"(' Dynamic correlation index:   ',f12.8)") I_D
+write(*,"(' Total correlation index:     ',f12.8)") I_T
 end subroutine

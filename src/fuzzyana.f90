@@ -15,7 +15,7 @@ real*8 potx(sphpot),poty(sphpot),potz(sphpot),potw(sphpot)
 type(content) gridatm(radpot*sphpot)
 real*8 smat(ncenter,ncenter),Pvec(ncenter),rintval(ncenter,10),funcval(radpot*sphpot),atmspcweight(radpot*sphpot) !rintval store integral, can record 10 integrand at the same time
 real*8 rintvalp(ncenter,10) !Private for each OpenMP thread
-real*8 promol(radpot*sphpot),atomdens(radpot*sphpot),selfdens(radpot*sphpot),selfdensgrad2(radpot*sphpot) !For Hirshfeld partition
+real*8 promol(radpot*sphpot),atomdens(radpot*sphpot),selfdens(radpot*sphpot),selfdensgrad(3,radpot*sphpot) !For Hirshfeld partition. selfdensgrad2 is only used in Shubin's project
 real*8 specrho(radpot*sphpot),specrhograd2(radpot*sphpot) !Density and its gradient^2 of atom in specific state (user-provided atomic wavefunction). Used for taking Hirshfeld as reference to calculate relative Shannon and Fisher entropy
 real*8 :: covr_becke(0:nelesupp)=0D0 !covalent radii used for Becke partition
 real*8 DI(ncenter,ncenter),DIa(ncenter,ncenter),DIb(ncenter,ncenter) !Delocalization index matrix
@@ -30,6 +30,7 @@ real*8 :: AOMtmp(nmo,nmo),orbval(nmo)
 integer :: iraddefine=-1 !-1= Specific for Laplacian bond order. 0=Custom 1=CSD 2=Pyykko 3=Suresh
 integer :: nbeckeiter=3,sphpotold,radpotold
 integer :: cenind(10) !Record atom index for multicenter DI
+real*8 hess(3,3),rhogradw(3)
 character :: radfilename*200,selectyn,c80inp*80,specatmfilename*80,c200tmp*200
 real*8,external :: fdens_rad
 if (ispecial==2) then
@@ -541,11 +542,12 @@ nthreads=getNThreads()
             call dealloall
             call readwfn(custommapname(jatm),1)
 nthreads=getNThreads()
-!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
+!$OMP parallel do shared(atomdens,selfdensgrad) private(ipt) num_threads(nthreads)
             do ipt=1+iradcut*sphpot,radpot*sphpot
                 atomdens(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
-                if ((isel==99.or.isel==100).and.jatm==iatm) selfdensgrad2(ipt)=& !SPECIAL: Calculate square of rhograd of free atom
-                fgrad(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,'t')**2
+                if (jatm==iatm.and.(isel==99.or.isel==100)) then !SPECIAL: Calculate rho and its gradient for free atom
+                    call calchessmat_dens(1,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,selfdens(ipt),selfdensgrad(1:3,ipt),hess)
+                end if
             end do
 !$OMP end parallel do
             promol=promol+atomdens
@@ -622,20 +624,26 @@ nthreads=getNThreads()
         !=100: Calculate relative Shannon/Fisher entropy by taking Hirshfeld density as reference
         !=103: Calculate quadratic and cubic Renyi relative entropy
 nthreads=getNThreads()
-!$OMP parallel shared(rintval) private(i,rnowx,rnowy,rnowz,rhow,rhograd2w,rintvalp) num_threads(nthreads)
+!$OMP parallel shared(rintval) private(i,rnowx,rnowy,rnowz,rhow,rhogradw,rhograd2w,rintvalp,tmpx,tmpy,tmpz) num_threads(nthreads)
         rintvalp=0D0
 !$OMP do schedule(dynamic)
         do i=1+iradcut*sphpot,radpot*sphpot
             rnowx=gridatm(i)%x
             rnowy=gridatm(i)%y
             rnowz=gridatm(i)%z
-            rhow=atmspcweight(i)*fdens(rnowx,rnowy,rnowz) !rhoA at current point
-            if (isel==99.or.isel==100) rhograd2w=(atmspcweight(i)*fgrad(rnowx,rnowy,rnowz,'t'))**2 !|grad_rhoA|^2 at current point
+            if (isel==99.or.isel==100) then
+                call calchessmat_dens(1,rnowx,rnowy,rnowz,rhow,rhogradw(:),hess)
+                rhow=atmspcweight(i)*rhow !rhoA at current point
+                rhogradw=atmspcweight(i)*rhogradw
+                rhograd2w=sum(rhogradw(:)**2) !|grad_rhoA|^2 at current point
+            else
+                rhow=atmspcweight(i)*fdens(rnowx,rnowy,rnowz) !rhoA at current point
+            end if
             if (isel==99) then
-                !Variation of Shannon information entropy w.r.t. free-state
+                !Relative Shannon entropy w.r.t. free-state
                 rintvalp(iatm,1)=rintvalp(iatm,1)+rhow*log(rhow/selfdens(i))*gridatm(i)%value
-                !Variation of Fisher information entropy w.r.t. free-state
-                rintvalp(iatm,2)=rintvalp(iatm,2)+(rhograd2w/rhow-selfdensgrad2(i)/selfdens(i))*gridatm(i)%value
+                !Relative Fisher information entropy w.r.t. free-state (old formula, incorrect)
+                rintvalp(iatm,2)=rintvalp(iatm,2)+(rhograd2w/rhow-sum(selfdensgrad(1:3,i)**2)/selfdens(i))*gridatm(i)%value
                 !Atomic Shannon
                 rintvalp(iatm,3)=rintvalp(iatm,3)-rhow*log(rhow)*gridatm(i)%value
                 !Atomic Fisher
@@ -644,6 +652,11 @@ nthreads=getNThreads()
                 rintvalp(iatm,5)=rintvalp(iatm,5)+(rhow-selfdens(i))*gridatm(i)%value
                 !2nd-order term
                 rintvalp(iatm,6)=rintvalp(iatm,6)+(rhow-selfdens(i))**2/rhow/2D0 *gridatm(i)%value
+                !Relative Fisher information entropy w.r.t. free-state (new formula, correct)
+                tmpx=rhogradw(1)/rhow-selfdensgrad(1,i)/selfdens(i)
+                tmpy=rhogradw(2)/rhow-selfdensgrad(2,i)/selfdens(i)
+                tmpz=rhogradw(3)/rhow-selfdensgrad(3,i)/selfdens(i)
+                rintvalp(iatm,7)=rintvalp(iatm,7)+rhow*(tmpx**2+tmpy**2+tmpz**2)*gridatm(i)%value
             else if (isel==100) then
                 !Relative Shannon entropy of specific atomic state with Hirshfeld density as reference
                 rintvalp(iatm,1)=rintvalp(iatm,1)+specrho(i)*log(specrho(i)/rhow)*gridatm(i)%value
@@ -765,8 +778,8 @@ nthreads=getNThreads()
         yintacc=yintacc+yint
         zintacc=zintacc+zint
     
+    !Calculate atomic overlap matrix (AOM) for all tasks that require it
     else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
-    !Calculate atomic overlap matrix (AOM) for all tasks requiring it
         if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
 nthreads=getNThreads()
 !$OMP parallel shared(AOM) private(i,imo,jmo,AOMtmp,orbval) num_threads(nthreads)
@@ -1014,12 +1027,12 @@ if (isel==1) then
     write(*,*)
     
 else if (isel==99) then !SPECIAL: Relative Shannon and Fisher entropy and 2nd-order term
-    write(*,*) "Relative Shannon and Fisher information entropy w.r.t. its free-state"
-    write(*,*) "   Atom         Relat_Shannon      Relat_Fisher"
+    write(*,*) "Relative Shannon entropy and relative Fisher information w.r.t. its free-state"
+    write(*,*) "   Atom           Rel.Shannon       Rel.Fisher(old)   Rel.Fisher(new)"
     do iatm=1,ncenter
-        write(*,"(i6,'(',a2,')  ',2f18.8)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,2)
+        write(*,"(i6,'(',a2,')  ',3f18.8)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,2),rintval(iatm,7)
     end do
-    write(*,"(' Summing up above values:',2f22.8)") sum(rintval(:,1)),sum(rintval(:,2))
+    write(*,"(' Summing up above values:',3f18.8)") sum(rintval(:,1)),sum(rintval(:,2)),sum(rintval(:,7))
     write(*,*)
     write(*,*) "Shannon and Fisher information entropy of each atom"
     write(*,*) "   Atom             Shannon            Fisher"

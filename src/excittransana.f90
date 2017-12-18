@@ -2,7 +2,8 @@
 !ROHF,RODFT are assumed to be impossible to be ground state
 !itype=1 is normal mode
 !itype=2 is specifically used to calculate delta_r
-!itype=3 is specifically used to generate NTOs 
+!itype=3 is specifically used to generate NTOs
+!itype=4 is specifically used to Calculate inter-fragment charger transfer
 subroutine hetransdipdens(itype)
 use defvar
 use util
@@ -10,7 +11,7 @@ use function
 implicit real*8 (a-h,o-z)
 integer :: itype,idomag=0
 integer,allocatable :: skippair(:),excdir(:) !excdir=1 means ->, =2 means <-
-integer,allocatable :: orbleft(:),orbright(:) !denote the actual MO (have already considered alpha/beta problem) at the left/right side in the excitation data
+integer,allocatable :: orbleft(:),orbright(:) !denote the actual MO at the left/right side in the excitation data (1:nbasis=alpha/spatial, nbasis+1:2*nbasis=beta)
 real*8,allocatable :: exccoeff(:),exccoeffbackup(:) !Coefficient of an orbital pair transition. exccoeffbackup is used to backup, because users can modify the coefficients
 real*8,allocatable :: holegrid(:,:,:),elegrid(:,:,:),holeeleovlp(:,:,:),transdens(:,:,:),holecross(:,:,:),elecross(:,:,:),Cele(:,:,:),Chole(:,:,:),magtrdens(:,:,:,:)
 real*8,allocatable :: dipcontri(:,:) !(1/2/3,iexc) contribution of orbital pairs "iexc" to transition dipole moment in X/Y/Z
@@ -52,9 +53,11 @@ else
     write(*,"(' Loading ',a)") trim(excitfilename)
 end if
 open(10,file=excitfilename,status="old")
-call loclabel(10,"Gaussian",igauout,maxline=50)
-call loclabel(10,"O   R   C   A",iORCAout,maxline=50)
+call loclabel(10,"Gaussian",igauout,1,50)
+call loclabel(10,"O   R   C   A",iORCAout,1,50)
+
 if (igauout==1) then !Gaussian output file
+    write(*,*) "Analyzing the file..."
     call loclabel(10,"Excitation energies and oscillator strengths:")
     read(10,*)
     nstates=0 !The number of transition modes
@@ -87,6 +90,7 @@ if (igauout==1) then !Gaussian output file
     end do
     read(transmodestr(i-10:i-1),*) excenergy
 else if (iORCAout==1) then !ORCA output file
+    write(*,*) "Analyzing the file..."
     call loclabel(10,"Number of roots to be determined",ifound)
     if (ifound==0) then
         write(*,*) "Error: It seems that this is not a output file of CIS/TDA/TD task"
@@ -111,6 +115,7 @@ else if (iORCAout==1) then !ORCA output file
             read(*,*) iexcmulti
         end if
     end if
+    write(*,*) "Loading data, please wait..."
     call loclabel(10,"the weight of the individual excitations are printed")
     if (iexcmulti==3) then !When triplets=on, ORCA calculate both singlet and triplet excited state, now move to the latter
         read(10,*)
@@ -166,7 +171,6 @@ if (iORCAout==1) then
             read(*,*)
             return
         end if
-!         write(*,*) trim(c80tmp)
         do isign=1,80 !Find position of <- or ->
             if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
         end do
@@ -180,8 +184,9 @@ if (iORCAout==1) then
         read(rightstr(:len_trim(rightstr)-1),*) orbright(itmp)
         orbright(itmp)=orbright(itmp)+1
         if (index(rightstr,'b')/=0) orbright(itmp)=orbright(itmp)+nbasis
-        if (index(c80tmp,'c=')/=0) then !CIS, TDA task, configuration coefficients are presented
-            read(c80tmp(36:47),*) exccoeff(itmp)
+        iTDA=index(c80tmp,'c=')
+        if (iTDA/=0) then !CIS, TDA task, configuration coefficients are presented
+            read(c80tmp(iTDA+2:iTDA+13),*) exccoeff(itmp)
         else !TD task, configuration coefficients are not presented. Contribution of i->a and i<-a are summed up and outputted as i->a
             if (itmp==1) then
                 write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print corresponding contributions of each orbital pair, &
@@ -250,7 +255,6 @@ close(10)
 exccoeffbackup=exccoeff
 
 
-
 1 do while(.true.)
     if (itype==1) then
         write(*,*)
@@ -267,9 +271,14 @@ exccoeffbackup=exccoeff
         write(*,*) "10 Modify or check excitation coefficients"
         read(*,*) isel
     else if (itype==2) then
-        isel=8 !Directly go to the code used to calculate delta_r index
+        call calcdelta_r(nexcitorb,orbleft,orbright,excdir,exccoeff)
+        return
     else if (itype==3) then
-        isel=9 !Directly go to the code used to generate NTOs
+        call NTO(nexcitorb,orbleft,orbright,excdir,exccoeff)
+        return
+    else if (itype==4) then
+        call excfragCT(nexcitorb,orbleft,orbright,excdir,exccoeff)
+        return
     end if
     
     if (isel==-1) then
@@ -455,6 +464,9 @@ nthreads=getNThreads()
         write(*,*) "Generating transition density matrix..."
         if (.not.allocated(tdmata)) allocate(tdmata(nbasis,nbasis))
         if ((wfntype==1.or.wfntype==4).and.(.not.allocated(tdmatb))) allocate(tdmatb(nbasis,nbasis))
+        iprog=0
+nthreads=getNThreads()
+!$OMP parallel do shared(tdmata,tdmatb,iprog) private(ibas,jbas,iexcitorb,imo,jmo,tmpval,tmpval2) num_threads(nthreads) SCHEDULE(DYNAMIC)
         do ibas=1,nbasis
             do jbas=1,nbasis
                 tmpval=0
@@ -485,7 +497,13 @@ nthreads=getNThreads()
                 tdmata(ibas,jbas)=tmpval
                 if (wfntype==1.or.wfntype==4) tdmatb(ibas,jbas)=tmpval2
             end do
+!$OMP CRITICAL
+            iprog=iprog+1
+            write(*,"(' Progress:',i6,'  /',i6)") iprog,nbasis
+!$OMP END CRITICAL
         end do
+!$OMP END PARALLEL do
+        
         if (wfntype==0.or.wfntype==3) tdmata=tdmata*2 !Close-shell, should double the TDM
         
         !! Below codes are used to check transition properties based on transition density matrix and corresponding integral matrix
@@ -680,16 +698,6 @@ nthreads=getNThreads()
         end if
         deallocate(tdmata)
         if (wfntype==1.or.wfntype==4) deallocate(tdmatb)
-    
-    !Calculate delta_r index
-    else if (isel==8) then
-        call calcdelta_r(nexcitorb,orbleft,orbright,excdir,exccoeff)
-        return
-            
-    !Generate NTOs
-    else if (isel==9) then
-        call NTO(nexcitorb,orbleft,orbright,excdir,exccoeff)
-        return
         
     !Modify or check excitation coefficients    
     else if (isel==10) then
@@ -1792,7 +1800,7 @@ if (igauout==1) then !Gaussian output file
         end if
     end do
 else if (iORCAout==1) then !ORCA output file
-    write(*,*) "This is a ORCA output file"
+    write(*,*) "This is an ORCA output file"
     call loclabel(10,"Number of roots to be determined",ifound)
     read(10,"(50x,i7)") nstates
 else !Plain text file
@@ -1918,8 +1926,9 @@ if (iORCAout==1) then !ORCA output file
             read(rightstr(:len_trim(rightstr)-1),*) orbright(itmp,iexc)
             orbright(itmp,iexc)=orbright(itmp,iexc)+1
             if (index(rightstr,'b')/=0) orbright(itmp,iexc)=orbright(itmp,iexc)+nbasis
-            if (index(c80tmp,'c=')/=0) then !CIS, TDA task, configuration coefficients are presented
-                read(c80tmp(36:47),*) exccoeff(itmp,iexc)
+            iTDA=index(c80tmp,'c=')
+            if (iTDA/=0) then !CIS, TDA task, configuration coefficients are presented
+                read(c80tmp(iTDA+2:iTDA+13),*) exccoeff(itmp,iexc)
             else !TD task, configuration coefficients are not presented. Contribution of i->a and i<-a are summed up and outputted as i->a
                 if (iexc==1.and.itmp==1) then
                     write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print corresponding contributions of each orbital pair, &
@@ -2352,7 +2361,9 @@ end subroutine
 
 
 
-!!----------- Plot transition density matrix
+!--------------------------------------------------------------------------
+!----------- Plot transition density matrix as color-filled map -----------
+!--------------------------------------------------------------------------
 subroutine plottransdensmat
 use defvar
 use util
@@ -2521,4 +2532,110 @@ do while(.true.)
         end if
     end if
 end do
+end subroutine
+
+
+
+
+
+!---------------------------------------------------------------------------------------
+!---------- Calculate interfragment charger transfer in electronic excitation ----------
+!---------------------------------------------------------------------------------------
+subroutine excfragCT(nexcitorb,orbleft,orbright,excdir,exccoeff)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer nexcitorb,orbleft(nexcitorb),orbright(nexcitorb),excdir(nexcitorb)
+real*8 exccoeff(nexcitorb),CTmat(ncenter,ncenter),CTmattmp(ncenter,ncenter),atmcomp(ncenter,nmo)
+character c2000tmp*2000
+
+inquire(file="orbcomp.txt",exist=alive)
+if (alive) then !Load atomic contribution from orbcomp.txt, which may be outputted by option -4 of Hirshfeld/Becke composition analysis
+    write(*,"(a)") " orbcomp.txt was found in current folder, now load atomic contribution to all orbitals from this file..."
+    open(10,file="orbcomp.txt",status="old")
+    do imo=1,nmo
+        read(10,*)
+        do iatm=1,ncenter
+            read(10,*) inouse,atmcomp(iatm,imo)
+        end do
+    end do
+    close(10)
+    atmcomp=atmcomp/100
+else
+    write(*,*) "Calculating atomic contribution to all orbitals by SCPA method..."
+    do imo=1,nmo
+        if (MOtype(imo)==0.or.MOtype(imo)==1) then !Close-shell or alpha part of open-shell
+            sumsqr=sum(cobasa(:,imo)**2)
+            do iatm=1,ncenter
+                atmcomp(iatm,imo)=sum(cobasa(basstart(iatm):basend(iatm),imo)**2)/sumsqr
+            end do
+        else !Beta part of open-shell
+            iimo=imo-nbasis
+            sumsqr=sum(cobasb(:,iimo)**2)
+            do iatm=1,ncenter
+                atmcomp(iatm,imo)=sum(cobasb(basstart(iatm):basend(iatm),iimo)**2)/sumsqr
+            end do
+        end if
+    end do
+end if
+
+write(*,*) "Constructing inter-atomic CT matrix..."
+CTmat=0
+fac=1
+if (wfntype==0.or.wfntype==3) fac=2 !Since for closed-shell case, program only print one-half part
+do iexc=1,nexcitorb
+    imo=orbleft(iexc)
+    jmo=orbright(iexc)
+    !Calculate transferred electron from iatm(row) to jatm(column)
+    do iatm=1,ncenter
+        do jatm=1,ncenter
+            CTmattmp(iatm,jatm)=atmcomp(iatm,imo)*atmcomp(jatm,jmo)
+        end do
+    end do
+    if (excdir(iexc)/=1) CTmattmp=-CTmattmp
+    CTmat=CTmat+CTmattmp*fac*exccoeff(iexc)**2
+end do
+write(*,*) "Preparation is finished!"
+
+do while(.true.)
+    write(*,*)
+    write(*,*) "Input atom list for fragment 1, e.g. 3,5-8,15-20"
+    write(*,*) "Note: Input 0 can exit"
+    read(*,"(a)") c2000tmp
+    if (c2000tmp(1:1)=="0") return
+    call str2arr(c2000tmp,nterm1)
+    if (allocated(frag1)) deallocate(frag1)
+    allocate(frag1(nterm1))
+    call str2arr(c2000tmp,nterm1,frag1)
+    write(*,*) "Input atom list for fragment 2, e.g. 1,2,4,9-14"
+    read(*,"(a)") c2000tmp
+    call str2arr(c2000tmp,nterm2)
+    if (allocated(frag2)) deallocate(frag2)
+    allocate(frag2(nterm2))
+    call str2arr(c2000tmp,nterm2,frag2)
+
+    CTval1=0
+    CTval2=0
+    varpop1=0
+    varpop2=0
+    do idx=1,nterm1
+        iatm=frag1(idx)
+        do jdx=1,nterm2
+            jatm=frag2(jdx)
+            CTval1=CTval1+CTmat(iatm,jatm)
+            CTval2=CTval2+CTmat(jatm,iatm)
+        end do
+        varpop1=varpop1+sum(CTmat(:,iatm))-sum(CTmat(iatm,:))
+    end do
+    do jdx=1,nterm2
+        jatm=frag2(jdx)
+        varpop2=varpop2+sum(CTmat(:,jatm))-sum(CTmat(jatm,:))
+    end do
+    write(*,"(a,f10.5)") " Electron transferred from fragment 1 to 2:",CTval1
+    write(*,"(a,f10.5)") " Electron transferred from fragment 2 to 1:",CTval2
+    write(*,"(a,f10.5)") " Electron net transferred from fragment 1 to 2:",CTval1-CTval2
+    write(*,"(a,f10.5)") " Variation of electron population of fragment 1:",varpop1
+    write(*,"(a,f10.5)") " Variation of electron population of fragment 2:",varpop2
+end do
+
 end subroutine

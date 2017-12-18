@@ -1,4 +1,5 @@
-#P HF/6-31G* nosymm pop=full IOp(3/32=2)
+%chk=C:\CO.chk
+# HF/6-31G* nosymm
 
 CO for CDA
 

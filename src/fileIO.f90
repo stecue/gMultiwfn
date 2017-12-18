@@ -28,6 +28,8 @@ else if (thisfilename(inamelen-2:inamelen)=="cub".or.thisfilename(inamelen-3:ina
     call readcube(thisfilename,infomode,0)
 else if (thisfilename(inamelen-2:inamelen)=="gms") then
     call readgms(thisfilename,infomode)
+else if (thisfilename(inamelen-2:inamelen)=="mol") then
+    call readmol(thisfilename,infomode)
 else if (len_trim(thisfilename)>=6) then
     if  (index(thisfilename,".molden")/=0) then
         call readmolden(thisfilename,infomode)
@@ -47,167 +49,6 @@ if (any(a%index/=nint(a%charge)).and.allocated(b).and.(.not.allocated(b_EDF))) t
 end if
 end subroutine
 
-
-
-!!----------- Generate spherical harmonic -> Cartesian basis function conversion table for d,f,g,h.
-!The table comes from IJQC,54,83, which is used by Gaussian and also identical to the one used by Molden
-subroutine gensphcartab(matd,matf,matg,math)
-real*8 matd(6,5),matf(10,7),matg(15,9),math(21,11)
-matd=0D0
-matf=0D0
-matg=0D0
-math=0D0
-! From 5D: D 0,D+1,D-1,D+2,D-2
-! To 6D:  1  2  3  4  5  6
-!        XX,YY,ZZ,XY,XZ,YZ
-!
-! D0=-0.5*XX-0.5*YY+ZZ
-matd(1:3,1)=(/ -0.5D0,-0.5D0,1D0 /)
-! D+1=XZ
-matd(5,2)=1D0
-! D-1=YZ
-matd(6,3)=1D0
-! D+2=SQRT(3)/2*(XX-YY)
-matd(1:2,4)=(/ sqrt(3D0)/2D0,-sqrt(3D0)/2D0 /)
-! D-2=XY
-matd(4,5)=1D0
-
-! From 7F: F 0,F+1,F-1,F+2,F-2,F+3,F-3
-! To 10F:  1   2   3   4   5   6   7   8   9  10      
-!         XXX,YYY,ZZZ,XYY,XXY,XXZ,XZZ,YZZ,YYZ,XYZ (Gaussian sequence, not identical to Multiwfn)
-!
-! F 0=-3/(2*¡Ì5)*(XXZ+YYZ)+ZZZ
-matf(3,1)=1D0
-matf(6,1)=-1.5D0/sqrt(5D0)
-matf(9,1)=-1.5D0/sqrt(5D0)
-! F+1=-¡Ì(3/8)*XXX-¡Ì(3/40)*XYY+¡Ì(6/5)*XZZ
-matf(1,2)=-sqrt(3D0/8D0)
-matf(4,2)=-sqrt(3D0/40D0)
-matf(7,2)=sqrt(6D0/5D0)
-! F-1=-¡Ì(3/40)*XXY-¡Ì(3/8)*YYY+¡Ì(6/5)*YZZ
-matf(2,3)=-sqrt(3D0/8D0)
-matf(5,3)=-sqrt(3D0/40D0)
-matf(8,3)=sqrt(6D0/5D0)
-! F+2=¡Ì3/2*(XXZ-YYZ)
-matf(6,4)=sqrt(3D0)/2D0
-matf(9,4)=-sqrt(3D0)/2D0
-! F-2=XYZ
-matf(10,5)=1D0
-! F+3=¡Ì(5/8)*XXX-3/¡Ì8*XYY
-matf(1,6)=sqrt(5D0/8D0)
-matf(4,6)=-3D0/sqrt(8D0)
-! F-3=3/¡Ì8*XXY-¡Ì(5/8)*YYY
-matf(2,7)=-sqrt(5D0/8D0)
-matf(5,7)=3D0/sqrt(8D0)
-
-! From 9G: G 0,G+1,G-1,G+2,G-2,G+3,G-3,G+4,G-4
-! To 15G:   1    2    3    4    5    6    7    8
-!         ZZZZ,YZZZ,YYZZ,YYYZ,YYYY,XZZZ,XYZZ,XYYZ
-!           9   10   11   12   13   14   15
-!         XYYY,XXZZ,XXYZ,XXYY,XXXZ,XXXY,XXXX
-!
-!G 0=ZZZZ+3/8*(XXXX+YYYY)-3*¡Ì(3/35)*(XXZZ+YYZZ-1/4*XXYY)
-matg(1,1)=1D0
-matg(3,1)=-3D0*sqrt(3D0/35D0)
-matg(5,1)=3D0/8D0
-matg(10,1)=-3D0*sqrt(3D0/35D0)
-matg(12,1)=3D0/4D0*sqrt(3D0/35D0)
-matg(15,1)=3D0/8D0
-!G+1=2*¡Ì(5/14)*XZZZ-3/2*¡Ì(5/14)*XXXZ-3/2/¡Ì14*XYYZ
-matg(6,2)=2D0*sqrt(5D0/14D0)
-matg(8,2)=-1.5D0/sqrt(14D0)
-matg(13,2)=-1.5D0*sqrt(5D0/14D0)
-!G-1=2*¡Ì(5/14)*YZZZ-3/2*¡Ì(5/14)*YYYZ-3/2/¡Ì14*XXYZ
-matg(2,3)=2D0*sqrt(5D0/14D0)
-matg(4,3)=-1.5D0*sqrt(5D0/14D0)
-matg(11,3)=-1.5D0/sqrt(14D0)
-!G+2=3*¡Ì(3/28)*(XXZZ-YYZZ)-¡Ì5/4*(XXXX-YYYY)
-matg(3,4)=-3D0*sqrt(3D0/28D0)
-matg(5,4)=sqrt(5D0)/4D0
-matg(10,4)=3D0*sqrt(3D0/28D0)
-matg(15,4)=-sqrt(5D0)/4D0
-!G-2=3/¡Ì7*XYZZ-¡Ì(5/28)*(XXXY+XYYY)
-matg(7,5)=3D0/sqrt(7D0)
-matg(9,5)=-sqrt(5D0/28D0)
-matg(14,5)=-sqrt(5D0/28D0)
-!G+3=¡Ì(5/8)*XXXZ-3/¡Ì8*XYYZ
-matg(8,6)=-3D0/sqrt(8D0)
-matg(13,6)=sqrt(5D0/8D0)
-!G-3=-¡Ì(5/8)*YYYZ+3/¡Ì8*XXYZ
-matg(4,7)=-sqrt(5D0/8D0)
-matg(11,7)=3D0/sqrt(8D0)
-!G+4=¡Ì35/8*(XXXX+YYYY)-3/4*¡Ì3*XXYY
-matg(5,8)=sqrt(35D0)/8D0
-matg(12,8)=-3D0/4D0*sqrt(3D0)
-matg(15,8)=sqrt(35D0)/8D0
-!G-4=¡Ì5/2*(XXXY-XYYY)
-matg(9,9)=-sqrt(5D0)/2D0
-matg(14,9)=sqrt(5D0)/2D0
-
-! From 11H: H 0,H+1,H-1,H+2,H-2,H+3,H-3,H+4,H-4,H+5,H-5
-! To 21H:   1     2     3     4     5     6     7     8     9    10
-!         ZZZZZ YZZZZ YYZZZ YYYZZ YYYYZ YYYYY XZZZZ XYZZZ XYYZZ XYYYZ 
-!          11    12    13    14    15    16    17    18    19    20    21
-!         XYYYY XXZZZ XXYZZ XXYYZ XXYYY XXXZZ XXXYZ XXXYY XXXXZ XXXXY XXXXX
-!
-!H 0=ZZZZZ-5/¡Ì21*(XXZZZ+YYZZZ)+5/8*(XXXXZ+YYYYZ)+¡Ì(15/7)/4*XXYYZ
-math(1,1)=1D0
-math(12,1)=-5D0/sqrt(21D0)
-math(3,1)=-5D0/sqrt(21D0)
-math(19,1)=5D0/8D0
-math(5,1)=5D0/8D0
-math(14,1)=sqrt(15D0/7D0)/4D0
-!H+1=¡Ì(5/3)*XZZZZ-3*¡Ì(5/28)*XXXZZ-3/¡Ì28*XYYZZ+¡Ì15/8*XXXXX+¡Ì(5/3)/8*XYYYY+¡Ì(5/7)/4*XXXYY
-math(7,2)=sqrt(5D0/3D0)
-math(16,2)=-3D0*sqrt(5D0/28D0)
-math(9,2)=-3D0/sqrt(28D0)
-math(21,2)=sqrt(15D0)/8D0
-math(11,2)=sqrt(5D0/3D0)/8D0
-math(18,2)=sqrt(5D0/7D0)/4D0
-!H-1=¡Ì(5/3)*YZZZZ-3*¡Ì(5/28)*YYYZZ-3/¡Ì28*XXYZZ+¡Ì15/8*YYYYY+¡Ì(5/3)/8*XXXXY+¡Ì(5/7)/4*XXYYY
-math(2,3)=sqrt(5D0/3D0)
-math(4,3)=-3D0*sqrt(5D0/28D0)
-math(13,3)=-3D0/sqrt(28D0)
-math(6,3)=sqrt(15D0)/8D0
-math(20,3)=sqrt(5D0/3D0)/8D0
-math(15,3)=sqrt(5D0/7D0)/4D0
-!H+2=¡Ì5/2*(XXZZZ-YYZZZ)-¡Ì(35/3)/4*(XXXXZ-YYYYZ)
-math(12,4)=sqrt(5D0)/2D0
-math(3,4)=-sqrt(5D0)/2D0
-math(19,4)=-sqrt(35D0/3D0)/4D0
-math(5,4)=sqrt(35D0/3D0)/4D0
-!H-2=¡Ì(5/3)*XYZZZ-¡Ì(5/12)*(XXXYZ+XYYYZ)
-math(8,5)=sqrt(5D0/3D0)
-math(17,5)=-sqrt(5D0/12D0)
-math(10,5)=-sqrt(5D0/12D0)
-!H+3=¡Ì(5/6)*XXXZZ-¡Ì(3/2)*XYYZZ-¡Ì(35/2)/8*(XXXXX-XYYYY)+¡Ì(5/6)/4*XXXYY
-math(16,6)=sqrt(5D0/6D0)
-math(9,6)=-sqrt(1.5D0)
-math(21,6)=-sqrt(17.5D0)/8D0
-math(11,6)=sqrt(17.5D0)/8D0
-math(18,6)=sqrt(5D0/6D0)/4D0
-!H-3=-¡Ì(5/6)*YYYZZ+¡Ì(3/2)*XXYZZ-¡Ì(35/2)/8*(XXXXY-YYYYY)-¡Ì(5/6)/4*XXYYY
-math(4,7)=-sqrt(5D0/6D0)
-math(13,7)=sqrt(1.5D0)
-math(20,7)=-sqrt(17.5D0)/8D0
-math(6,7)=sqrt(17.5D0)/8D0
-math(15,7)=-sqrt(5D0/6D0)/4D0
-!H+4=¡Ì35/8*(XXXXZ+YYYYZ)-3/4*¡Ì3*XXYYZ
-math(19,8)=sqrt(35D0)/8D0
-math(5,8)=sqrt(35D0)/8D0
-math(14,8)=-0.75D0*sqrt(3D0)
-!H-4=¡Ì5/2*(XXXYZ-XYYYZ)
-math(17,9)=sqrt(5D0)/2D0
-math(10,9)=-sqrt(5D0)/2D0
-!H+5=3/8*¡Ì(7/2)*XXXXX+5/8*¡Ì(7/2)*XYYYY-5/4*¡Ì(3/2)*XXXYY
-math(21,10)=3D0/8D0*sqrt(3.5D0)
-math(11,10)=5D0/8D0*sqrt(3.5D0)
-math(18,10)=-1.25D0*sqrt(1.5D0)
-!H-5=3/8*¡Ì(7/2)*YYYYY+5/8*¡Ì(7/2)*XXXXY-5/4*¡Ì(3/2)*XXYYY
-math(6,11)=3D0/8D0*sqrt(3.5D0)
-math(20,11)=5D0/8D0*sqrt(3.5D0)
-math(15,11)=-1.25D0*sqrt(1.5D0)
-end subroutine
 
 
 
@@ -244,7 +85,7 @@ s2f(2,1:6)=(/ 5,6,7,8,9,10 /)
 s2f(3,1:10)=(/ 11,12,13,17,14,15,18,19,16,20 /) !Note: The sequence of f functions in Multiwfn is not identical to .fch, so convert here. While spdgh are identical
 s2f(4,1:15)=(/ 21,22,23,24,25,26,27,28,29,30,31,32,33,34,35 /)
 s2f(5,1:21)=(/ 36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56 /)
-call gensphcartab(conv5d6d,conv7f10f,conv9g15g,conv11h21h)
+call gensphcartab(1,conv5d6d,conv7f10f,conv9g15g,conv11h21h)
 conv5d6dtr=transpose(conv5d6d)
 conv7f10ftr=transpose(conv7f10f)
 conv9g15gtr=transpose(conv9g15g)
@@ -811,7 +652,7 @@ s2f(2,1:6)=(/ 5,6,7,8,9,10 /)
 s2f(3,1:10)=(/ 11,12,13,17,14,15,18,19,16,20 /)
 s2f(4,1:15)=(/ 21,22,23,24,25,26,27,28,29,30,31,32,33,34,35 /)
 s2f(5,1:21)=(/ 36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56 /)
-call gensphcartab(conv5d6d,conv7f10f,conv9g15g,conv11h21h)
+call gensphcartab(1,conv5d6d,conv7f10f,conv9g15g,conv11h21h)
 
 open(10,file=fchfilename,access="sequential",status="old")
 
@@ -1057,7 +898,7 @@ a%x=a%x/b2a
 a%y=a%y/b2a
 a%z=a%z/b2a
 a%charge=a%index
-if (infomode==0) write(*,"(' Total',i8,' atoms')") ncenter
+if (infomode==0) write(*,"(' Totally',i8,' atoms')") ncenter
 end subroutine
 
 
@@ -1112,8 +953,53 @@ a%z=a%z/b2a
 a%charge=a%index
 if (infomode==0) then
     write(*,"(a)") titleline
-    write(*,"(' Total',i8,' atoms')") ncenter
+    write(*,"(' Totally',i8,' atoms')") ncenter
 end if
+end subroutine
+
+
+
+!!------------------- Read MDL .mol file (V2000)-------------------
+!!Format description: https://en.wikipedia.org/wiki/Chemical_table_file
+subroutine readmol(name,infomode) 
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer infomode
+character(len=*) name
+ifiletype=11
+open(10,file=name,status="old")
+read(10,"(a)") titleline
+read(10,*)
+read(10,*)
+read(10,"(2i3)") ncenter,nbond
+if (allocated(a)) deallocate(a)
+allocate(a(ncenter))
+do i=1,ncenter
+    read(10,*) a(i)%x,a(i)%y,a(i)%z,a(i)%name
+    call lc2uc(a(i)%name(1:1)) !Convert to upper case
+    call uc2lc(a(i)%name(2:2)) !Convert to lower case
+    do j=1,nelesupp
+        if ( a(i)%name==ind2name(j) ) then
+            a(i)%index=j
+            exit
+        end if
+    end do
+end do
+if (allocated(connmat)) deallocate(connmat)
+allocate(connmat(ncenter,ncenter))
+connmat=0
+do ibond=1,nbond
+    read(10,"(3i3)") i,j,ntmp
+    connmat(i,j)=ntmp
+    connmat(j,i)=ntmp
+end do
+close(10)
+a%x=a%x/b2a
+a%y=a%y/b2a
+a%z=a%z/b2a
+a%charge=a%index
+if (infomode==0) write(*,"(' Totally',i8,' atoms')") ncenter
 end subroutine
 
 
@@ -2551,6 +2437,7 @@ s2f(3,1:10)=(/ 11,12,13,17,14,15,18,19,16,20 /)
 !xxxx yyyy zzzz xxxy xxxz yyyx yyyz zzzx zzzy xxyy xxzz yyzz xxyz yyxz zzxy !Molden sequence
 s2f(4,1:15)=(/ 35,25,21,34,33,29,24,26,22,32,30,23,31,28,27 /)
 !---------- The sequence of h functions in Multiwfn (=fch=wfx) is not identical to Molden, so convert here
+!Note that h angular moment is not formally supported by .molden format!!!
 ! 36    37    38    39    40    41    42    43    44    45    46  !Multiwfn sequence
 !ZZZZZ YZZZZ YYZZZ YYYZZ YYYYZ YYYYY XZZZZ XYZZZ XYYZZ XYYYZ XYYYY
 !xxxxx yyyyy zzzzz xxxxy xxxxz xyyyy xzzzz yyyyz yzzzz xxxyy xxxzz !Molden sequence
@@ -2559,7 +2446,7 @@ s2f(4,1:15)=(/ 35,25,21,34,33,29,24,26,22,32,30,23,31,28,27 /)
 !xxyyy xxzzz yyyzz yyzzz xxxyz xyyyz xyzzz xxyyz xxyzz xyyzz !Molden sequence
 s2f(5,1:21)=(/ 56,41,36,55,54,46,42,40,37,53,51,50,47,39,38,52,45,43,49,48,44 /)
 
-call gensphcartab(conv5d6d,conv7f10f,conv9g15g,conv11h21h)
+call gensphcartab(2,conv5d6d,conv7f10f,conv9g15g,conv11h21h)
 conv5d6dtr=transpose(conv5d6d)
 conv7f10ftr=transpose(conv7f10f)
 conv9g15gtr=transpose(conv9g15g)
@@ -2792,11 +2679,6 @@ nbasis=0
 do ishell=1,nshell
     nbasis=nbasis+shtype2nbas(shelltype(ishell))
 end do
-if (infomode==0.and.iorca==1.and.imaxL>=4) then
-    write(*,"(a)") " Warning! For the Molden input file generated by ORCA, when g angular moment basis functions are present, the result may be inaccurate!"
-    write(*,"(a)") " I suggest you use Molden2AIM program to standardize it before loading it into Multiwfn. If you really want to preceed, press ENTER button"
-    read(*,*)
-end if
 
 !!!!! Load orbital information. The sequence: Alpha(high occ / low ene) -> Alpha(low occ / high ene) -> Beta(high occ / low ene) -> Beta(low occ / high ene)
 !Close shell orbitals are formally marked as "Alpha" spin. For singly occupied orbitals of ROHF, the spin marker are also Alpha
@@ -4429,14 +4311,13 @@ use util
 implicit real*8 (a-h,o-z)
 character(len=*) outname
 integer ifileid
-
 open(ifileid,file=outname,status="replace")
 write(ifileid,"(a)") "Generated by Multiwfn"
 if (wfntype==0.or.wfntype==3) write(ifileid,"(a10,a30,a30)") "SP        ","RB3LYP                        ","                      6-31G(d)"
 if (wfntype==1.or.wfntype==4) write(ifileid,"(a10,a30,a30)") "SP        ","UB3LYP                        ","                      6-31G(d)"
 if (wfntype==2)               write(ifileid,"(a10,a30,a30)") "SP        ","ROB3LYP                       ","                      6-31G(d)"
 write(ifileid,"(A40,3X,A1,5X,I12)") "Number of atoms                         ","I",ncenter
-write(ifileid,"(A40,3X,A1,5X,I12)") "Charge                                  ","I",sum(a%charge)-nelec
+write(ifileid,"(A40,3X,A1,5X,I12)") "Charge                                  ","I",nint(sum(a%charge)-nelec)
 write(ifileid,"(A40,3X,A1,5X,I12)") "Multiplicity                            ","I",nint(naelec-nbelec)+1
 write(ifileid,"(A40,3X,A1,5X,I12)") "Number of electrons                     ","I",nint(nelec)
 write(ifileid,"(A40,3X,A1,5X,I12)") "Number of alpha electrons               ","I",nint(naelec)

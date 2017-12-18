@@ -2131,12 +2131,10 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
     write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
     write(ifileid,"(' Determinant of Hessian:',D18.10)") detmat(funchess)
     if (ifuncsel==1) then !Output ellipticity for rho
-        eigmax=maxval(eigval) !At bcp, will be the most positive 
-        eigmin=minval(eigval) !At bcp, will be the most negative
-        do itmp=1,3
-            tmpval=eigval(itmp)
-            if (tmpval/=eigmax.and.tmpval/=eigmin) eigmed=tmpval !At bcp, will be the second most negative
-        end do
+        call sortr8(eigval)
+        eigmax=eigval(3)
+        eigmed=eigval(2)
+        eigmin=eigval(1)
         write(ifileid,"(a,f12.6)") " Ellipticity of electron density:",eigmin/eigmed-1
         write(ifileid,"(a,f12.6)") " eta index:",abs(eigmin)/eigmax
     end if
@@ -2171,6 +2169,41 @@ else !Only loaded structure, use YWT promolecule density
     write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
 end if
 end subroutine
+
+
+
+!!!------- Decompose property at a point as contribution from various orbitals
+subroutine decompptprop(x,y,z)
+use defvar
+use util
+use function
+implicit real*8(a-h,o-z)
+character c2000tmp*2000
+real*8 MOocctmp(nmo)
+integer,allocatable :: orbidx(:)
+write(*,*) "Select function to be studied"
+call funclist
+read(*,*) ifunc
+write(*,*) "Input range of orbitals, e.g. 3,6-8,12-15"
+read(*,"(a)") c2000tmp
+call str2arr(c2000tmp,norb)
+allocate(orbidx(norb))
+call str2arr(c2000tmp,norb,orbidx)
+MOocctmp=MOocc
+sumval=0
+do itmp=1,norb
+    iorb=orbidx(itmp)
+    MOocc=0
+    MOocc(iorb)=MOocctmp(iorb)
+    tmpval=calcfuncall(ifunc,x,y,z)
+    write(*,"(' Contribution from orbital',i6,' (occ=',f10.6,'):',1D16.8,' a.u.')") iorb,MOocc(iorb),tmpval
+    sumval=sumval+tmpval
+end do
+write(*,"(' Summing up above values:',1D16.8)") sumval
+MOocc=MOocctmp
+end subroutine
+
+
 
 
 !!------------------ Set up grid setting
@@ -2901,8 +2934,8 @@ end subroutine
 
 
 
-!!------ Generate natural orbitals based on the density matrix loaded from .fch file
-subroutine gennatorb
+!!------ Generate natural orbitals based on the density matrix loaded from .fch/.fck file
+subroutine fch_gennatorb
 use util
 use defvar
 implicit real*8 (a-h,o-z)
@@ -2918,9 +2951,9 @@ if (ifoundDM==1) then
     if (wfntype==0.or.wfntype==3) then
         read(10,*)
         read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
-        ptot=ptot+transpose(ptot)
+        Ptot=Ptot+transpose(Ptot)
         do i=1,nbasis
-            ptot(i,i)=ptot(i,i)/2D0
+            Ptot(i,i)=Ptot(i,i)/2D0
         end do
     else if (wfntype==1.or.wfntype==4) then
         Palpha=0D0
@@ -2931,15 +2964,14 @@ if (ifoundDM==1) then
         read(10,"(5(1PE16.8))") ((Palpha(i,j),j=1,i),i=1,nbasis) !Read spin density matrix, use Palpha as temporary slot
         Pbeta=(Ptot-Palpha)/2
         Palpha=(Ptot+Palpha)/2D0
-        ptot=ptot+transpose(ptot)
+        Ptot=ptot+transpose(ptot)
         Palpha=Palpha+transpose(Palpha)
         Pbeta=Pbeta+transpose(Pbeta)
         do i=1,nbasis
-            ptot(i,i)=ptot(i,i)/2D0
+            Ptot(i,i)=Ptot(i,i)/2D0
             Palpha(i,i)=Palpha(i,i)/2D0
             Pbeta(i,i)=Pbeta(i,i)/2D0
         end do
-!         write(*,*) sum(sbas*Palpha),sum(sbas*Pbeta),sum(sbas*Ptot)
     end if
     write(*,*) "Density matrix was loaded from .fch file"
 else
@@ -2951,9 +2983,10 @@ close(10)
 allocate(tmparr(nbasis))
 selectyn='n'
 if (.not.(wfntype==0.or.wfntype==3)) then
-    write(*,*) "Do you like to generate UNO orbitals? (y/n)"
+    write(*,*) "Would you like to generate UNO orbitals? (y/n)"
     read(*,*) selectyn
 end if
+write(*,*) "Please wait..."
 if ((wfntype==0.or.wfntype==3).or.selectyn=='y') then
     call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
     call diagsymat(matmul(matmul(transpose(Xmat),Ptot),Xmat),CObasa,MOocc,ierror)
@@ -2972,11 +3005,10 @@ if ((wfntype==0.or.wfntype==3).or.selectyn=='y') then
             end if
         end do
     end do
-    write(*,*) "Natural orbital occupation numbers:"
-    write(*,"(8f9.4)") MOocc(1:nbasis)
+    write(*,*) "Occupation number:"
+    write(*,"(6f12.6)") MOocc
     wfntype=3
 else
-    write(*,*) "Alpha part:"
     call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
     call diagsymat(matmul(matmul(transpose(Xmat),Palpha),Xmat),CObasa,MOocc(1:nbasis),ierror)
     call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
@@ -2994,10 +3026,9 @@ else
             end if
         end do
     end do
-    write(*,*) "Alpha natural orbital occupation numbers:"
-    write(*,"(8f9.4)") MOocc(1:nbasis)
+    write(*,*) "Occupation number of Alpha part:"
+    write(*,"(6f12.6)") MOocc(1:nbasis)
     write(*,*)
-    write(*,*) "Beta part:"
     call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
     call diagsymat(matmul(matmul(transpose(Xmat),Pbeta),Xmat),CObasb,MOocc(nbasis+1:nmo),ierror)
     call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
@@ -3017,14 +3048,362 @@ else
             end if
         end do
     end do
-    write(*,*) "Beta natural orbital occupation numbers:"
-    write(*,"(8f9.4)") MOocc(nbasis+1:nmo)
+    write(*,*) "Occupation number of Beta part:"
+    write(*,"(6f12.6)") MOocc(nbasis+1:nmo)
     wfntype=4
 end if
-write(*,*) "Press ENTER to continue..."
-read(*,*)
+write(*,*) "Done! Basis function information now correspond to natural orbital cases"
+write(*,"(a)") " Note: If next you would like to analyze real space functions, you should export .molden file, &
+and then reload it, so that GTF information will also correspond to natural orbitals"
 end subroutine
 
+
+!!--------- Convert 1RDM in MO basis outputted by MRCC program to natural orbitals
+!In CCDENSITIES, the density matrix is represented in MO basis
+!When frozen core is enabled, the indices are counted from the first correlated orbital
+subroutine MRCC_gennatorb
+use defvar
+use util
+character c200tmp*200
+real*8,allocatable :: eigvecmat(:,:),eigvalarr(:),tmparr(:)
+do while(.true.)
+    write(*,*) "Input the path of CCDENSITIES, e.g. C:\lovelive\CCDENSITIES"
+!     c200tmp="D:\CM\my_program\Multiwfn\x\MRCCdens\HF_m3_CCSD\CCDENSITIES"
+    read(*,"(a)") c200tmp
+    inquire(file=c200tmp,exist=alive)
+    if (alive) exit
+    write(*,*) "Cannot find the file, input again"
+end do
+write(*,*)
+write(*,*) "Input the number of frozen orbitals, e.g. 3"
+write(*,*) "If no orbitals are frozen, simply input 0"
+write(*,"(a)") " PS: For unrestricted reference, if you input n, the n lowest alpha and n lowest beta MOs will be regarded as frozen"
+read(*,*) nfrz
+write(*,*) "Please wait..."
+if (wfntype==0) then !RHF reference
+    open(10,file=c200tmp,status="old")
+    Ptot=0
+    do while(.true.)
+        read(10,*,iostat=ierror) tmp,i,j,k,l
+        if (ierror/=0) exit
+        if (k==0.and.l==0) then !Only load 1RDM
+            Ptot(i+nfrz,j+nfrz)=tmp
+            Ptot(j+nfrz,i+nfrz)=tmp
+        end if
+    end do
+    close(10)
+    do ifrz=1,nfrz
+        Ptot(ifrz,ifrz)=2D0
+    end do
+    allocate(eigvecmat(nbasis,nbasis),eigvalarr(nbasis),tmparr(nbasis))
+    call diagsymat(Ptot,eigvecmat,eigvalarr,istat)
+    MOocc=eigvalarr
+    !Currently the occupation is from low to high, now invert the sequence
+    do i=1,int(nmo/2D0)
+        idx=i
+        jdx=nmo+1-i
+        tmp=MOocc(idx)
+        MOocc(idx)=MOocc(jdx)
+        MOocc(jdx)=tmp
+        tmparr=eigvecmat(:,idx)
+        eigvecmat(:,idx)=eigvecmat(:,jdx)
+        eigvecmat(:,jdx)=tmparr
+    end do
+    CObasa=matmul(CObasa,eigvecmat)
+    wfntype=3
+    write(*,*) "Occupation number:"
+    write(*,"(6f12.6)") MOocc
+else if (wfntype==1) then !UHF reference
+    !In CCDENSITIES, the sequence is:
+    !2RDM-alpha
+    !  0.00000000000000000000E+00   0   0   0   0
+    !2RDM-beta
+    !  0.00000000000000000000E+00   0   0   0   0
+    !Unknown
+    !  0.00000000000000000000E+00   0   0   0   0
+    !1RDM-alpha
+    !  0.00000000000000000000E+00   0   0   0   0
+    !1RDM-beta
+    !  0.00000000000000000000E+00   0   0   0   0
+    open(10,file=c200tmp,status="old")
+    Palpha=0
+    Pbeta=0
+    itime=0
+    do while(.true.)
+        read(10,*) tmp,i,j,k,l
+        if (i==0.and.j==0.and.k==0.and.l==0) then
+            itime=itime+1
+            if (itime==5) exit
+            cycle
+        end if
+        if (itime==3) then
+            Palpha(i+nfrz,j+nfrz)=tmp
+            Palpha(j+nfrz,i+nfrz)=tmp
+        else if (itime==4) then
+            Pbeta(i+nfrz,j+nfrz)=tmp
+            Pbeta(j+nfrz,i+nfrz)=tmp
+        end if
+    end do
+    close(10)
+    do ifrz=1,nfrz
+        Palpha(ifrz,ifrz)=1D0
+        Pbeta(ifrz,ifrz)=1D0
+    end do
+    allocate(eigvecmat(nbasis,nbasis),eigvalarr(nbasis),tmparr(nbasis))
+    !Alpha part
+    call diagsymat(Palpha,eigvecmat,eigvalarr,istat)
+    MOocc(1:nbasis)=eigvalarr
+    do i=1,int(nbasis/2D0)
+        idx=i
+        jdx=nbasis+1-i
+        tmp=MOocc(idx)
+        MOocc(idx)=MOocc(jdx)
+        MOocc(jdx)=tmp
+        tmparr=eigvecmat(:,idx)
+        eigvecmat(:,idx)=eigvecmat(:,jdx)
+        eigvecmat(:,jdx)=tmparr
+    end do
+    CObasa=matmul(CObasa,eigvecmat)
+    write(*,*) "Occupation number of Alpha part:"
+    write(*,"(6f12.6)") MOocc(1:nbasis)
+    !Beta part
+    call diagsymat(Pbeta,eigvecmat,eigvalarr,istat)
+    MOocc(nbasis+1:nmo)=eigvalarr
+    do i=1,int(nbasis/2D0)
+        idx=nbasis+i
+        jdx=nmo+1-i
+        tmp=MOocc(idx)
+        MOocc(idx)=MOocc(jdx)
+        MOocc(jdx)=tmp
+        tmparr=eigvecmat(:,i)
+        eigvecmat(:,i)=eigvecmat(:,nbasis+1-i)
+        eigvecmat(:,nbasis+1-i)=tmparr
+    end do
+    CObasb=matmul(CObasb,eigvecmat)
+    write(*,*) "Occupation number of Beta part:"
+    write(*,"(6f12.6)") MOocc(nbasis+1:nmo)
+    wfntype=4
+end if
+
+call genP
+MOene=0
+write(*,*) "Done! Basis function information now correspond to natural orbital cases"
+write(*,"(a)") " Note: If next you would like to analyze real space functions, you should export .molden file, &
+and then reload it, so that GTF information will also correspond to natural orbitals"
+end subroutine
+
+
+
+
+!!----------- Generate spherical harmonic -> Cartesian basis function conversion table for d,f,g,h.
+!iprog=1: for readfch;  iprog=2: for readmolden
+!The table comes from IJQC,54,83, which is used by Gaussian
+!The sequence of d and f shell is also identical to .molden convention, but for g, another conversion table is used, &
+!since in Multiwfn g cartesian shell starts from ZZZZ, but that of .molden starts from xxxx
+subroutine gensphcartab(iprog,matd,matf,matg,math)
+real*8 matd(6,5),matf(10,7),matg(15,9),math(21,11)
+integer iprog
+matd=0D0
+matf=0D0
+matg=0D0
+math=0D0
+! From 5D: D 0,D+1,D-1,D+2,D-2
+! To 6D:  1  2  3  4  5  6
+!        XX,YY,ZZ,XY,XZ,YZ
+!
+! D0=-0.5*XX-0.5*YY+ZZ
+matd(1:3,1)=(/ -0.5D0,-0.5D0,1D0 /)
+! D+1=XZ
+matd(5,2)=1D0
+! D-1=YZ
+matd(6,3)=1D0
+! D+2=SQRT(3)/2*(XX-YY)
+matd(1:2,4)=(/ sqrt(3D0)/2D0,-sqrt(3D0)/2D0 /)
+! D-2=XY
+matd(4,5)=1D0
+
+! From 7F: F 0,F+1,F-1,F+2,F-2,F+3,F-3
+! To 10F:  1   2   3   4   5   6   7   8   9  10      
+!         XXX,YYY,ZZZ,XYY,XXY,XXZ,XZZ,YZZ,YYZ,XYZ (Gaussian sequence, not identical to Multiwfn)
+!
+! F 0=-3/(2*¡Ì5)*(XXZ+YYZ)+ZZZ
+matf(3,1)=1D0
+matf(6,1)=-1.5D0/sqrt(5D0)
+matf(9,1)=-1.5D0/sqrt(5D0)
+! F+1=-¡Ì(3/8)*XXX-¡Ì(3/40)*XYY+¡Ì(6/5)*XZZ
+matf(1,2)=-sqrt(3D0/8D0)
+matf(4,2)=-sqrt(3D0/40D0)
+matf(7,2)=sqrt(6D0/5D0)
+! F-1=-¡Ì(3/40)*XXY-¡Ì(3/8)*YYY+¡Ì(6/5)*YZZ
+matf(2,3)=-sqrt(3D0/8D0)
+matf(5,3)=-sqrt(3D0/40D0)
+matf(8,3)=sqrt(6D0/5D0)
+! F+2=¡Ì3/2*(XXZ-YYZ)
+matf(6,4)=sqrt(3D0)/2D0
+matf(9,4)=-sqrt(3D0)/2D0
+! F-2=XYZ
+matf(10,5)=1D0
+! F+3=¡Ì(5/8)*XXX-3/¡Ì8*XYY
+matf(1,6)=sqrt(5D0/8D0)
+matf(4,6)=-3D0/sqrt(8D0)
+! F-3=3/¡Ì8*XXY-¡Ì(5/8)*YYY
+matf(2,7)=-sqrt(5D0/8D0)
+matf(5,7)=3D0/sqrt(8D0)
+
+if (iprog==1) then !for .fch
+    ! From 9G: G 0,G+1,G-1,G+2,G-2,G+3,G-3,G+4,G-4
+    ! To 15G:   1    2    3    4    5    6    7    8
+    !         ZZZZ,YZZZ,YYZZ,YYYZ,YYYY,XZZZ,XYZZ,XYYZ
+    !           9   10   11   12   13   14   15
+    !         XYYY,XXZZ,XXYZ,XXYY,XXXZ,XXXY,XXXX
+    !
+    !G 0=ZZZZ+3/8*(XXXX+YYYY)-3*¡Ì(3/35)*(XXZZ+YYZZ-1/4*XXYY)
+    ! matg(1,1)=1D0
+    ! matg(3,1)=-3D0*sqrt(3D0/35D0)
+    ! matg(5,1)=3D0/8D0
+    ! matg(10,1)=-3D0*sqrt(3D0/35D0)
+    ! matg(12,1)=3D0/4D0*sqrt(3D0/35D0)
+    ! matg(15,1)=3D0/8D0
+    ! !G+1=2*¡Ì(5/14)*XZZZ-3/2*¡Ì(5/14)*XXXZ-3/2/¡Ì14*XYYZ
+    ! matg(6,2)=2D0*sqrt(5D0/14D0)
+    ! matg(8,2)=-1.5D0/sqrt(14D0)
+    ! matg(13,2)=-1.5D0*sqrt(5D0/14D0)
+    ! !G-1=2*¡Ì(5/14)*YZZZ-3/2*¡Ì(5/14)*YYYZ-3/2/¡Ì14*XXYZ
+    ! matg(2,3)=2D0*sqrt(5D0/14D0)
+    ! matg(4,3)=-1.5D0*sqrt(5D0/14D0)
+    ! matg(11,3)=-1.5D0/sqrt(14D0)
+    ! !G+2=3*¡Ì(3/28)*(XXZZ-YYZZ)-¡Ì5/4*(XXXX-YYYY)
+    ! matg(3,4)=-3D0*sqrt(3D0/28D0)
+    ! matg(5,4)=sqrt(5D0)/4D0
+    ! matg(10,4)=3D0*sqrt(3D0/28D0)
+    ! matg(15,4)=-sqrt(5D0)/4D0
+    ! !G-2=3/¡Ì7*XYZZ-¡Ì(5/28)*(XXXY+XYYY)
+    ! matg(7,5)=3D0/sqrt(7D0)
+    ! matg(9,5)=-sqrt(5D0/28D0)
+    ! matg(14,5)=-sqrt(5D0/28D0)
+    ! !G+3=¡Ì(5/8)*XXXZ-3/¡Ì8*XYYZ
+    ! matg(8,6)=-3D0/sqrt(8D0)
+    ! matg(13,6)=sqrt(5D0/8D0)
+    ! !G-3=-¡Ì(5/8)*YYYZ+3/¡Ì8*XXYZ
+    ! matg(4,7)=-sqrt(5D0/8D0)
+    ! matg(11,7)=3D0/sqrt(8D0)
+    ! !G+4=¡Ì35/8*(XXXX+YYYY)-3/4*¡Ì3*XXYY
+    ! matg(5,8)=sqrt(35D0)/8D0
+    ! matg(12,8)=-3D0/4D0*sqrt(3D0)
+    ! matg(15,8)=sqrt(35D0)/8D0
+    ! !G-4=¡Ì5/2*(XXXY-XYYY)
+    ! matg(9,9)=-sqrt(5D0)/2D0
+    ! matg(14,9)=sqrt(5D0)/2D0
+else if (iprog==2) then !For .molden
+    ! From 9G: G 0,G+1,G-1,G+2,G-2,G+3,G-3,G+4,G-4
+    ! To 15G:   1    2    3    4    5    6    7    8
+    !         xxxx,yyyy,zzzz,xxxy,xxxz,yyyx,yyyz,zzzx
+    !           9   10   11   12   13   14   15
+    !         zzzy,xxyy,xxzz,yyzz,xxyz,yyxz,zzxy
+    !
+    !G 0=ZZZZ+3/8*(XXXX+YYYY)-3*¡Ì(3/35)*(XXZZ+YYZZ-1/4*XXYY)
+    matg(3,1)=1D0
+    matg(1,1)=3D0/8D0
+    matg(2,1)=3D0/8D0
+    matg(11,1)=-3D0*sqrt(3D0/35D0)
+    matg(12,1)=-3D0*sqrt(3D0/35D0)
+    matg(10,1)=3D0/4D0*sqrt(3D0/35D0)
+    !G+1=2*¡Ì(5/14)*XZZZ-3/2*¡Ì(5/14)*XXXZ-3/2/¡Ì14*XYYZ
+    matg(8,2)=2D0*sqrt(5D0/14D0)
+    matg(5,2)=-1.5D0*sqrt(5D0/14D0)
+    matg(14,2)=-1.5D0/sqrt(14D0)
+    !G-1=2*¡Ì(5/14)*YZZZ-3/2*¡Ì(5/14)*YYYZ-3/2/¡Ì14*XXYZ
+    matg(9,3)=2D0*sqrt(5D0/14D0)
+    matg(7,3)=-1.5D0*sqrt(5D0/14D0)
+    matg(13,3)=-1.5D0/sqrt(14D0)
+    !G+2=3*¡Ì(3/28)*(XXZZ-YYZZ)-¡Ì5/4*(XXXX-YYYY)
+    matg(11,4)=3D0*sqrt(3D0/28D0)
+    matg(12,4)=-3D0*sqrt(3D0/28D0)
+    matg(1,4)=-sqrt(5D0)/4D0
+    matg(2,4)=sqrt(5D0)/4D0
+    !G-2=3/¡Ì7*XYZZ-¡Ì(5/28)*(XXXY+XYYY)
+    matg(15,5)=3D0/sqrt(7D0)
+    matg(4,5)=-sqrt(5D0/28D0)
+    matg(6,5)=-sqrt(5D0/28D0)
+    !G+3=¡Ì(5/8)*XXXZ-3/¡Ì8*XYYZ
+    matg(5,6)=sqrt(5D0/8D0)
+    matg(14,6)=-3D0/sqrt(8D0)
+    !G-3=-¡Ì(5/8)*YYYZ+3/¡Ì8*XXYZ
+    matg(7,7)=-sqrt(5D0/8D0)
+    matg(13,7)=3D0/sqrt(8D0)
+    !G+4=¡Ì35/8*(XXXX+YYYY)-3/4*¡Ì3*XXYY
+    matg(1,8)=sqrt(35D0)/8D0
+    matg(2,8)=sqrt(35D0)/8D0
+    matg(10,8)=-3D0/4D0*sqrt(3D0)
+    !G-4=¡Ì5/2*(XXXY-XYYY)
+    matg(4,9)=sqrt(5D0)/2D0
+    matg(6,9)=-sqrt(5D0)/2D0
+end if
+
+! From 11H: H 0,H+1,H-1,H+2,H-2,H+3,H-3,H+4,H-4,H+5,H-5
+! To 21H:   1     2     3     4     5     6     7     8     9    10
+!         ZZZZZ YZZZZ YYZZZ YYYZZ YYYYZ YYYYY XZZZZ XYZZZ XYYZZ XYYYZ 
+!          11    12    13    14    15    16    17    18    19    20    21
+!         XYYYY XXZZZ XXYZZ XXYYZ XXYYY XXXZZ XXXYZ XXXYY XXXXZ XXXXY XXXXX
+!
+!H 0=ZZZZZ-5/¡Ì21*(XXZZZ+YYZZZ)+5/8*(XXXXZ+YYYYZ)+¡Ì(15/7)/4*XXYYZ
+math(1,1)=1D0
+math(12,1)=-5D0/sqrt(21D0)
+math(3,1)=-5D0/sqrt(21D0)
+math(19,1)=5D0/8D0
+math(5,1)=5D0/8D0
+math(14,1)=sqrt(15D0/7D0)/4D0
+!H+1=¡Ì(5/3)*XZZZZ-3*¡Ì(5/28)*XXXZZ-3/¡Ì28*XYYZZ+¡Ì15/8*XXXXX+¡Ì(5/3)/8*XYYYY+¡Ì(5/7)/4*XXXYY
+math(7,2)=sqrt(5D0/3D0)
+math(16,2)=-3D0*sqrt(5D0/28D0)
+math(9,2)=-3D0/sqrt(28D0)
+math(21,2)=sqrt(15D0)/8D0
+math(11,2)=sqrt(5D0/3D0)/8D0
+math(18,2)=sqrt(5D0/7D0)/4D0
+!H-1=¡Ì(5/3)*YZZZZ-3*¡Ì(5/28)*YYYZZ-3/¡Ì28*XXYZZ+¡Ì15/8*YYYYY+¡Ì(5/3)/8*XXXXY+¡Ì(5/7)/4*XXYYY
+math(2,3)=sqrt(5D0/3D0)
+math(4,3)=-3D0*sqrt(5D0/28D0)
+math(13,3)=-3D0/sqrt(28D0)
+math(6,3)=sqrt(15D0)/8D0
+math(20,3)=sqrt(5D0/3D0)/8D0
+math(15,3)=sqrt(5D0/7D0)/4D0
+!H+2=¡Ì5/2*(XXZZZ-YYZZZ)-¡Ì(35/3)/4*(XXXXZ-YYYYZ)
+math(12,4)=sqrt(5D0)/2D0
+math(3,4)=-sqrt(5D0)/2D0
+math(19,4)=-sqrt(35D0/3D0)/4D0
+math(5,4)=sqrt(35D0/3D0)/4D0
+!H-2=¡Ì(5/3)*XYZZZ-¡Ì(5/12)*(XXXYZ+XYYYZ)
+math(8,5)=sqrt(5D0/3D0)
+math(17,5)=-sqrt(5D0/12D0)
+math(10,5)=-sqrt(5D0/12D0)
+!H+3=¡Ì(5/6)*XXXZZ-¡Ì(3/2)*XYYZZ-¡Ì(35/2)/8*(XXXXX-XYYYY)+¡Ì(5/6)/4*XXXYY
+math(16,6)=sqrt(5D0/6D0)
+math(9,6)=-sqrt(1.5D0)
+math(21,6)=-sqrt(17.5D0)/8D0
+math(11,6)=sqrt(17.5D0)/8D0
+math(18,6)=sqrt(5D0/6D0)/4D0
+!H-3=-¡Ì(5/6)*YYYZZ+¡Ì(3/2)*XXYZZ-¡Ì(35/2)/8*(XXXXY-YYYYY)-¡Ì(5/6)/4*XXYYY
+math(4,7)=-sqrt(5D0/6D0)
+math(13,7)=sqrt(1.5D0)
+math(20,7)=-sqrt(17.5D0)/8D0
+math(6,7)=sqrt(17.5D0)/8D0
+math(15,7)=-sqrt(5D0/6D0)/4D0
+!H+4=¡Ì35/8*(XXXXZ+YYYYZ)-3/4*¡Ì3*XXYYZ
+math(19,8)=sqrt(35D0)/8D0
+math(5,8)=sqrt(35D0)/8D0
+math(14,8)=-0.75D0*sqrt(3D0)
+!H-4=¡Ì5/2*(XXXYZ-XYYYZ)
+math(17,9)=sqrt(5D0)/2D0
+math(10,9)=-sqrt(5D0)/2D0
+!H+5=3/8*¡Ì(7/2)*XXXXX+5/8*¡Ì(7/2)*XYYYY-5/4*¡Ì(3/2)*XXXYY
+math(21,10)=3D0/8D0*sqrt(3.5D0)
+math(11,10)=5D0/8D0*sqrt(3.5D0)
+math(18,10)=-1.25D0*sqrt(1.5D0)
+!H-5=3/8*¡Ì(7/2)*YYYYY+5/8*¡Ì(7/2)*XXXXY-5/4*¡Ì(3/2)*XXYYY
+math(6,11)=3D0/8D0*sqrt(3.5D0)
+math(20,11)=5D0/8D0*sqrt(3.5D0)
+math(15,11)=-1.25D0*sqrt(1.5D0)
+end subroutine
 
 
 
@@ -3073,7 +3452,7 @@ lovername(36)="Gun_Gale_Online\Kirito"
 lovername(37)="Denkigai_No_Honyasan\Sennsei"
 lovername(38)="Kan_Colle\Kongou"
 lovername(39)="Plastic_Memories\Aira"
-lovername(40)="MaiMengJun\QinXue_Chen"
+lovername(40)="Real_world\sell-moe-kun\"
 lovername(41)="Sakurako-san_no_Ashimoto_ni_wa_Shitai_ga_Umatteiru\Sakurako"
 lovername(42)="Hibike!_Euphonium\Reina_Kousaka"
 lovername(43)="Planetarian\Yumemi_Hoshino"

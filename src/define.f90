@@ -201,12 +201,13 @@ integer :: shtype2nbas(-5:5)=(/ 11,9,7,5,4,1,3,6,10,15,21 /)
 integer :: ibasmode=0 !0/1 = GTO/STO is used in current wavefunction
 integer :: nmo=0,nprims=0,ncenter=0,ncenter_org=0,nmo_org=0,nprims_org=0 !Number of orbitals, primitive functions, nuclei
 integer :: idxHOMO=0 !For fch and molden, record the index of original HOMO, this will be used to calculate linear response kernel for pi-electrons
-integer :: ifiletype=0 !unknown textfile=0, fch=1, wfn=2, wfx=3, chg=4, pdb/xyz=5, .31=6, cube=7, grd=8, molden=9, GAMESS-US=10
+integer :: ifiletype=0 !plain text=0, fch=1, wfn=2, wfx=3, chg=4, pdb/xyz=5, NBO .31=6, cub=7, grd=8, molden=9, gms=10, MDL mol=11
 integer :: wfntype=0 !0/1/2/3/4 means R/U/ROHF /R/U-Post-HF wavefunction
 real*8 :: totenergy=0,virialratio=2,nelec=0,naelec=0,nbelec=0
 !-------- Variables for nuclei & basis function & Molecular orbital
 type(atomtype),allocatable :: a(:),a_org(:),a_tmp(:)
 type(primtype),allocatable :: b(:),b_org(:),b_tmp(:)
+integer,allocatable :: connmat(:,:) !Connectivity matrix
 real*8,allocatable :: MOocc(:),MOocc_org(:),MOene(:) !Occupation number & energy of orbital
 integer,allocatable :: MOtype(:) !The type of orbitals, (alpha&beta)=0/alpha=1/beta=2, not read from .wfn directly
 character*4,allocatable :: MOsym(:) !The symmetry of orbitals, meaningful when .molden/.gms is used since it sometimes records irreducible representation
@@ -254,7 +255,7 @@ real*8,allocatable :: datax(:),str(:),FWHM(:) !Transition energy, strength and F
 
 !!!!!!!!!!!!!!!!!!!!!! Parameter !!!!!!!!!!!!!!!!!!!!!!
 !For passing Dislin main parent GUI and draw widget identifier
-integer idissetlight1,idissetlight2,idissetlight3,idissetlight4,idissetlight5,idissetlightall0,idissetlightall1
+integer idissetlight1,idissetlight2,idissetlight3,idissetlight4,idissetlight5,idissetlightall0,idissetlightall1,idissetangle,idissetplaneXVU,idissetplaneYVU
 integer idisgraph,idiszoomin,idiszoomout,idisisosurscl,idisscrval,idisshowbothsign,idisshowisosur,idisshowdatarange,idisshowmol,idisisosursec,iorbseltext
 integer idisisosurquality,idisisosurnumpt,idisorbinfo2
 integer idisshowatmlab,idisshowaxis,idisbondradius,idislabelsize,idisbondcrit,idisatmsize,idisshowpathlab !In draw mol GUI
@@ -265,10 +266,10 @@ integer idisshowlocminlab,idisshowlocmaxlab,idisshowlocminpos,idisshowlocmaxpos 
 integer idisisosur1style,idisisosur1solid,idisisosur1mesh,idisisosur1point,idisisosur1solidmesh,idisisosur1tpr,idisisosur1opa
 integer idisisosur2style,idisisosur2solid,idisisosur2mesh,idisisosur2point,idisisosur2solidmesh,idisisosur2tpr,idisisosur2opa
 integer idisisosurallstyle,idisisosurallsolid,idisisosurallmesh,idisisosurallpoint,idisisosurallsolidmesh,idisisosuralltpr
-integer GUI_mode !=1: Show mol and orbitals =2: show plane =3: show isosurface =4: show mol and CPs =5: show mol and surface analysis extremes =6: Show basin integral
+integer GUI_mode !=1: Show mol and orbitals =2: Show plane =3: Show isosurface =4: Show mol and CPs =5: Show mol and surface extrema =6: Show basin or domain space
 
 !Plotting external parameter, can be set in settings.ini
-character :: graphformat*4="png " ! ps/eps/pdf/wmf/gif/tiff/bmp
+character :: graphformat*4="png " !ps/eps/pdf/wmf/gif/tiff/bmp
 integer :: graph1Dwidth=1280,graph1Dheight=800,graph2Dwidth=1280,graph2Dheight=1200,graph3Dwidth=1400,graph3Dheight=1400
 integer :: itickreverse=0,iticks=2,symbolsize=8,ilenunit1D=1,ilenunit2D=1,iatmlabtype=1,iatmlabtype3D=2,iplaneextdata=0
 integer :: numdigx=2,numdigy=2,numdigz=3,numdiglinex=3,numdigliney=3,numdigctr=3

@@ -1,4 +1,5 @@
-#P HF/6-31G* nosymm pop=full IOp(3/33=1,3/32=2)
+%chk=C:\COBH3.chk
+# HF/6-31G* nosymm
 
 COBH3 for CDA
 

@@ -140,6 +140,12 @@ do ifrag=0,nCDAfrag !Here we first gather basic informations of complex(ifrag=0)
             call readmatgau(10,ovlpbasmat,1,"D14.6",7,5)
         end if
         call loclabel(10,"Orbital Coefficients",ifound,0)
+        if (ifound==0) then
+            write(*,*) "Error: Unable to find orbital coefficients in the file!"
+            write(*,*) "Press ENTER to exit"
+            read(*,*)
+            return
+        end if
         read(10,*)
         call loclabel(10,"Orbital Coefficients",iopsh(ifrag),0) !If we can find "Orbital Coefficients" twice, that means this is unrestricted open-shell system
         call loclabel(10,"Natural Orbital Coefficients",inatorb(ifrag),1)

@@ -68,12 +68,12 @@ do while(.true.)
         write(*,*) "1 Electron density (Analytical Hessian)"
         write(*,*) "3 Laplacian of electron density"
         write(*,*) "4 Value of orbital wavefunction"
-        if (ELFLOL_type==0) write(*,*) "9 Electron localization function(ELF)"
-        if (ELFLOL_type==1) write(*,*) "9 Electron localization function(ELF) defined by Tsirelson" 
-        if (ELFLOL_type==2) write(*,*) "9 Electron localization function(ELF) defined by Lu, Tian" 
-        if (ELFLOL_type==0) write(*,*) "10 Localized orbital locator(LOL)"
-        if (ELFLOL_type==1) write(*,*) "10 Localized orbital locator(LOL) defined by Tsirelson" 
-        if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator(LOL) defined by Lu, Tian"
+        if (ELFLOL_type==0) write(*,*) "9 Electron localization function (ELF)"
+        if (ELFLOL_type==1) write(*,*) "9 Electron localization function (ELF) defined by Tsirelson" 
+        if (ELFLOL_type==2) write(*,*) "9 Electron localization function (ELF) defined by Lu, Tian" 
+        if (ELFLOL_type==0) write(*,*) "10 Localized orbital locator (LOL)"
+        if (ELFLOL_type==1) write(*,*) "10 Localized orbital locator (LOL) defined by Tsirelson" 
+        if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator (LOL) defined by Lu, Tian"
         write(*,"(a,i5)") " 100 User-defined real space function, iuserfunc=",iuserfunc
 !         write(*,*) "12 Total electrostatic potential"
         read(*,*) ifunctopo
@@ -1092,33 +1092,40 @@ nthreads=getNThreads()
         end do
 !7777777777777777777
     else if (isel==7) then
-        write(*,*) "Input the index of the CP that you are interested in"
-        write(*,"(a)") " Note: If input 0, then properties of all CPs will be outputted to CPprop.txt in current folder &
+        write(*,*) "Input the index of the CP that you are interested in, e.g. 3"
+        write(*,"(a)") " Note 1: If input 0, then properties of all CPs will be outputted to CPprop.txt in current folder &
         (and if you feel the output speed is slow, you can input -1 to  avoid outputting ESP, which is the most expensive one)"
-        read(*,*) indcp
-        if (indcp==0.or.indcp==-1) then
-            write(*,*) "Please wait..."
-            iback=ishowptESP
-            if (indcp==-1) ishowptESP=0 !Avoid outputting ESP
-            open(10,file="CPprop.txt",status="replace")
-            do icp=1,numcp
-                write(*,"(' Outputting CP',i6,'  /',i6)") icp,numcp
-                write(10,"(' ================   CP',i6,',     Type ',a,'   ================')") icp,CPtyp2lab(CPtype(icp))
-                write(10,"(' Position (Bohr):',3f20.14)") CPpos(:,icp)
-                call showptprop(CPpos(1,icp),CPpos(2,icp),CPpos(3,icp),ifunctopo,10)
-                write(10,*)
-            end do
-            close(10)
-            if (indcp==-1) ishowptESP=iback
-            write(*,*) "Done! The results have been outputted to CPprop.txt in current folder"
-            write(*,*) "Note: Unless otherwise specified, all units are in a.u."
-        else if (indcp>0.and.indcp<=numcp) then
-            write(*,*) "Note: Unless otherwise specified, all units are in a.u."
-            write(*,"(' CP Position:',3f20.14)") CPpos(:,indcp)
-            write(*,"(' CP type: ',a)") CPtyp2lab(CPtype(indcp))
-            call showptprop(CPpos(1,indcp),CPpos(2,indcp),CPpos(3,indcp),ifunctopo,6)
+        write(*,"(a)") " Note 2: If input CP index with ""d"" suffix, e.g. 17d, then property of this CP can be decomposed into orbital contribution"
+        read(*,*) c200
+        if (index(c200,"d")/=0) then
+            read(c200(1:index(c200,"d")-1),*) indcp
+            call decompptprop(CPpos(1,indcp),CPpos(2,indcp),CPpos(3,indcp))
         else
-            write(*,*) "Error: Invalid input"
+            read(c200,*) indcp
+            if (indcp==0.or.indcp==-1) then
+                write(*,*) "Please wait..."
+                iback=ishowptESP
+                if (indcp==-1) ishowptESP=0 !Avoid outputting ESP
+                open(10,file="CPprop.txt",status="replace")
+                do icp=1,numcp
+                    write(*,"(' Outputting CP',i6,'  /',i6)") icp,numcp
+                    write(10,"(' ================   CP',i6,',     Type ',a,'   ================')") icp,CPtyp2lab(CPtype(icp))
+                    write(10,"(' Position (Bohr):',3f20.14)") CPpos(:,icp)
+                    call showptprop(CPpos(1,icp),CPpos(2,icp),CPpos(3,icp),ifunctopo,10)
+                    write(10,*)
+                end do
+                close(10)
+                if (indcp==-1) ishowptESP=iback
+                write(*,*) "Done! The results have been outputted to CPprop.txt in current folder"
+                write(*,*) "Note: Unless otherwise specified, all units are in a.u."
+            else if (indcp>0.and.indcp<=numcp) then
+                write(*,*) "Note: Unless otherwise specified, all units are in a.u."
+                write(*,"(' CP Position:',3f20.14)") CPpos(:,indcp)
+                write(*,"(' CP type: ',a)") CPtyp2lab(CPtype(indcp))
+                call showptprop(CPpos(1,indcp),CPpos(2,indcp),CPpos(3,indcp),ifunctopo,6)
+            else
+                write(*,*) "Error: Invalid input"
+            end if
         end if
 !8888888888888888888
     else if (isel==8) then

@@ -228,7 +228,6 @@ do while(.true.)
         write(*,*) """d3 a1"" returns the distance between members of att.3 and atom1"
         write(*,"(a)") " ""d3 a1 c2"" returns the the angle of (members of att.3)--atom1--att.2, &
         meanwhile outputs the vertical distance from (members of att.3) to the line linking atom1 and att.2"
-        write(*,*)
         do while(.true.)
             read(*,"(a)") c80tmp
             c80tmp=adjustl(c80tmp)
@@ -2593,7 +2592,8 @@ real*8 basinvol(-1:numrealatt),basinvolp(-1:numrealatt),basinvdwvol(-1:numrealat
 real*8 trustrad(numrealatt),intbasinthread(numrealatt),intbasin(numrealatt)
 real*8 dens,grad(3),hess(3,3),k1(3),k2(3),k3(3),k4(3),xarr(nx),yarr(ny),zarr(nz)
 real*8,allocatable :: potx(:),poty(:),potz(:),potw(:)
-real*8,allocatable :: rhogrid(:,:,:),rhograd2grid(:,:,:),prorhogrid(:,:,:) !rhogrid and rhograd2grid are used for shubin's 2nd project, prorhogrid for integrating deformation density
+real*8,allocatable :: rhogrid(:,:,:),rhogradgrid(:,:,:,:) !Used in shubin's 2nd project
+real*8,allocatable :: prorhogrid(:,:,:) !Used in integrating deformation density
 type(content),allocatable :: gridatt(:) !Record correspondence between attractor and grid
 integer att2atm(numrealatt) !The attractor corresponds to which atom. If =0, means this is a NNA
 real*8 eleint(-1:numrealatt),xint(-1:numrealatt),yint(-1:numrealatt),zint(-1:numrealatt),&
@@ -2601,7 +2601,7 @@ xxint(-1:numrealatt),yyint(-1:numrealatt),zzint(-1:numrealatt),xyint(-1:numreala
 real*8 eleintp(-1:numrealatt),xintp(-1:numrealatt),yintp(-1:numrealatt),zintp(-1:numrealatt),&
 xxintp(-1:numrealatt),yyintp(-1:numrealatt),zzintp(-1:numrealatt),xyintp(-1:numrealatt),yzintp(-1:numrealatt),xzintp(-1:numrealatt)
 integer walltime1,walltime2,radpotAIM,sphpotAIM
-real*8 gridval(100000,3) !Used for shubin's 2nd project
+real*8 prodensgrad(0:4),gridval(100000,6) !Used for storing various information during integrating inside sphere
 character c80tmp*80,selectyn
 nbeckeiter=8
 if (ifuncbasin/=1) then
@@ -2777,7 +2777,8 @@ do iatt=1,numrealatt !Cycle each attractors
     !Use DFT integration algorithm to integrate the region inside trust radius
 nthreads=getNThreads()
 !$OMP PARALLEL private(ipt,ptx,pty,ptz,rx,ry,rz,dist,tmps,iter,switchwei,intvalp,&
-!$OMP eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,yzintp,xzintp,tmpval,tmpval2,tmpval3) shared(intval,gridval) NUM_THREADS(nthreads)
+!$OMP eleintp,xintp,yintp,zintp,xxintp,yyintp,zzintp,xyintp,yzintp,xzintp,tmpval,tmpval2,tmpval3,tmpval4) &
+!$OMP shared(intval,gridval) NUM_THREADS(nthreads)
     intvalp=0D0
     eleintp=0D0
     xintp=0D0
@@ -2820,18 +2821,18 @@ nthreads=getNThreads()
             else if (ispecial==0) then !Normal case
                 tmpval=calcfuncall(ifuncint,ptx,pty,ptz)
                 intvalp(iatt,1)=intvalp(iatt,1)+gridatt(ipt)%value*tmpval*switchwei
-            else if (ispecial==1) then
-                tmpval=infoentro(2,ptx,pty,ptz) !Shannon entropy density, see JCP,126,191107 for example
-                tmpval2=Fisherinfo(1,ptx,pty,ptz) !Fisher information density, see JCP,126,191107 for example
+            else if (ispecial==1) then !For Shubin's project, simultaneously output many properties
+                tmpval=infoentro(2,ptx,pty,ptz) !Shannon entropy density
+                tmpval2=Fisherinfo(1,ptx,pty,ptz) !Fisher information density
                 tmpval3=weizsacker(ptx,pty,ptz) !Steric energy
                 tmpval4=fdens(ptx,pty,ptz) !Electron density
                 intvalp(iatt,1)=intvalp(iatt,1)+gridatt(ipt)%value*tmpval*switchwei
                 intvalp(iatt,2)=intvalp(iatt,2)+gridatt(ipt)%value*tmpval2*switchwei
                 intvalp(iatt,3)=intvalp(iatt,3)+gridatt(ipt)%value*tmpval3*switchwei
                 intvalp(iatt,4)=intvalp(iatt,4)+gridatt(ipt)%value*tmpval4*switchwei
-            else if (ispecial==2) then !Temporarily for Shubin's 2nd project
-                gridval(ipt,1)=fdens(ptx,pty,ptz)
-                gridval(ipt,2)=fgrad(ptx,pty,ptz,'t')**2
+            else if (ispecial==2) then !For Shubin's 2nd project
+                call calchessmat_dens(1,ptx,pty,ptz,gridval(ipt,1),gridval(ipt,4:6),hess)
+                gridval(ipt,2)=sum(gridval(ipt,4:6)**2)
             end if
         else if (itype==10) then !Calculate multipole moment
             tmpval=gridatt(ipt)%value*fdens(ptx,pty,ptz)*switchwei
@@ -2867,7 +2868,8 @@ nthreads=getNThreads()
 !$OMP END PARALLEL
     
     !Some special cases:
-    if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and Fisher entropy. density and gradient^2 have been stored in gridval(1/2)
+    if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and Fisher information
+        !Current gridval content: 1=rho, 2=gradrho^2, 3=switchwei, 4=gradrho_x, 5=gradrho_y, 6=gradrho_z
         call dealloall
         write(*,"(' Loading ',a,/)") trim(custommapname(att2atm(iatt)))
         call readwfn(custommapname(att2atm(iatt)),1)
@@ -2877,12 +2879,21 @@ nthreads=getNThreads()
             ptx=gridatt(ipt)%x
             pty=gridatt(ipt)%y
             ptz=gridatt(ipt)%z
-            prodens=fdens(ptx,pty,ptz) !rho0_A
-            prodensgrad2=fgrad(ptx,pty,ptz,'t')**2
+            call calchessmat_dens(1,ptx,pty,ptz,prodensgrad(0),prodensgrad(1:3),hess)
+            prodens=prodensgrad(0) !rho0_A
+            prodensgrad2=sum(prodensgrad(1:3)**2)
+            !Relative Shannon entropy, integrate rho*log(rho/rho0_A)]
             tmpval=gridval(ipt,1)*log(gridval(ipt,1)/prodens)
-            intval(iatt,1)=intval(iatt,1)+gridatt(ipt)%value*tmpval*switchwei !Relative Shannon, integrate rho*log(rho/rho0_A)]
+            intval(iatt,1)=intval(iatt,1)+gridatt(ipt)%value*tmpval*switchwei
+            !Relative Fisher information (old and incorrect implementation)
             tmpval=gridval(ipt,2)/gridval(ipt,1)-prodensgrad2/prodens
-            intval(iatt,2)=intval(iatt,2)+gridatt(ipt)%value*tmpval*switchwei !Relative Fisher, integrate grad2rho/rho-grad2rho0_A/rho0_A
+            intval(iatt,2)=intval(iatt,2)+gridatt(ipt)%value*tmpval*switchwei
+            !Relative Fisher information (new and correct implementation)
+            tmpvalx=gridval(ipt,4)/gridval(ipt,1) - prodensgrad(1)/prodens
+            tmpvaly=gridval(ipt,5)/gridval(ipt,1) - prodensgrad(2)/prodens
+            tmpvalz=gridval(ipt,6)/gridval(ipt,1) - prodensgrad(3)/prodens
+            tmpval=gridval(ipt,1)*(tmpvalx**2+tmpvaly**2+tmpvalz**2)
+            intval(iatt,3)=intval(iatt,3)+gridatt(ipt)%value*tmpval*switchwei
         end do
         call dealloall
         call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule) to calc real rho again
@@ -2915,12 +2926,13 @@ if (itype==1.or.itype==2.or.itype==3) then
         end do
         write(*,"(' Sum of above values:',f20.8)") sum(intval(1:numrealatt,1))
     else if (ispecial==2) then !Shubin's 2nd project
-        write(*,*) "  #Sphere     Relat_Shannon        Relat_Fisher"
+        write(*,*) "  #Sphere      Rel.Shannon         Rel.Fisher(old)     Rel.Fisher(new)"
         do iatt=1,numrealatt
-            write(*,"(i8,2f20.10)") iatt,intval(iatt,1:2)
+            write(*,"(i8,3f20.10)") iatt,intval(iatt,1:3)
         end do
-        write(*,"(' Sum of relat_Shannon:',f20.8)") sum(intval(1:numrealatt,1))
-        write(*,"(' Sum of relat_Fisher: ',f20.8)") sum(intval(1:numrealatt,2))
+        write(*,"(' Sum of rel.Shannon:',f20.8)") sum(intval(1:numrealatt,1))
+        write(*,"(' Sum of rel.Fisher(old): ',f20.8)") sum(intval(1:numrealatt,2))
+        write(*,"(' Sum of rel.Fisher(new): ',f20.8)") sum(intval(1:numrealatt,3))
     end if
 end if
 
@@ -3241,21 +3253,20 @@ nthreads=getNThreads()
 end if
 
 !Below are special modules for the cases when density of atom in free-state are involved
-if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and Fisher entropy
-    allocate(rhogrid(nx,ny,nz),rhograd2grid(nx,ny,nz))
+if (ispecial==2) then !Shubin's 2nd project, integrate relative Shannon and relative Fisher information
+    allocate(rhogrid(nx,ny,nz),rhogradgrid(3,nx,ny,nz))
     ifinish=0
     write(*,*)
     write(*,*) "Calculating electron density and its gradient for actual system at each grid"
 nthreads=getNThreads()
-!$OMP PARALLEL DO SHARED(rhogrid,rhograd2grid,ifinish) PRIVATE(ix,iy,iz,ptx,pty,ptz) schedule(dynamic) NUM_THREADS(nthreads)
+!$OMP PARALLEL DO SHARED(rhogrid,rhogradgrid,ifinish) PRIVATE(ix,iy,iz,ptx,pty,ptz) schedule(dynamic) NUM_THREADS(nthreads)
     do iz=2,nz-1
         ptz=zarr(iz)
         do iy=2,ny-1
             pty=yarr(iy)
             do ix=2,nx-1
                 ptx=xarr(ix)
-                rhogrid(ix,iy,iz)=fdens(ptx,pty,ptz)
-                rhograd2grid(ix,iy,iz)=fgrad(ptx,pty,ptz,'t')**2
+                call calchessmat_dens(1,ptx,pty,ptz,rhogrid(ix,iy,iz),rhogradgrid(:,ix,iy,iz),hess)
             end do
         end do
 !$OMP CRITICAL
@@ -3270,8 +3281,8 @@ nthreads=getNThreads()
         write(*,"(' Processing ',a)") trim(custommapname(att2atm(iatt)))
         call dealloall
         call readwfn(custommapname(att2atm(iatt)),1)
-nthreads=getNThreads()
-!$OMP PARALLEL private(intvalp,ix,iy,iz,ptx,pty,ptz,rx,ry,rz,dist,tmps,switchwei,prodens,prodensgrad2,tmpval1,tmpval2) shared(intval) NUM_THREADS(nthreads)
+!$OMP PARALLEL private(intvalp,ix,iy,iz,ptx,pty,ptz,rx,ry,rz,dist,tmps,switchwei,&
+!$OMP rho,rhograd2,prodens,prodensgrad,prodensgrad2,tmpval1,tmpval2,tmpval3,tmpx,tmpy,tmpz) shared(intval) NUM_THREADS(nthreads)
         intvalp=0D0
 !$OMP do schedule(DYNAMIC)
         do iz=2,nz-1
@@ -3298,12 +3309,22 @@ nthreads=getNThreads()
                             switchwei=0.5D0*(1-tmps)
                         end if
                         switchwei=1-switchwei
-                        prodens=fdens(ptx,pty,ptz)
-                        prodensgrad2=fgrad(ptx,pty,ptz,'t')**2
-                        tmpval1=rhogrid(ix,iy,iz)*log(rhogrid(ix,iy,iz)/prodens)
-                        tmpval2=rhograd2grid(ix,iy,iz)/rhogrid(ix,iy,iz)-prodensgrad2/prodens
+                        rho=rhogrid(ix,iy,iz)
+                        rhograd2=sum(rhogradgrid(1:3,ix,iy,iz)**2)
+                        call calchessmat_dens(1,ptx,pty,ptz,prodens,prodensgrad(1:3),hess)
+                        prodensgrad2=sum(prodensgrad(1:3)**2)
+                        !Relative Shannon entropy
+                        tmpval1=rho*log(rho/prodens)
                         intvalp(iatt,1)=intvalp(iatt,1)+tmpval1*switchwei
+                        !Relative Fisher information (old and incorrect form)
+                        tmpval2=rhograd2/rho-prodensgrad2/prodens
                         intvalp(iatt,2)=intvalp(iatt,2)+tmpval2*switchwei
+                        !Relative Fisher information (new and correct form)
+                        tmpx=rhogradgrid(1,ix,iy,iz)/rho-prodensgrad(1)/prodens
+                        tmpy=rhogradgrid(2,ix,iy,iz)/rho-prodensgrad(2)/prodens
+                        tmpz=rhogradgrid(3,ix,iy,iz)/rho-prodensgrad(3)/prodens
+                        tmpval3=(tmpx**2+tmpy**2+tmpz**2)*rho
+                        intvalp(iatt,3)=intvalp(iatt,3)+tmpval3*switchwei
                     end if
                 end do
             end do
@@ -3314,7 +3335,7 @@ nthreads=getNThreads()
 !$OMP end CRITICAL
 !$OMP END PARALLEL
     end do
-    deallocate(rhogrid,rhograd2grid)
+    deallocate(rhogrid,rhogradgrid)
     call dealloall
     write(*,"(' Reloading ',a)") trim(firstfilename)
     call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule)
@@ -3453,14 +3474,15 @@ if (itype==1.or.itype==2.or.itype==3) then !Integrate specific real space functi
             end do
         else if (ispecial==2) then
             write(*,*) "Total result:"
-            write(*,*) "     Atom       Basin         Relat_Shannon           Relat_Fisher"
+            write(*,*) "    Atom      Basin        Rel.Shannon     Rel.Fisher(old)     Rel.Fisher(new)"
             do iatm=1,ncenter
                 do iatt=1,numrealatt
-                    if (att2atm(iatt)==iatm) write(*,"(i8,' (',a,')',i8,2f23.8)") iatm,a(iatm)%name,iatt,intval(iatt,1:2)
+                    if (att2atm(iatt)==iatm) write(*,"(i7,' (',a,')',i7,3f20.8)") iatm,a(iatm)%name,iatt,intval(iatt,1:3)
                 end do
             end do
-            write(*,"(' Sum of relat_Shannon:',f23.8)") sum(intval(1:numrealatt,1))
-            write(*,"(' Sum of relat_Fisher: ',f23.8)") sum(intval(1:numrealatt,2))
+            write(*,"(' Sum of relat_Shannon:     ',f23.8)") sum(intval(1:numrealatt,1))
+            write(*,"(' Sum of relat_Fisher(old): ',f23.8)") sum(intval(1:numrealatt,2))
+            write(*,"(' Sum of relat_Fisher(new): ',f23.8)") sum(intval(1:numrealatt,3))
         end if
     end if
     write(*,*)

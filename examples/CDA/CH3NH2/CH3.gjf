@@ -1,4 +1,5 @@
-# b3lyp/6-31g(d,p) nosymm pop=full IOp(3/32=2)
+%chk=C:\CH3.chk
+# b3lyp/6-31g(d,p) nosymm
 
 CH3 for CDA
 

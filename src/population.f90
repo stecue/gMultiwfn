@@ -35,6 +35,7 @@ else
         write(*,*) "14 AIM charge"
         write(*,*) "15 Hirshfeld-I charge"
         write(*,*) "16 CM5 charge"
+        write(*,*) "17 Electronegativity Equalization Method (EEM) charge"
         read(*,*) ipopsel
         
         if (ipopsel==0) then
@@ -114,6 +115,8 @@ else
             call Hirshfeld_I_wrapper(1)
         else if (ipopsel==16) then
             call spacecharge(7)
+        else if (ipopsel==17) then
+            call EEM
         end if
         if (imodwfnold==1.and.(ipopsel==1.or.ipopsel==2.or.ipopsel==6.or.ipopsel==11)) then !1,2,6,11 are the methods need to reload the initial wavefunction
             write(*,"(a)") " Note: The wavefunction file has been reloaded, your previous modifications on occupation number will be ignored"
@@ -1162,7 +1165,7 @@ CM5dip=sqrt(CM5dipx**2+CM5dipy**2+CM5dipz**2)
 write(*,*)
 write(*,"(' Total dipole moment from CM5 charges',f12.7,' a.u.')") CM5dip
 write(*,"(' X/Y/Z of dipole moment from CM5 charges',3f10.5, ' a.u.')") CM5dipx,CM5dipy,CM5dipz
-charge=chargecorr
+charge=CMcharge
 end subroutine
 
 
@@ -2274,3 +2277,270 @@ npt=atmradnpt(iatm)
 r=dsqrt((a(iatm)%x-x)**2+(a(iatm)%y-y)**2+(a(iatm)%z-z)**2)
 call lagintpol(atmradpos(1:npt),atmradrho(iatm,1:npt),npt,r,fdens_rad,rnouse,rnouse,1)
 end function
+
+
+
+
+!!----------------------------------------
+!!--------- Calculate EEM charge ---------
+!!----------------------------------------
+subroutine EEM
+use defvar
+use util
+integer,parameter :: maxBO=3 !Maximum of possible bond order
+character c200tmp*200
+real*8 EEMmat(ncenter+1,ncenter+1),EEMarr(ncenter+1),qarr(ncenter+1)
+real*8 kappa,Aparm(nelesupp,maxBO),Bparm(nelesupp,maxBO) !If parameter is -1, means undefined parameter
+real*8 :: chgnet=0
+
+if (ifiletype/=11) then
+    write(*,"(a)") " Error: MDL Molfile (.mol) file must be used as input file, since it contains atomic connectivity information!"
+    write(*,*) "Press Enter to return"
+    read(*,*)
+    return
+end if
+
+iparmset=2
+call genEEMparm(iparmset,kappa,Aparm,Bparm)
+isel2=-10
+    
+EEMcyc: do while(.true.)
+    write(*,*)
+    write(*,*) "           ====== Electronegativity Equalization Method (EEM) ======"
+    write(*,*) "-1 Return"
+    write(*,*) "0 Start calculation"
+    write(*,*) "1 Choose EEM parameters"
+    write(*,"(a,f4.1)") " 2 Set net charge, current:",chgnet
+    read(*,*) isel
+    if (isel==-1) then
+        return
+    else if (isel==1) then
+        do while(.true.)
+            if (isel2/=-1) then
+                write(*,*)
+                write(*,*) "Present EEM parameters:"
+                write(*,"(' kappa',f12.6)") kappa
+                do iele=1,nelesupp
+                    do imulti=1,maxBO
+                        if (Aparm(iele,imulti)/=-1) write(*,"(1x,a,'  Multiplicity:',i2,'    A:',f9.5, '    B:',f9.5)") ind2name(iele),imulti,Aparm(iele,imulti),Bparm(iele,imulti)
+                    end do
+                end do
+            end if
+            write(*,*)
+            write(*,*) "-2 Return"
+            write(*,*) "-1 Export present parameters to external file"
+            write(*,*) "0 Load parameters from external file"
+            write(*,*) "1 Use parameters fitted to HF/STO-3G Mulliken charge, IJMS, 8, 572 (2007)"
+            write(*,*) "2 Use parameters fitted to B3LYP/6-31G* CHELPG charge, JCC, 30, 1174 (2009)"
+            write(*,*) "3 Use parameters fitted to HF/6-31G* CHELPG charge, JCC, 30, 1174 (2009)"
+            write(*,*) "4 Use parameters fitted to B3LYP/6-311G* NPA charge, J Cheminform, 8, 57(2016)"
+            read(*,*) isel2
+            if (isel2==-2) then
+                exit
+            else if (isel2==-1) then
+                open(10,file="EEMparm.txt",status="replace")
+                write(10,"(f12.6)") kappa
+                do iele=1,nelesupp
+                    do imulti=1,maxBO
+                        if (Aparm(iele,imulti)/=-1) write(10,"(1x,a,i3,2f9.5)") ind2name(iele),imulti,Aparm(iele,imulti),Bparm(iele,imulti)
+                    end do
+                end do
+                close(10)
+                write(*,*) "Parameters have been exported to EEMparm.txt in current folder"
+            else if (isel2==0) then
+                write(*,*) "Input path of parameter file, e.g. C:\aqours.txt"
+                do while(.true.)
+                    read(*,"(a)") c200tmp
+                    inquire(file=c200tmp,exist=alive)
+                    if (alive) exit
+                    write(*,*) "Cannot find the file, input again"
+                end do
+                Aparm=-1
+                Bparm=-1
+                open(10,file=c200tmp,status="old")
+                read(10,*) kappa
+                nload=0
+                do while(.true.)
+                    read(10,*,iostat=ierror) c200tmp,imulti,tmpA,tmpB
+                    if (ierror/=0) exit
+                    call lc2uc(c200tmp(1:1)) !Convert to upper case
+                    call uc2lc(c200tmp(2:2)) !Convert to lower case
+                    do iele=1,nelesupp
+                        if (c200tmp(1:2)==ind2name(iele)) exit
+                    end do
+                    Aparm(iele,imulti)=tmpA
+                    Bparm(iele,imulti)=tmpB
+                    nload=nload+1
+                end do
+                write(*,"(' Loaded',i5,' entries')") nload
+                close(10)
+            else
+                call genEEMparm(isel2,kappa,Aparm,Bparm)
+            end if
+        end do
+    else if (isel==2) then
+        write(*,*) "Input net charge of the system, e.g. -1"
+        read(*,*) chgnet
+    else if (isel==0) then
+        write(*,*) "Calculating..."
+        write(*,*)
+        !Construct EEM array
+        EEMarr(ncenter+1)=chgnet
+        do iatm=1,ncenter
+            imulti=maxval(connmat(iatm,:))
+            if (imulti>maxBO) then
+                write(*,"(' Error: Multiplicity of atom',i5,' exceeded upper limit (',i2,')')") iatm,maxBO
+                cycle EEMcyc
+            end if
+            tmpval=Aparm(a(iatm)%index,imulti)
+            if (tmpval==-1) then
+                write(*,"(' Error: Parameter for atom',i5,'(',a,') is unavailable!')") iatm,a(iatm)%name
+                cycle EEMcyc
+            else
+                EEMarr(iatm)=-tmpval
+            end if
+        end do
+
+        !Construct EEM matrix
+        EEMmat=0
+        EEMmat(ncenter+1,1:ncenter)=1
+        EEMmat(1:ncenter,ncenter+1)=-1
+        do i=1,ncenter
+            imulti=maxval(connmat(i,:))
+            do j=1,ncenter
+                if (i==j) then
+                    EEMmat(i,j)=Bparm(a(i)%index,imulti)
+                else
+                    EEMmat(i,j)=kappa/(distmat(i,j)*b2a)
+                end if
+            end do
+        end do
+        
+        !Solve EEM equation
+        qarr=matmul(invmat(EEMmat,ncenter+1),EEMarr)
+        do iatm=1,ncenter
+            write(*,"(' EEM charge of atom',i5,'(',a,'):',f12.6)") iatm,a(iatm)%name,qarr(iatm)
+        end do
+        write(*,"(' Electronegativity:',f12.6)") qarr(ncenter+1)
+    end if
+
+end do EEMcyc
+end subroutine
+
+!---- Generate EEM parameters
+subroutine genEEMparm(iset,kappa,Aparm,Bparm)
+use defvar
+integer,parameter :: maxBO=3 !Maximum of bond order
+real*8 kappa,Aparm(nelesupp,maxBO),Bparm(nelesupp,maxBO)
+Aparm=-1
+Bparm=-1
+if (iset==1) then !Parameters fitted to Mulliken charge at HF/STO-3G, Int. J. Mol. Sci., 8, 572-582 (2007)
+    write(*,"(a)") " Parameters have been set to those fitted to Mulliken charges at HF/STO-3G, see Int. J. Mol. Sci., 8, 572-582 (2007)"
+    kappa=0.44D0
+    Aparm(1,1)= 2.396D0  !H
+    Bparm(1,1)= 0.959D0
+    Aparm(6,1)= 2.459D0  !C,multi=1
+    Bparm(6,1)= 0.611D0
+    Aparm(7,1)= 2.597D0  !N,multi=1
+    Bparm(7,1)= 0.790D0
+    Aparm(8,1)= 2.625D0  !O,multi=1
+    Bparm(8,1)= 0.858D0
+    Aparm(16,1)= 2.407D0  !S,multi=1
+    Bparm(16,1)= 0.491D0
+    Aparm(6,2)= 2.464D0  !C,multi=2
+    Bparm(6,2)= 0.565D0
+    Aparm(7,2)= 2.554D0  !N,multi=2
+    Bparm(7,2)= 0.611D0
+    Aparm(8,2)= 2.580D0  !O,multi=2
+    Bparm(8,2)= 0.691D0
+else if (iset==2) then !Parameters fitted to CHELPG charges at B3LYP/6-31G*, J. Comput. Chem., 30, 1174 (2009)
+    write(*,"(a)") " Parameters have been set to those fitted to CHELPG charges at B3LYP/6-31G*, see J. Comput. Chem., 30, 1174 (2009)"
+    kappa=0.302D0
+    Aparm(35,1)= 2.659D0  !Br,multi=1
+    Bparm(35,1)= 1.802D0
+    Aparm(6,1)= 2.482D0  !C,multi=1
+    Bparm(6,1)= 0.464D0
+    Aparm(17,1)= 2.519D0  !Cl,multi=1
+    Bparm(17,1)= 1.450D0
+    Aparm(9,1)= 3.577D0  !F,multi=1
+    Bparm(9,1)= 3.419D0
+    Aparm(1,1)= 2.385D0  !H,multi=1
+    Bparm(1,1)= 0.737D0
+    Aparm(7,1)= 2.595D0  !N,multi=1
+    Bparm(7,1)= 0.468D0
+    Aparm(8,1)= 2.825D0  !O,multi=1
+    Bparm(8,1)= 0.844D0
+    Aparm(16,1)= 2.452D0  !S,multi=1
+    Bparm(16,1)= 0.362D0
+    Aparm(30,1)= 2.298D0  !Zn,multi=1
+    Bparm(30,1)= 0.420D0
+    Aparm(6,2)= 2.464D0  !C,multi=2
+    Bparm(6,2)= 0.392D0
+    Aparm(7,2)= 2.556D0  !N,multi=2
+    Bparm(7,2)= 0.377D0
+    Aparm(8,2)= 2.789D0  !O,multi=2
+    Bparm(8,2)= 0.834D0
+else if (iset==3) then !Parameters fitted to CHELPG charges at HF/6-31G*, J. Comput. Chem., 30, 1174 (2009)
+    write(*,"(a)") " Parameters have been set to those fitted to CHELPG charges at HF/6-31G*, see J. Comput. Chem., 30, 1174 (2009)"
+    kappa=0.227D0
+    Aparm(35,1)= 2.615D0  !Br,multi=1
+    Bparm(35,1)= 1.436D0
+    Aparm(6,1)= 2.481D0  !C,multi=1
+    Bparm(6,1)= 0.373D0
+    Aparm(17,1)= 2.517D0  !Cl,multi=1
+    Bparm(17,1)= 1.043D0
+    Aparm(9,1)= 3.991D0  !F,multi=1
+    Bparm(9,1)= 3.594D0
+    Aparm(1,1)= 2.357D0  !H,multi=1
+    Bparm(1,1)= 0.688D0
+    Aparm(7,1)= 2.585D0  !N,multi=1
+    Bparm(7,1)= 0.329D0
+    Aparm(8,1)= 2.870D0  !O,multi=1
+    Bparm(8,1)= 0.717D0
+    Aparm(16,1)= 2.450D0  !S,multi=1
+    Bparm(16,1)= 0.269D0
+    Aparm(30,1)= 2.185D0  !Zn,multi=1
+    Bparm(30,1)= 0.375D0
+    Aparm(6,2)= 2.475D0  !C,multi=2
+    Bparm(6,2)= 0.292D0
+    Aparm(7,2)= 2.556D0  !N,multi=2
+    Bparm(7,2)= 0.288D0
+    Aparm(8,2)= 2.757D0  !O,multi=2
+    Bparm(8,2)= 0.621D0
+else if (iset==4) then !Parameters fitted to NPA charges at B3LYP/6-311G*, see J. Cheminform., 8, 57 (2016)
+!The data were taken from "13321_2016_171_MOESM5_ESM.rar Additional file 5" of supplmental material
+!13321_2016_171_MOESM5_ESM\neemp\ideal_q1\set3_DE_RMSD_B3LYP_6311Gd_NPA_cross_ideal\output_set3_DE_RMSD_B3LYP_6311Gd_NPA_cross_ideal_all
+    write(*,"(a)") " Parameters have been set to those fitted to NPA charges at B3LYP/6-311G*, they were extracted from SI of J. Cheminform., 8, 57 (2016)"
+    kappa=0.4024D0
+    Aparm(1,1)= 2.4598D0  !H,multi=1
+    Bparm(1,1)= 0.9120D0
+    Aparm(6,1)= 2.5957D0  !C,multi=1
+    Bparm(6,1)= 0.5083D0
+    Aparm(6,2)= 2.6029D0  !C,multi=2
+    Bparm(6,2)= 0.5021D0
+    Aparm(6,3)= 2.5326D0  !C,multi=3
+    Bparm(6,3)= 0.5932D0
+    Aparm(7,1)= 2.7802D0  !N,multi=1
+    Bparm(7,1)= 0.7060D0
+    Aparm(7,2)= 2.7141D0  !N,multi=2
+    Bparm(7,2)= 0.5366D0
+    Aparm(7,3)= 2.6391D0  !N,multi=3
+    Bparm(7,3)= 0.5171D0
+    Aparm(8,1)= 2.9496D0  !O,multi=1
+    Bparm(8,1)= 0.8264D0
+    Aparm(8,2)= 2.8595D0  !O,multi=2
+    Bparm(8,2)= 0.6589D0
+    Aparm(9,1)= 2.9165D0  !F,multi=1
+    Bparm(9,1)= 0.8427D0
+    Aparm(15,2)= 2.1712D0  !P,multi=2
+    Bparm(15,2)= 0.4802D0
+    Aparm(16,1)= 2.5234D0  !S,multi=1
+    Bparm(16,1)= 0.3726D0
+    Aparm(16,2)= 2.5334D0  !S,multi=2
+    Bparm(16,2)= 0.3519D0
+    Aparm(17,1)= 2.5625D0  !Cl,multi=1
+    Bparm(17,1)= 0.9863D0
+    Aparm(35,1)= 2.4772D0  !Br,multi=1
+    Bparm(35,1)= 1.2131D0
+end if
+end subroutine

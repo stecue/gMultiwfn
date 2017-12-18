@@ -513,7 +513,7 @@ implicit real*8(a-h,o-z)
 type(content) gridorg(radpot*sphpot),gridatm(radpot*sphpot)
 real*8 resultvec(ncenter)
 real*8 allpotx(ncenter,radpot*sphpot),allpoty(ncenter,radpot*sphpot),allpotz(ncenter,radpot*sphpot),allpotw(ncenter,radpot*sphpot)
-real*8 tmpdens(radpot*sphpot),selfdens(radpot*sphpot),promol(radpot*sphpot)
+real*8 tmpdens(radpot*sphpot),selfdens(radpot*sphpot),promol(radpot*sphpot),orbval(nmo),orbcomp(ncenter,nmo)
 integer,allocatable :: fragorbcomp(:)
 character orbtype*10,c2000tmp*2000
 real*8,external :: fdens_rad
@@ -632,7 +632,8 @@ do while(.true.)
     write(*,"(a)") "  0: Return"
     write(*,"(a)") " -1: Print basic information of all orbitals"
     write(*,"(a)") " -2: Print atom contribution to a range of orbitals"
-    write(*,"(a)") " -3: Print fragment contribution to a range of orbitals" !Have not implemented yet
+    write(*,"(a)") " -3: Print fragment contribution to a range of orbitals"
+    write(*,"(a)") " -4: Export composition of every atom in every orbital to orbcomp.txt"
     read(*,*) ishowmo
     if (ishowmo>nmo) then
         write(*,"(' Error: Orbital index should within the range of 1 to',i6,/)") nmo
@@ -652,7 +653,7 @@ do while(.true.)
             write(*,*)
             cycle
         end if
-        if (ishowmo==-2) then 
+        if (ishowmo==-2) then
             write(*,*) "Input atom index, e.g. 4"
             read(*,*) iatm
         end if
@@ -707,6 +708,29 @@ nthreads=getNThreads()
         end do
         if (iorbend-iorbbeg>0) write(*,"(a,f12.6)") " Population of this atom in these orbitals:",pop
         
+    else if (ishowmo==-4) then !Export composition of every atom in every orbital to orbcomp.txt in current folder
+        write(*,*) "Calculating, please wait..."
+        orbcomp=0
+nthreads=getNThreads()
+!$OMP parallel do shared(orbcomp) private(iatm,ipot,orbval) num_threads(nthreads) schedule(dynamic)
+        do iatm=1,ncenter
+            do ipot=1+iradcut*sphpot,radpot*sphpot
+                if (allpotw(iatm,ipot)<1D-9) cycle !May lose 0.001% accuracy
+                call orbderv(1,1,nmo,allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),orbval)
+                orbcomp(iatm,:)=orbcomp(iatm,:)+orbval(:)**2*allpotw(iatm,ipot)
+            end do
+        end do
+!$OMP end parallel do
+        open(10,file="orbcomp.txt",status="replace")
+        do imo=1,nmo
+            write(10,"(' Orbital',i6)") imo
+            do iatm=1,ncenter
+                write(10,"(i6,f12.6,' %')") iatm,orbcomp(iatm,imo)*100
+            end do
+        end do
+        close(10)
+        write(*,*) "Done! orbcomp.txt has been exported to current folder."
+    
     else if (ishowmo==-9) then !Define fragment
         if (allocated(fragorbcomp)) then
             write(*,*) "Atoms in current fragment:"
@@ -799,6 +823,7 @@ call loclabel(10,"MOs in the NAO basis:",ifound,1)
 if (ifound==0) then
     write(*,"(a)") " Error: Cannot found MOs in NAO basis in the input file, the input file is invalid for this function! Please read manual carefully"
     write(*,*)
+    return
 else !Acquire number of NAOs and centers
     call loclabel(10,"NATURAL POPULATIONS",ifound,1)
     read(10,*)

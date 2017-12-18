@@ -2803,12 +2803,10 @@ integer itype
 real*8 x,y,z,dens,grad(3),hess(3,3),eigval(3),eigvecmat(3,3)
 call calchessmat_dens(2,x,y,z,dens,grad,hess)
 call diagmat(hess,eigvecmat,eigval,300,1D-12)
-eigmax=maxval(eigval) !At bcp, will be the most positive 
-eigmin=minval(eigval) !At bcp, will be the most negative
-do itmp=1,3
-    tmpval=eigval(itmp)
-    if (tmpval/=eigmax.and.tmpval/=eigmin) eigmed=tmpval !At bcp, will be the second most negative
-end do
+call sortr8(eigval)
+eigmax=eigval(3)
+eigmed=eigval(2)
+eigmin=eigval(1)
 if (itype==1) then
     densellip=eigmin/eigmed-1
 else
@@ -3010,8 +3008,8 @@ end if
 eleval=eleval+steric_addminimal
 elenorm2=sum(elegrad**2) !Square of norm of electron density gradient
 do i=1,3 !x,y,z
-    tmp1=-elenorm2/eleval**3*elegrad(i)+laplval/eleval**2*elegrad(i)-laplgrad(i)/eleval
-    tmp2=(elegrad(1)*elehess(1,i)+elegrad(2)*elehess(2,i)+elegrad(3)*elehess(3,i)) / eleval**2
+    tmp1=(elegrad(1)*elehess(1,i)+elegrad(2)*elehess(2,i)+elegrad(3)*elehess(3,i)) / eleval**2 -elenorm2/eleval**3*elegrad(i)
+    tmp2=-laplgrad(i)/eleval+laplval/eleval**2*elegrad(i)
     derv(i)=(tmp1+tmp2)/4D0
 end do
 end subroutine

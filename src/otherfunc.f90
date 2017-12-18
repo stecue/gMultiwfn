@@ -3039,10 +3039,8 @@ nthreads=getNThreads()
             potnuc=potnuc+a(jatm)%charge/dsqrt((rnowx-a(jatm)%x)**2+(rnowy-a(jatm)%y)**2+(rnowz-a(jatm)%z)**2)
         end do
          funcval(i)=-potnuc*fmo(rnowx,rnowy,rnowz,iorb)**2
-!          funcval(i)=-potnuc*fdens(rnowx,rnowy,rnowz) !debug
     end do
 !$OMP end parallel do
-    
     call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid)
     do i=1+iradcut*sphpot,radpot*sphpot
         intval=intval+funcval(i)*gridatmorg(i)%value*beckeweigrid(i)

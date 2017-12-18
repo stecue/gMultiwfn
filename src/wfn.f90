@@ -12,7 +12,7 @@ integer walltime1,walltime2
 real*8,allocatable :: d1add(:,:),d1min(:,:),d2add(:,:),d2min(:,:),d1addtmp(:,:),d1mintmp(:,:),d2addtmp(:,:),d2mintmp(:,:) !Store temporary data for drawing gradient map
 real*8,allocatable :: planemat_cust(:,:) !For storing temporary data of doing custom map
 real*8,allocatable :: planemat_bk(:,:) !Used to backup plane data
-! real*8,allocatable :: tmpmat(:,:)
+real*8,allocatable :: tmpmat(:,:),tmparr(:)
 
 call getarg(1,filename)
 call getarg(2,cmdarg2)
@@ -20,7 +20,7 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4.1, release date: 2017-Nov-1"
+write(*,*) "Version 3.4.2(dev), release date: 2017-Dec-18"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -140,8 +140,7 @@ end if
 
 write(*,"(/,3a)") " Loaded ",trim(filename)," successfully!"
 ! call sys1eprop !Show some system 1e properties, only works when Cartesian basis functions are presented
-
-
+! call wfnsanity
 
 !!!--------------------- Now everything start ---------------------!!!
 !!!--------------------- Now everything start ---------------------!!!
@@ -236,7 +235,8 @@ else if (infuncsel1==1) then
         write(*,"(a)") " Input x,y,z, divided by space or comma, e.g. 3.3,2.0,-0.3"
         write(*,"(a)") " or input e.g. ""a5"" to use nuclear position of atom 5"
         write(*,"(a)") "    input e.g. ""o8"" to select orbital 8, whose wavefunction value will be shown"
-        write(*,"(a)") "    input e.g. ""f3"" to select function 3, whose gradient and Hessian will be shown, input ""allf"" can print all available functions"        
+        write(*,"(a)") "    input e.g. ""f3"" to select function 3, whose gradient and Hessian will be shown, input ""allf"" can print all available functions"    
+        write(*,"(a)") "    input ""d"" to decompose a property at a point to orbital contributions"
         write(*,"(a)") "    input ""q"" to return"
         read(*,"(a)") inpstring
         inpstring=adjustl(inpstring)
@@ -273,6 +273,17 @@ else if (infuncsel1==1) then
             else
                 write(*,*) "The index exceeds valid range"
             end if
+        else if (inpstring(1:1)=='d') then
+            write(*,*) "Input x,y,z of the point, e.g. 3.3,2.0,-0.3"
+            read(*,*) inx,iny,inz
+            write(*,*) "You inputted coordinate is in which unit?  1:Bohr  2:Angstrom"
+            read(*,*) iunit
+            if (iunit==2) then
+                inx=inx/b2a
+                iny=iny/b2a
+                inz=inz/b2a
+            end if
+            call decompptprop(inx,iny,inz)
         else
             read(inpstring,*) inx,iny,inz
             write(*,*) "You inputted coordinate is in which unit?  1:Bohr  2:Angstrom"
@@ -1091,7 +1102,7 @@ else if (infuncsel1==4) then
         close(11)
         write(*,"(a)") " The coordinate of all points needed to be calculated have been outputted to plane.txt in current folder, the unit is in Bohr"
         write(*,"(a)") " cubegenpt.txt is also outputted, which is similar to plane.txt, but the unit is in Angstrom, &
-        and there is no first line (the number of points). It can be directly utilize by cubegen"
+        and there is no first line (the number of points). It can be directly utilized by cubegen"
         write(*,"(a)") " For example ""cubegen 0 potential CNT.fch result.cub -5 h < cubegenpt.txt"""
         write(*,*)
         write(*,"(a)") " Now input the path of the file containing function values, e.g. c:\t.txt, whose format should be identical to plane.txt, but with function value in the fourth column"
@@ -1846,12 +1857,12 @@ nthreads=getNThreads()
         !Options for idrawtype 4,5=================
         else if (idrawtype==4.or.idrawtype==5) then
             if (i==1) then
-                write(*,*) "Input lower & upper limits of color scale for shading the surface"
-                write(*,*) "e.g. -0.1,0.3"
+                write(*,*) "Input lower & upper limits of color scale for shading surface, e.g. -0.1,0.3"
+                write(*,"(a,f14.6,a,f14.6)") " Present value: from",surcolorzmin," to",surcolorzmax
                 read(*,*) surcolorzmin,surcolorzmax
                 if (idrawtype==5) then
-                    write(*,*) "Input lower & upper limits of color scale for the projected map"
-                    write(*,*) "e.g. -0.1,0.3"
+                    write(*,*) "Input lower & upper limits of color scale for projected map, e.g. -0.1,0.3"
+                    write(*,"(a,f14.6,a,f14.6)") " Present value: from",drawlowlim," to",drawuplim
                     read(*,*) drawlowlim,drawuplim
                 end if
             else if (i==2) then
@@ -2363,6 +2374,7 @@ else if (infuncsel1==18) then
         write(*,*) "5 Calculate transition dipole moments between all excited states"
         write(*,*) "6 Generate natural transition orbitals (NTOs)"
         write(*,*) "7 Calculate ghost-hunter index (JCC,38,2151)"
+        write(*,*) "8 Calculate interfragment charge transfer in electronic excitation"
         
         read(*,*) isel
         if (isel==0) then
@@ -2391,6 +2403,8 @@ else if (infuncsel1==18) then
 !             write(*,"(a)") " PS: The index calculated in this way is somewhat different to the original paper, &
 !             in which the 1/D_CT term is calculated based on expensive relaxed density. If you really want to reproduce it, you can use function 3 &
 !             to calculate the 1/D_CT term corresponding to relaxed density, and then manually calculate ghost-hunter index"
+        else if (isel==8) then
+            call hetransdipdens(4)
         end if
     end do
     
@@ -2646,6 +2660,7 @@ else if (infuncsel1==200) then
         write(*,*) "12 Calculate energy index (EI) or bond polarity index (BPI)"
         write(*,*) "13 Pipek-Mezey orbital localization"
         write(*,*) "14 Perform integration within isosurfaces of a real space function"
+        write(*,*) "15 Calculate electron correlation index (PCCP, 18, 24015)"
 !         write(*,*) "20 Calculate electronic coupling matrix element by FCD or GMH method"
         read(*,*) infuncsel2
         if (infuncsel2==0) then
@@ -2678,6 +2693,8 @@ else if (infuncsel1==200) then
             call pipek_mezey
         else if (infuncsel2==14) then
             call intisosurface
+        else if (infuncsel2==15) then
+            call elecorridx
         else if (infuncsel2==20) then
             call FCD
         end if
@@ -2705,6 +2722,7 @@ else if (infuncsel1==1000) then
     write(*,"(a,1PD18.8)") " 5 Set global temporary variable, current:",globaltmp
     write(*,"(a,i3)") " 10 Set the number of threads, current:", getNThreads()
     write(*,*) "90 Calculate nuclear attractive energy between a fragment and an orbital"
+    write(*,*) "97 Generate natural orbitals based on density matrix outputted by MRCC program"
     write(*,*) "98 Generate natural orbitals based on density matrix in .fch/.fchk"
     write(*,*) "99 Show EDF information (if any)"
     write(*,*) "100 Check the sanity of present wavefunction"
@@ -2750,8 +2768,10 @@ else if (infuncsel1==1000) then
         write(*,*) "Done!"
     else if (i==90) then
         call attene_orb_fragnuc
+    else if (i==97) then
+        call MRCC_gennatorb
     else if (i==98) then
-        call gennatorb
+        call fch_gennatorb
     else if (i==99) then
         if (.not.allocated(b_EDF)) then
             write(*,*) "EDF field was not loaded"

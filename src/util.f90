@@ -321,7 +321,7 @@ end do
 end subroutine
 
 !-------- Sort value from small to big by Bubble method
-!mode=abs: sort by absoluate, =val: sort by value. Default is by value
+!mode=abs: sort by absolute value, =val: sort by value. Default is by value
 !Real*8 version
 subroutine sortr8(array,inmode)
 integer N,i,j,mode

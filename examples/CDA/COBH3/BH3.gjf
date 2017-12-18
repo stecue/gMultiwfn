@@ -1,4 +1,5 @@
-#P HF/6-31G* nosymm pop=full IOp(3/32=2)
+%chk=C:\BH3.chk
+# HF/6-31G* nosymm
 
 BH3 for CDA
 
