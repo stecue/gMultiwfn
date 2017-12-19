@@ -10,7 +10,8 @@ use util
 use function
 implicit real*8 (a-h,o-z)
 integer :: itype,idomag=0
-integer,allocatable :: skippair(:),excdir(:) !excdir=1 means ->, =2 means <-
+logical,allocatable :: skippair(:)
+integer,allocatable :: excdir(:) !excdir=1 means ->, =2 means <-
 integer,allocatable :: orbleft(:),orbright(:) !denote the actual MO at the left/right side in the excitation data (1:nbasis=alpha/spatial, nbasis+1:2*nbasis=beta)
 real*8,allocatable :: exccoeff(:),exccoeffbackup(:) !Coefficient of an orbital pair transition. exccoeffbackup is used to backup, because users can modify the coefficients
 real*8,allocatable :: holegrid(:,:,:),elegrid(:,:,:),holeeleovlp(:,:,:),transdens(:,:,:),holecross(:,:,:),elecross(:,:,:),Cele(:,:,:),Chole(:,:,:),magtrdens(:,:,:,:)
