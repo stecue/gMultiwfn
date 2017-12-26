@@ -256,7 +256,7 @@ real*8,allocatable :: datax(:),str(:),FWHM(:) !Transition energy, strength and F
 !!!!!!!!!!!!!!!!!!!!!! Parameter !!!!!!!!!!!!!!!!!!!!!!
 !For passing Dislin main parent GUI and draw widget identifier
 integer idissetlight1,idissetlight2,idissetlight3,idissetlight4,idissetlight5,idissetlightall0,idissetlightall1,idissetangle,idissetplaneXVU,idissetplaneYVU
-integer idisgraph,idiszoomin,idiszoomout,idisisosurscl,idisscrval,idisshowbothsign,idisshowisosur,idisshowdatarange,idisshowmol,idisisosursec,iorbseltext
+integer idisgraph,idiszoomin,idiszoomout,idisisosurscl,idisscrval,idisshowbothsign,idisshowisosur,idisshowdatarange,idisshowmol,idisisosursec,iorbseltext,iorbtxt,iorblis
 integer idisisosurquality,idisisosurnumpt,idisorbinfo2
 integer idisshowatmlab,idisshowaxis,idisbondradius,idislabelsize,idisbondcrit,idisatmsize,idisshowpathlab !In draw mol GUI
 integer idisshowattlab,idisdrawinternalbasin,idisattsize !Draw basin GUI
@@ -271,7 +271,7 @@ integer GUI_mode !=1: Show mol and orbitals =2: Show plane =3: Show isosurface =
 !Plotting external parameter, can be set in settings.ini
 character :: graphformat*4="png " !ps/eps/pdf/wmf/gif/tiff/bmp
 integer :: graph1Dwidth=1280,graph1Dheight=800,graph2Dwidth=1280,graph2Dheight=1200,graph3Dwidth=1400,graph3Dheight=1400
-integer :: itickreverse=0,iticks=2,symbolsize=8,ilenunit1D=1,ilenunit2D=1,iatmlabtype=1,iatmlabtype3D=2,iplaneextdata=0
+integer :: itickreverse=0,iticks=2,symbolsize=8,ilenunit1D=1,ilenunit2D=1,iatmlabtype=1,iatmlabtype3D=3,iplaneextdata=0
 integer :: numdigx=2,numdigy=2,numdigz=3,numdiglinex=3,numdigliney=3,numdigctr=3
 real*8 :: planestpx=1.5D0,planestpy=1.5D0,planestpz=0.1D0
 integer :: fillcoloritpx=5,fillcoloritpy=3,pleatmlabsize=50

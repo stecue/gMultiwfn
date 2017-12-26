@@ -875,12 +875,12 @@ character(len=*) loadspecname
 character ctest,c80tmp*80,c200tmp*200
 integer ispectrum
 integer :: nrdfreq=0 ! >0 means pre-resonance raman, which loads external field frequency
-real*8,allocatable :: rdfreq(:)
+real*8,allocatable :: rdfreq(:),tmparr(:)
 
 if (allocated(datax)) deallocate(datax,str,FWHM)
 open(10,file=loadspecname,status="old")
 
-!sTDA output file
+!Check if is sTDA output file
 if (index(filename,"tda.dat")/=0) then
     write(*,*) "Recognized as sTDA program output file"
     if (ispectrum==4) then
@@ -917,327 +917,370 @@ if (index(filename,"tda.dat")/=0) then
             end if
         end if
     end do
+    close(10)
+    return
+end if
 
-!Gaussian/ORCA output file or plain text file, all of them may use .out or .log as suffix
-else
-    call loclabel(10,"Gaussian, Inc",igauout)
-    rewind(10)
-    if (igauout==1) then
-        write(*,*) "Recognized as a Gaussian output file"
+!Check if is Gaussian output file
+call loclabel(10,"Gaussian, Inc",igauout,maxline=100)
+rewind(10)
+if (igauout==1) then
+    write(*,*) "Recognized as a Gaussian output file"
 
-        !IR, Raman, VCD
-        if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then
-            !Detect if this is a pre-resonance raman task, and how many frequencies are readed
-            if (ispectrum==2) then
-                call loclabel(10,"NFrqRd=",ifound,0)
-                if (ifound==1) then
-                    read(10,"(a)") c200tmp
-                    itmp=index(c200tmp,"NFrqRd=")
-                    read(c200tmp(itmp+7:),*) nrdfreq
-                    if (nrdfreq>0) then
-                        allocate(rdfreq(nrdfreq))
-                        do itmp=0,nrdfreq,5
-                            nleft=nrdfreq-itmp
-                            read(10,"(a)") c200tmp
-                            if (nleft>5) then
-                                read(c200tmp(14:),*) rdfreq(itmp+1:itmp+5)
-                            else
-                                read(c200tmp(14:),*) rdfreq(itmp+1:nrdfreq)
-                            end if
-                        end do
-                        write(*,*) "This is a pre-resonance Raman calculation, external field frequencies (a.u.):"
-                        do itmp=1,nrdfreq
-                            write(*,"(i5,':',f16.8)") itmp,rdfreq(itmp)
-                        end do
-                        write(*,*) "Load data for which frequency? Input its index, e.g. 3"
-                        read(*,*) irdfreq
-                    end if
-                end if
-                rewind(10)
-            end if
-            
-            !Find how many frequencies in the file
-            do while(.true.)
-                call loclabel(10,"Frequencies -- ",ifound,0) !HPmodes is also compatible, because in this manner we locate to the tranditional output section
-                if (ifound==1) then
-                    i1=0
-                    i2=0
-                    i3=0
-                    backspace(10)
-                    backspace(10)
-                    read(10,*,iostat=ierror) i1,i2,i3
-                    if (ierror/=0) then
-                        read(10,*,iostat=ierror) i1,i2
-                        if (ierror/=0) then
-                            read(10,*,iostat=ierror) i1
+    !IR, Raman, VCD
+    if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then
+        !Detect if this is a pre-resonance raman task, and how many frequencies are readed
+        if (ispectrum==2) then
+            call loclabel(10,"NFrqRd=",ifound,0)
+            if (ifound==1) then
+                read(10,"(a)") c200tmp
+                itmp=index(c200tmp,"NFrqRd=")
+                read(c200tmp(itmp+7:),*) nrdfreq
+                if (nrdfreq>0) then
+                    allocate(rdfreq(nrdfreq))
+                    do itmp=0,nrdfreq,5
+                        nleft=nrdfreq-itmp
+                        read(10,"(a)") c200tmp
+                        if (nleft>5) then
+                            read(c200tmp(14:),*) rdfreq(itmp+1:itmp+5)
+                        else
+                            read(c200tmp(14:),*) rdfreq(itmp+1:nrdfreq)
                         end if
-                    end if
-                    read(10,*)
-                    read(10,*)
-                    if (i1==0.or.i2==0.or.i3==0) exit
-                else
-                    exit
+                    end do
+                    write(*,*) "This is a pre-resonance Raman calculation, external field frequencies (a.u.):"
+                    do itmp=1,nrdfreq
+                        write(*,"(i5,':',f16.8)") itmp,rdfreq(itmp)
+                    end do
+                    write(*,*) "Load data for which frequency? Input its index, e.g. 3"
+                    read(*,*) irdfreq
                 end if
-            end do
-            numdata=max(i1,i2,i3)
+            end if
             rewind(10)
+        end if
+        
+        !Find how many frequencies in the file
+        do while(.true.)
+            call loclabel(10,"Frequencies -- ",ifound,0) !HPmodes is also compatible, because in this manner we locate to the tranditional output section
+            if (ifound==1) then
+                i1=0
+                i2=0
+                i3=0
+                backspace(10)
+                backspace(10)
+                read(10,*,iostat=ierror) i1,i2,i3
+                if (ierror/=0) then
+                    read(10,*,iostat=ierror) i1,i2
+                    if (ierror/=0) then
+                        read(10,*,iostat=ierror) i1
+                    end if
+                end if
+                read(10,*)
+                read(10,*)
+                if (i1==0.or.i2==0.or.i3==0) exit
+            else
+                exit
+            end if
+        end do
+        numdata=max(i1,i2,i3)
+        rewind(10)
 
-            allocate(datax(numdata),str(numdata),FWHM(numdata))
-            FWHM=8D0
-            ilackdata=numdata
-            inow=1
-            do while(.true.)
-                if (ilackdata>3) then
-                    iread=3
-                else
-                    iread=ilackdata
-                end if
-                call loclabel(10,"Frequencies -- ",ifound,0)
-                read(10,"(16x)",advance="no")
-                if (iread==1) read(10,*) datax(inow)
-                if (iread==2) read(10,*) datax(inow),datax(inow+1)
-                if (iread==3) read(10,*) datax(inow),datax(inow+1),datax(inow+2)
-                if (ispectrum==1) then
-                    call loclabel(10,"IR Inten    --",ifound,0)
-                else if (ispectrum==2) then
-                    if (nrdfreq==0) then !Normal raman
-                        call loclabel(10,"Raman Activ --",ifound,0)
-                    else !Pre-resonance raman
-                        write(c200tmp,"('RamAct Fr=',i2)") irdfreq
-                        call loclabel(10,trim(c200tmp),ifound,0)
-                    end if
-                else if (ispectrum==5) then
-                    call loclabel(10,"Rot. str.",ifound,0)            
-                end if
-                read(10,"(16x)",advance="no")
-                if (iread==1) read(10,*) str(inow)
-                if (iread==2) read(10,*) str(inow),str(inow+1)
-                if (iread==3) read(10,*) str(inow),str(inow+1),str(inow+2)
-                if (ilackdata<=3) exit
-                ilackdata=ilackdata-3
-                inow=inow+3
-            end do
-            
+        allocate(datax(numdata),str(numdata),FWHM(numdata))
+        FWHM=8D0
+        ilackdata=numdata
+        inow=1
+        do while(.true.)
+            if (ilackdata>3) then
+                iread=3
+            else
+                iread=ilackdata
+            end if
+            call loclabel(10,"Frequencies -- ",ifound,0)
+            read(10,"(16x)",advance="no")
+            if (iread==1) read(10,*) datax(inow)
+            if (iread==2) read(10,*) datax(inow),datax(inow+1)
+            if (iread==3) read(10,*) datax(inow),datax(inow+1),datax(inow+2)
             if (ispectrum==1) then
-                call loclabel(10,"Anharmonic Infrared Spectroscopy",ifound,0)
-                if (ifound==1) then
-                    write(*,"(a)") " Note: Found anharmonic IR information, if load them instead of the harmonic ones? (y/n)"
-                    read(*,*) ctest
-                    if (ctest=='y'.or.ctest=='Y') then
-                        call loclabel(10,"Mode(",ifound,0)
-                        read(10,*)
-                        do itmp=1,numdata
-                            read(10,*) c200tmp,rnouse,datax(itmp),rnouse,str(itmp)
-                        end do
-                    end if
-                end if
+                call loclabel(10,"IR Inten    --",ifound,0)
             else if (ispectrum==2) then
-                call loclabel(10,"Anharmonic Raman Spectroscopy",ifound,0)
-                if (ifound==1) then
-                    write(*,"(a)") " Note: Found anharmonic Raman information, if load them instead of the harmonic ones? (y/n)"
-                    read(*,*) ctest
-                    if (ctest=='y'.or.ctest=='Y') then
-                        call loclabel(10,"Mode(",ifound,0)
-                        read(10,*)
-                        do itmp=1,numdata
-                            read(10,*) c200tmp,harmfreq,datax(itmp),harmact,str(itmp)
-                            str(itmp)=0.059320323D0*harmfreq*str(itmp) !The conversion coefficient can be found in output file
-                        end do
-                    end if
+                if (nrdfreq==0) then !Normal raman
+                    call loclabel(10,"Raman Activ --",ifound,0)
+                else !Pre-resonance raman
+                    write(c200tmp,"('RamAct Fr=',i2)") irdfreq
+                    call loclabel(10,trim(c200tmp),ifound,0)
                 end if
             else if (ispectrum==5) then
-                call loclabel(10,"Anharmonic VCD Spectroscopy",ifound,0)
-                if (ifound==1) then
-                    write(*,"(a)") " Note: Found anharmonic VCD information, if load them instead of the harmonic ones? (y/n)"
-                    read(*,*) ctest
-                    if (ctest=='y'.or.ctest=='Y') then
-                        call loclabel(10,"Mode(",ifound,0)
-                        read(10,*)
-                        do itmp=1,numdata
-                            read(10,*) c200tmp,rnouse,datax(itmp),rnouse,str(itmp)
-                        end do
-                    end if
+                call loclabel(10,"Rot. str.",ifound,0)            
+            end if
+            read(10,"(16x)",advance="no")
+            if (iread==1) read(10,*) str(inow)
+            if (iread==2) read(10,*) str(inow),str(inow+1)
+            if (iread==3) read(10,*) str(inow),str(inow+1),str(inow+2)
+            if (ilackdata<=3) exit
+            ilackdata=ilackdata-3
+            inow=inow+3
+        end do
+        
+        if (ispectrum==1) then
+            call loclabel(10,"Anharmonic Infrared Spectroscopy",ifound,0)
+            if (ifound==1) then
+                write(*,"(a)") " Note: Found anharmonic IR information, if load them instead of the harmonic ones? (y/n)"
+                read(*,*) ctest
+                if (ctest=='y'.or.ctest=='Y') then
+                    call loclabel(10,"Mode(",ifound,0)
+                    read(10,*)
+                    do itmp=1,numdata
+                        read(10,*) c200tmp,rnouse,datax(itmp),rnouse,str(itmp)
+                    end do
                 end if
             end if
-        
-        !UV-Vis, ECD
-        else if (ispectrum==3.or.ispectrum==4) then
-            !Because this may be an excited state optimization task, we need to determine how many steps are there
-            numopt=0
-            do while(.true.)
-                call loclabel(10,"Excitation energies and oscillator strengths",ifound,0)
-                numopt=numopt+ifound
-                if (ifound==0) exit
-                read(10,*)
-            end do
-            !Check how many states
-            rewind(10)
-            do i=1,numopt !Locate to the last time of output
-                call loclabel(10,"Excitation energies and oscillator strengths",ifound,0)
-                read(10,*)
-            end do
-            numdata=0
-            do while(.true.)
-                call loclabel(10," Excited State",ifound,0)
-                if (ifound==0) exit
-                read(10,*)
-                numdata=numdata+1
-            end do
-            allocate(datax(numdata),str(numdata),FWHM(numdata))
-            FWHM=2/3D0
-            !Locate to the last time of output
-            rewind(10)
-            do i=1,numopt
-                call loclabel(10,"Excitation energies and oscillator strengths",ifound,0)
-                read(10,*)
-            end do
-            do i=1,numdata !Gaussian output is too flexible to use fixed format to read in
-                call loclabel(10," Excited State",ifound,0)
-                do while(.true.)
-                    read(10,"(a)",advance="no") ctest
-                    if (ctest=='-') exit
-                end do
-                read(10,"(5x)",advance="no")
-                read(10,*) datax(i) !Read excitation energy (eV)
-                backspace(10)
-                do while(.true.)
-                    read(10,"(a)",advance="no") ctest
-                    if (ctest=='=') exit
-                end do
-                read(10,*) str(i) !Read oscillator strength
-            end do
-            if (ispectrum==4) then !Read ECD rotatory strength
-                write(*,*) "Read the rotatory strengths in which representation?"
-                write(*,*) "1: Length representation     2: Velocity representation (Recommended)"
-                read(*,*) itmp
-                if (itmp==1) then
-                    call loclabel(10,"R(length)",ifound,1)
+        else if (ispectrum==2) then
+            call loclabel(10,"Anharmonic Raman Spectroscopy",ifound,0)
+            if (ifound==1) then
+                write(*,"(a)") " Note: Found anharmonic Raman information, if load them instead of the harmonic ones? (y/n)"
+                read(*,*) ctest
+                if (ctest=='y'.or.ctest=='Y') then
+                    call loclabel(10,"Mode(",ifound,0)
                     read(10,*)
-                    do i=1,numdata
-                        read(10,*) inouse,rnouse,rnouse,rnouse,str(i)
+                    do itmp=1,numdata
+                        read(10,*) c200tmp,harmfreq,datax(itmp),harmact,str(itmp)
+                        str(itmp)=0.059320323D0*harmfreq*str(itmp) !The conversion coefficient can be found in output file
                     end do
-                else
-                    call loclabel(10,"R(velocity)",ifound,1)
+                end if
+            end if
+        else if (ispectrum==5) then
+            call loclabel(10,"Anharmonic VCD Spectroscopy",ifound,0)
+            if (ifound==1) then
+                write(*,"(a)") " Note: Found anharmonic VCD information, if load them instead of the harmonic ones? (y/n)"
+                read(*,*) ctest
+                if (ctest=='y'.or.ctest=='Y') then
+                    call loclabel(10,"Mode(",ifound,0)
                     read(10,*)
-                    do i=1,numdata
-                        read(10,*) inouse,rnouse,rnouse,rnouse,str(i)
-                        do while(.true.)
-                            read(10,"(a)") c80tmp
-                            !Sometimes Gaussian output some additional info.
-                            if (index(c80tmp,"Total R(velocity) tensor")/=0.or.index(c80tmp,"R(velocity) tensor in inp. orien.")/=0) then
-                                do itmp=1,4
-                                    read(10,*)
-                                end do
-                            else
-                                backspace(10)
-                                exit
-                            end if
-                        end do
+                    do itmp=1,numdata
+                        read(10,*) c200tmp,rnouse,datax(itmp),rnouse,str(itmp)
                     end do
                 end if
             end if
         end if
-        
-    else !Other files
-        iORCAout=0
-        call loclabel(10,"O   R   C   A",iORCAout,maxline=100)
-        if (iORCAout==1) then !ORCA output file
-            write(*,*) "Recognized as an ORCA output file"
-            isTDA=0
-            if (ispectrum==3.or.ispectrum==4) call loclabel(10,"ORCA sTD",isTDA) !When plotting UV-Vis or ECD, check if this is a sTDA or sTD-DFT calculation
-            if (isTDA==0) then !Regular calculation
-                if (ispectrum==1.or.ispectrum==2) then !IR, Raman
-                    if (ispectrum==1) call loclabel(10,"IR SPECTRUM")
-                    if (ispectrum==2) call loclabel(10,"RAMAN SPECTRUM")
-                    call loclabel(10,"Mode    freq (cm**-1)",ifound,0)
-                    read(10,*)
-                    read(10,*)
-                    numdata=0
-                    do while(.true.)
-                        read(10,"(a)") c80tmp
-                        if (c80tmp==" ") exit
-                        numdata=numdata+1
-                    end do
-                    allocate(datax(numdata),str(numdata),FWHM(numdata))
-                    if (ispectrum==1) call loclabel(10,"IR SPECTRUM",ifound,1)
-                    if (ispectrum==2) call loclabel(10,"RAMAN SPECTRUM",ifound,1)
-                    call loclabel(10,"Mode    freq (cm**-1)",ifound,0)
-                    read(10,*)
-                    read(10,*)
-                    do i=1,numdata
-                        read(10,*) c80tmp,datax(i),str(i)
-                    end do
-                    FWHM=8D0
-                else if (ispectrum==3.or.ispectrum==4) then !UV-Vis, ECD
-                    call loclabel(10,"Number of roots to be determined")
-                    read(10,"(50x,i7)") numdata
-                    allocate(datax(numdata),str(numdata),FWHM(numdata))
-                    if (ispectrum==3) call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
-                    if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
-                    read(10,*)
-                    read(10,*)
-                    read(10,*)
-                    read(10,*)
-                    read(10,*)
-                    do i=1,numdata
-                        read(10,*) rnouse,datax(i),rnouse,str(i)
-                    end do
-                    FWHM=2D0/3D0
-                    datax=datax/8065.5447D0 !Convert from cm-1 to eV
-                end if
-            else if (isTDA==1) then !sTDA or sTD-DFT calculation
-                write(*,*) "This is a sTDA or sTD-DFT calculation"
-                if (ispectrum==4) then
-                    write(*,*)
-                    write(*,*) "Read the rotatory strengths in which representation?"
-                    write(*,*) "1: Length representation     2: Velocity representation"
-                    write(*,*) "3: Mixed-form representation (recommended)"
-                    read(*,*) irotrep
-                end if
-                call loclabel(10,"roots found,",ifound,0)
-                read(10,*) numdata
-                allocate(datax(numdata),str(numdata),FWHM(numdata))
-                call loclabel(10,"state   eV        nm        fL",ifound,0)
+    
+    !UV-Vis, ECD
+    else if (ispectrum==3.or.ispectrum==4) then
+        !Because this may be an excited state optimization task, we need to determine how many steps are there
+        numopt=0
+        do while(.true.)
+            call loclabel(10,"Excitation energies and oscillator strengths",ifound,0)
+            numopt=numopt+ifound
+            if (ifound==0) exit
+            read(10,*)
+        end do
+        !Check how many states
+        rewind(10)
+        do i=1,numopt !Locate to the last time of output
+            call loclabel(10,"Excitation energies and oscillator strengths",ifound,0)
+            read(10,*)
+        end do
+        numdata=0
+        do while(.true.)
+            call loclabel(10," Excited State",ifound,0)
+            if (ifound==0) exit
+            read(10,*)
+            numdata=numdata+1
+        end do
+        allocate(datax(numdata),str(numdata),FWHM(numdata))
+        FWHM=2/3D0
+        !Locate to the last time of output
+        rewind(10)
+        do i=1,numopt
+            call loclabel(10,"Excitation energies and oscillator strengths",ifound,0)
+            read(10,*)
+        end do
+        do i=1,numdata !Gaussian output is too flexible to use fixed format to read in
+            call loclabel(10," Excited State",ifound,0)
+            do while(.true.)
+                read(10,"(a)",advance="no") ctest
+                if (ctest=='-') exit
+            end do
+            read(10,"(5x)",advance="no")
+            read(10,*) datax(i) !Read excitation energy (eV)
+            backspace(10)
+            do while(.true.)
+                read(10,"(a)",advance="no") ctest
+                if (ctest=='=') exit
+            end do
+            read(10,*) str(i) !Read oscillator strength
+        end do
+        if (ispectrum==4) then !Read ECD rotatory strength
+            write(*,*) "Read the rotatory strengths in which representation?"
+            write(*,*) "1: Length representation     2: Velocity representation (Recommended)"
+            read(*,*) itmp
+            if (itmp==1) then
+                call loclabel(10,"R(length)",ifound,1)
                 read(10,*)
                 do i=1,numdata
-                    read(10,*) inouse,datax(i),rnouse,fl,fv,Rl,Rv
-                    if (ispectrum==3) then
-                        str(i)=fl
-                    else if (ispectrum==4) then
-                        if (irotrep==1) str(i)=Rl
-                        if (irotrep==2) str(i)=Rv
-                        if (irotrep==3) then
-                            str(i)=Rv
-                            if (fv/=0) str(i)=Rv*fl/fv
+                    read(10,*) inouse,rnouse,rnouse,rnouse,str(i)
+                end do
+            else
+                call loclabel(10,"R(velocity)",ifound,1)
+                read(10,*)
+                do i=1,numdata
+                    read(10,*) inouse,rnouse,rnouse,rnouse,str(i)
+                    do while(.true.)
+                        read(10,"(a)") c80tmp
+                        !Sometimes Gaussian output some additional info.
+                        if (index(c80tmp,"Total R(velocity) tensor")/=0.or.index(c80tmp,"R(velocity) tensor in inp. orien.")/=0) then
+                            do itmp=1,4
+                                read(10,*)
+                            end do
+                        else
+                            backspace(10)
+                            exit
                         end if
-                    end if
-                end do
-                if (ispectrum==3) FWHM=2D0/3D0
-                if (ispectrum==4) FWHM=0.2D0
-            end if
-        
-        !Plain text file    
-        else
-            write(*,*) "Recognized as a plain text file"
-            rewind(10)
-            read(10,*) numdata,inptype
-            allocate(datax(numdata),str(numdata),FWHM(numdata))
-            if (inptype==1) then !Only x-position and strengths
-                if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) FWHM=8D0
-                if (ispectrum==3) FWHM=2D0/3D0
-                if (ispectrum==4) FWHM=0.2D0
-                do i=1,numdata
-                    read(10,*) datax(i),str(i)
-                end do
-            else if (inptype==2) then !also with FWHM
-                do i=1,numdata
-                    read(10,*) datax(i),str(i),FWHM(i)
+                    end do
                 end do
             end if
         end if
     end if
+    close(10)
+    return
 end if    
-    
+
+!Check if is ORCA output file
+call loclabel(10,"O   R   C   A",iORCAout,maxline=100)
+if (iORCAout==1) then
+    write(*,*) "Recognized as an ORCA output file"
+    isTDA=0
+    if (ispectrum==3.or.ispectrum==4) call loclabel(10,"ORCA sTD",isTDA) !When plotting UV-Vis or ECD, check if this is a sTDA or sTD-DFT calculation
+    if (isTDA==0) then !Regular calculation
+        if (ispectrum==1.or.ispectrum==2) then !IR, Raman
+            if (ispectrum==1) call loclabel(10,"IR SPECTRUM")
+            if (ispectrum==2) call loclabel(10,"RAMAN SPECTRUM")
+            call loclabel(10,"Mode    freq (cm**-1)",ifound,0)
+            read(10,*)
+            read(10,*)
+            numdata=0
+            do while(.true.)
+                read(10,"(a)") c80tmp
+                if (c80tmp==" ") exit
+                numdata=numdata+1
+            end do
+            allocate(datax(numdata),str(numdata),FWHM(numdata))
+            if (ispectrum==1) call loclabel(10,"IR SPECTRUM",ifound,1)
+            if (ispectrum==2) call loclabel(10,"RAMAN SPECTRUM",ifound,1)
+            call loclabel(10,"Mode    freq (cm**-1)",ifound,0)
+            read(10,*)
+            read(10,*)
+            do i=1,numdata
+                read(10,*) c80tmp,datax(i),str(i)
+            end do
+            FWHM=8D0
+        else if (ispectrum==3.or.ispectrum==4) then !UV-Vis, ECD
+            call loclabel(10,"Number of roots to be determined")
+            read(10,"(50x,i7)") numdata
+            allocate(datax(numdata),str(numdata),FWHM(numdata))
+            if (ispectrum==3) call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
+            if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
+            read(10,*)
+            read(10,*)
+            read(10,*)
+            read(10,*)
+            read(10,*)
+            do i=1,numdata
+                read(10,*) rnouse,datax(i),rnouse,str(i)
+            end do
+            FWHM=2D0/3D0
+            datax=datax/8065.5447D0 !Convert from cm-1 to eV
+        end if
+    else if (isTDA==1) then !sTDA or sTD-DFT calculation
+        write(*,*) "This is a sTDA or sTD-DFT calculation"
+        if (ispectrum==4) then
+            write(*,*)
+            write(*,*) "Read the rotatory strengths in which representation?"
+            write(*,*) "1: Length representation     2: Velocity representation"
+            write(*,*) "3: Mixed-form representation (recommended)"
+            read(*,*) irotrep
+        end if
+        call loclabel(10,"roots found,",ifound,0)
+        read(10,*) numdata
+        allocate(datax(numdata),str(numdata),FWHM(numdata))
+        call loclabel(10,"state   eV        nm        fL",ifound,0)
+        read(10,*)
+        do i=1,numdata
+            read(10,*) inouse,datax(i),rnouse,fl,fv,Rl,Rv
+            if (ispectrum==3) then
+                str(i)=fl
+            else if (ispectrum==4) then
+                if (irotrep==1) str(i)=Rl
+                if (irotrep==2) str(i)=Rv
+                if (irotrep==3) then
+                    str(i)=Rv
+                    if (fv/=0) str(i)=Rv*fl/fv
+                end if
+            end if
+        end do
+        if (ispectrum==3) FWHM=2D0/3D0
+        if (ispectrum==4) FWHM=0.2D0
+    end if
+close(10)
+return
+end if
+
+!Check if is ORCA output file
+call loclabel(10,"GFN-xTB",ixtb,maxline=100)
+if (ixtb==1) then
+    write(*,*) "Recognized as a Grimme's xtb program output file"
+    write(*,*)
+    call loclabel(10,"number of atoms")
+    read(10,"(30x,i7)") natm
+    numdata=natm*3
+    allocate(datax(numdata),str(numdata))
+    call loclabel(10,"projected vibrational frequencies",ifound,0)
+    read(10,*)
+    read(10,"(12x,6f9.2)") datax
+    call loclabel(10,"IR intensities (amu)",ifound,0)
+    read(10,*)
+    read(10,"(8(5x,f6.2))") str
+    write(*,"(a)") " xtb program outputs all frequencies including overall rotation and translation modes. Now remove how many lowest modes to discard these modes? e.g. 6"
+    write(*,*) "If press ENTER directly, 6 lowest modes will be discarded"
+    read(*,"(a)") c80tmp
+    if (c80tmp==" ") then
+        nremove=6
+    else
+        read(c80tmp,*) nremove
+    end if
+    numdata=numdata-nremove
+    !Resize datax and str arrays
+    allocate(tmparr(3*natm))
+    tmparr=datax
+    deallocate(datax)
+    allocate(datax(numdata))
+    datax=tmparr(nremove+1:)
+    tmparr=str
+    deallocate(str)
+    allocate(str(numdata))
+    str=tmparr(nremove+1:)
+    deallocate(tmparr)
+    allocate(FWHM(numdata))
+    FWHM=8D0
+    close(10)
+    return
+end if
+
+!Plain text file
+write(*,*) "Recognized as a plain text file"
+rewind(10)
+read(10,*) numdata,inptype
+allocate(datax(numdata),str(numdata),FWHM(numdata))
+if (inptype==1) then !Only x-position and strengths
+    if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) FWHM=8D0
+    if (ispectrum==3) FWHM=2D0/3D0
+    if (ispectrum==4) FWHM=0.2D0
+    do i=1,numdata
+        read(10,*) datax(i),str(i)
+    end do
+else if (inptype==2) then !also with FWHM
+    do i=1,numdata
+        read(10,*) datax(i),str(i),FWHM(i)
+    end do
+end if
 close(10)
 
 end subroutine

@@ -2546,7 +2546,7 @@ else if (wfntype==1) then !Perserve up to LUMO+10 for alpha, and identical numbe
     nmo=2*nperserve
 end if
 imodwfn=1 !Will not call this routine again
-if (infomode==1) then
+if (infomode==1.and.(wfntype==0.or.wfntype==1.or.wfntype==2)) then
     write(*,"(a)") " Note: Virtual orbitals higher than LUMO+10 have been discarded for saving computational time"
     write(*,*)
 end if
