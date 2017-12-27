@@ -1,5 +1,6 @@
 #!/bin/bash
 # update the source by using the "delta" patch (apply the diff between the old src and new src to the gnunized src) of the ifort source.
+# Use this first so that any changes I made manually to the source code will be kept.
 dirdiff=vdiff
 function clean_noGUI {
     rm GUI.f90 plot.f90 && rm *.a
