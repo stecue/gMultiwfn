@@ -368,10 +368,10 @@ else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel=
             do iendalpha=nmo,1,-1
                 if (MOtype(iendalpha)==1) exit
             end do
-            if (wfntype==4) then
+            if (wfntype==4) then !U-post-HF
                 nmatsizea=iendalpha !Total number of alpha orbitals
                 nmatsizeb=nmo-nmatsizea !Total number of beta orbitals
-            else
+            else !UHF
                 do nmatsizea=iendalpha,1,-1
                     if (MOocc(nmatsizea)/=0D0) exit
                 end do

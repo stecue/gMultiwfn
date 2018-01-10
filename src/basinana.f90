@@ -2077,13 +2077,13 @@ if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
     if (wfntype==3) then !R-post-HF, need to consider all orbitals
         nmatsize=nmo
     else !RHF,ROHF
-        !High-lying virtual orbitals will be deleted, especially for .fch case
+        !High-lying virtual orbitals will be deleted, especially for .fch case (In fact, before entering this function, those >= LUMO+10 has already been discarded)
         !Notice that occupation number may be not contiguous, some low-lying orbital may have
         !zero occupation due to modification by users, so we can't simply use nelec to determine matrix size
         do nmatsize=nmo,1,-1
             if (MOocc(nmatsize)/=0) exit
         end do
-        if (nmo-nmatsize>0) write(*,"('Note: The highest',i6,' virtual orbitals will not be taken into account')") nmo-nmatsize
+        if (nmo-nmatsize>0) write(*,"(' Note: The highest',i6,' virtual orbitals will not be taken into account')") nmo-nmatsize
     end if
     if (allocated(BOM)) deallocate(BOM,BOMsum)
     allocate(BOM(nmatsize,nmatsize,numrealatt),BOMsum(nmatsize,nmatsize))

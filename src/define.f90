@@ -41,7 +41,7 @@ real*8,allocatable :: gradd1(:,:),gradd2(:,:) !Gradient in direction1/2 for grad
 real*8,allocatable :: distmat(:,:) !Distance matrix, in Bohr
 character*200 filename,firstfilename
 character*80 firstfileonlyname,extctrsetting,cmdarg2 !cmdarg is the parameter of booting multiwfn
-character,allocatable :: custommapname(:)*80,customop(:) !Custom operation for custom map/cube file
+character,allocatable :: custommapname(:)*200,customop(:) !Custom operation for custom map/cube file
 logical alive
 integer,allocatable :: fragatm(:),fragatmbackup(:) !Store the index of atoms in fragment, has no relationship with frag1/frag2. fragatmbackup is used to backup fragatm during custom operation
 integer,allocatable :: frag1(:),frag2(:) !These two fragments are only used for bond order analysis/composition analysis etc., store index of basis functions or atoms. Their size just fit their content

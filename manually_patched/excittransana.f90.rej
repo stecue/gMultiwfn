@@ -1,0 +1,11 @@
+--- excittransana.f90	2018-01-10 15:58:47.859959493 -0500
++++ excittransana.f90	2018-01-10 15:58:40.343894651 -0500
+@@ -2385,7 +2387,7 @@
+ open(10,file=tdmatfilename,status="old")
+ call loclabel(10,"Gaussian",igauout)
+ rewind(10)
+-if (igauout) then !Gaussian output file
++if (igauout==1) then !Gaussian output file
+     call loclabel(10,"Alpha Density Matrix:",ifound)
+     if (ifound==1) then !Open-shell
+         write(*,*) "Use which type of transition density matrix?"

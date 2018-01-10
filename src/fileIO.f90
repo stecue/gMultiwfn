@@ -1902,8 +1902,6 @@ do i=1,nprims
 end do
 
 !Read exponents
-read(10,"(a)") c80tmp
-backspace(10)
 read(10,"(10x,5D14.7)") (b(i)%exp,i=1,nprims)
 
 !From Gaussian09 B.01, if ECP is used, additional CENTER, TYPE, EXPONENTS field present to represent EDF(electron density functions) likewise .wfx file

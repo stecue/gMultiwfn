@@ -1,0 +1,10 @@
+--- wfn.f90	2018-01-10 15:58:49.531973918 -0500
++++ wfn.f90	2018-01-10 15:58:40.343894651 -0500
+@@ -31,6 +31,7 @@
+ !if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOS version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
+ !!!!!!!!
+ 
++nthreads=getNThreads()
+ call date_and_time(nowdate,nowtime)
+ write(*,"(' ( The number of threads:',i3,'   Current date: ',a,'-',a,'-',a,'   Time: ',a,':',a,':',a,' )')") &
+ nthreads,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)

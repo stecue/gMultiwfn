@@ -20,38 +20,33 @@ call getarg(2,cmdarg2)
 if (isys==1) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Windows 64bit)"
 if (isys==2) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for Linux 64bit)"
 if (isys==3) write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer (for MacOS)"
-write(*,*) "Version 3.4.2(dev), release date: 2017-Dec-25"
+write(*,*) "Version 3.5(dev), release date: 2018-Jan-8"
 write(*,"(a)") " Project leader: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Citation of Multiwfn: Tian Lu, Feiwu Chen, J. Comput. Chem. 33, 580-592 (2012)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
 write(*,*) "Multiwfn Chinese forum: http://bbs.keinsci.com"
 
-!!!!!!!!
 !if (isys==1) call KMP_SET_STACKSIZE_S(ompstacksize) !For Linux/MacOS version, it seems the only way to set stacksize of each thread is to define KMP_STACKSIZE environment variable
-!!!!!!!!
-
 nthreads=getNThreads()
 call date_and_time(nowdate,nowtime)
 write(*,"(' ( The number of threads:',i3,'   Current date: ',a,'-',a,'-',a,'   Time: ',a,':',a,':',a,' )')") &
 nthreads,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)
 write(*,*)
 
-! call system("echo %GAUSS_EXEDIR%")
-! call selfileGUI !Doesn't work, I don't know why
 if (trim(filename)=="") then !Haven't defined filename variable
     call mylover(lovername)
     write(*,"(a,a,a)") " Input file path, for example E:\",trim(lovername),".wfn"
-    write(*,*) "(Supported types: .wfn/.wfx/.fch/.molden/.31/.chg/.pdb/.xyz/.cub/.grd, etc.)"
-    write(*,"(a)") " Hint: To reload the file last time used, simply input the letter ""o"". Input such as ?miku.fch can open miku.fch in the same folder of the file last time used"
+    write(*,*) "(Supported: .wfn/.wfx/.fch/.molden/.31/.chg/.pdb/.xyz/.mol/.cub/.grd, etc.)"
+    write(*,"(a)") " Hint: Press ENTER button directly can select file in a GUI window. To reload the file last time used, simply input the letter ""o"". &
+    Input such as ?miku.fch can open the miku.fch in the same folder as the file last time used."
     do while(.true.)
         read(*,"(a)") filename
-        ltmp=len_trim(filename)
-        if (ltmp==0) cycle
         if (filename=='o') then
             write(*,"(' The file last time used: ',a)") trim(lastfile)
             filename=lastfile
         end if
+        ltmp=len_trim(filename)
         !Remove the first and the last " or  'symbol, because directly dragging file into the window will result in " or ' symbol, which is unrecognized by Multwifn
         if (filename(1:1)=='"'.or.filename(1:1)=="'") filename(1:1)=" "
         if (filename(ltmp:ltmp)=='"'.or.filename(ltmp:ltmp)=="'") filename(ltmp:ltmp)=" "
@@ -95,6 +90,7 @@ else
     end if
 end if
 call readinfile(filename,0)
+write(*,"(/,3a)") " Loaded ",trim(filename)," successfully!"
 
 !!-- Backup various information of first loaded (meanwhile unmodified) molecule
 firstfilename=filename
@@ -118,7 +114,7 @@ forall (i=1:nfragatmnum) fragatm(i)=i
 forall (i=1:nfragatmnum) fragatmbackup(i)=i
 ifragcontri=0
 
-!!-- Call some routine only once
+!!-- Call some routines only once
 if (ncenter>5000) write(*,"(a)") " Warning: There are very large number of many atoms, please wait very patiently for generating distance matrix..."
 call gendistmat !Generate distance matrix
 !Convert prebuild radii from Angstrom to Bohr. But some radii such as radii_hugo will remain unchanged since it is recorded as Bohr
@@ -138,9 +134,8 @@ if (ifiletype/=0.and.ifiletype/=8) then
     write(*,"(' Molecule weight:',f16.5)") totmass
 end if
 
-write(*,"(/,3a)") " Loaded ",trim(filename)," successfully!"
 ! call sys1eprop !Show some system 1e properties, only works when Cartesian basis functions are presented
-! call wfnsanity
+
 
 !!!--------------------- Now everything start ---------------------!!!
 !!!--------------------- Now everything start ---------------------!!!
@@ -1471,7 +1466,7 @@ nthreads=getNThreads()
                 if (icolorvecfield==1) write(*,*) "11 Don't Map color to arrows"
                 if (icolorvecfield==0) write(*,*) "12 Set color for arrow heads" !If color map was set, the color set by user themselves is nulified
                 if (iinvgradvec==0) write(*,*) "13 Invert gradient vectors"
-                if (iinvgradvec==1) write(*,*) "13 Don't Invert gradient vectors"
+                if (iinvgradvec==1) write(*,*) "13 Don't invert gradient vectors"
             end if            
             if (idrawplanevdwctr==0.and.iorbsel2==0.and.allocated(b)) write(*,*) "15 Draw a contour line of vdW surface (electron density=0.001)" !meaningless if custom operation is performed
             if (idrawplanevdwctr==1) write(*,*) "15 Don't draw a contour line of vdW surface"
@@ -2661,6 +2656,7 @@ else if (infuncsel1==200) then
         write(*,*) "13 Pipek-Mezey orbital localization"
         write(*,*) "14 Perform integration within isosurfaces of a real space function"
         write(*,*) "15 Calculate electron correlation index (PCCP, 18, 24015)"
+        write(*,*) "16 Generate natural orbitals based on the density matrix in .fch/.fchk file"
 !         write(*,*) "20 Calculate electronic coupling matrix element by FCD or GMH method"
         read(*,*) infuncsel2
         if (infuncsel2==0) then
@@ -2695,8 +2691,10 @@ else if (infuncsel1==200) then
             call intisosurface
         else if (infuncsel2==15) then
             call elecorridx
-        else if (infuncsel2==20) then
-            call FCD
+        else if (infuncsel2==16) then
+            call fch_gennatorb
+!         else if (infuncsel2==20) then
+!             call FCD
         end if
         write(*,*)
     end do

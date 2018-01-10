@@ -3502,8 +3502,8 @@ if (idoene==1) then
     end do
     if (isel==1) write(*,*) "Energies of unoccupied orbitals are not updated since they were not localized"
     
-    !Second-order perturbation analysis between occupied and virtual orbitals, this only works when both of them have been localized
-    !This part is commented since it don't print any useful E(2), because Fock element between occupied and virtual orbitals are always nearly zero
+    !Second-order perturbation analysis between occupied and virtual orbitals (like NBO E2), this only works when both of them have been localized
+    !This part is commented since it don't print any useful result, because it is easy to proved that Fock element between occupied and virtual LMOs are exactly zero
 !     if (isel==1) then
 !         write(*,*) " Note: E(2) analysis is skipped since virtual orbitals were not localized"
 !     else if (isel==2) then
@@ -3892,3 +3892,167 @@ write(*,"(' Nondynamic correlation index:',f12.8)") I_ND
 write(*,"(' Dynamic correlation index:   ',f12.8)") I_D
 write(*,"(' Total correlation index:     ',f12.8)") I_T
 end subroutine
+
+
+
+!!------ Generate natural orbitals based on the density matrix in .fch/.fchk file
+subroutine fch_gennatorb
+use util
+use defvar
+implicit real*8 (a-h,o-z)
+real*8,allocatable :: tmparr(:),Pspin(:,:)
+real*8 Xmat(nbasis,nbasis)
+character selectyn,denstype*10,locstr*40
+if (ifiletype/=1) then
+    write(*,*) "Error: .fch/.fchk should be used as input file for this function"
+    write(*,*) "Press ENTER to return"
+    read(*,*)
+    return
+end if
+write(*,*) "Input type of density, e.g. SCF, MP2, CI, CC, MP4..."
+write(*,*) "e.g. If the .fch was produced under MP2, you may input ""SCF"" or ""MP2"""
+read(*,"(a)") denstype
+write(locstr,"('Total ',a,' Density')") trim(denstype)
+open(10,file=filename,status="old")
+call loclabel(10,trim(locstr),ifoundDM)
+if (ifoundDM==0) then
+    write(*,"(' Error: Unable to find ""',a,'"" from the input file')") trim(locstr)
+    write(*,*) "Press ENTER to return"
+    read(*,*)
+    return
+end if
+iNOtype=1
+if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+    write(*,*) "Select natural orbitals you want to obtain"
+    write(*,*) "1 Spatial natural orbitals (diagonalization of total density matrix)"
+    write(*,*) "2 Alpha and beta natural orbitals (diagonalization of respective DM)"
+    write(*,*) "3 Spin natural orbitals (diagonalization of spin density matrix)"
+    read(*,*) iNOtype
+end if
+
+write(*,*) "Loading density matrix..."
+!Load total density matrix
+Ptot=0D0
+call loclabel(10,trim(locstr))
+read(10,*)
+read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
+Ptot=Ptot+transpose(Ptot)
+do i=1,nbasis
+    Ptot(i,i)=Ptot(i,i)/2D0
+end do
+!Load spin density matrix
+if (iNOtype>1) then
+    allocate(Pspin(nbasis,nbasis))
+    Pspin=0
+    read(10,*)
+    read(10,"(5(1PE16.8))") ((Pspin(i,j),j=1,i),i=1,nbasis)
+    Pspin=Pspin+transpose(Pspin)
+    do i=1,nbasis
+        Pspin(i,i)=Pspin(i,i)/2D0
+    end do
+    Palpha=(Ptot+Pspin)/2D0
+    Pbeta=(Ptot-Pspin)/2D0
+end if
+close(10)
+write(*,*) "Density matrix was loaded from .fch/.fchk file"
+
+!To produce natural orbitals, we need to convert P to orthogonalized basis and then diagonalize it
+allocate(tmparr(nbasis))
+write(*,*)
+if (iNOtype==1.or.iNOtype==3) then
+    if (iNOtype==1) write(*,*) "Generating NOs, please wait..."
+    if (iNOtype==3) write(*,*) "Generating SNOs, please wait..."
+    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
+    if (iNOtype==1) call diagsymat(matmul(matmul(transpose(Xmat),Ptot),Xmat),CObasa,MOocc,ierror) !CObasa now is NOs in orthogonalized basis
+    if (iNOtype==3) call diagsymat(matmul(matmul(transpose(Xmat),Pspin),Xmat),CObasa,MOocc,ierror) !CObasa now is SNOs in orthogonalized basis
+    MOene=0
+    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
+    CObasa=matmul(Xmat,CObasa) !Convert CObasa to original basis
+    !Sort NOs according to occupation number
+    do i=1,nbasis
+        do j=i+1,nbasis
+            if (MOocc(i)<MOocc(j)) then
+                tmpocc=MOocc(i)
+                MOocc(i)=MOocc(j)
+                MOocc(j)=tmpocc
+                tmparr=CObasa(:,i)
+                CObasa(:,i)=CObasa(:,j)
+                CObasa(:,j)=tmparr
+            end if
+        end do
+    end do
+    if (wfntype==1.or.wfntype==4) then !Then wfntype will be 3, deallocate useless arrays and resize arrays
+        deallocate(CObasb,Palpha,Pbeta,MOene,tmparr)
+        allocate(MOene(nbasis))
+        MOene=0
+        allocate(tmparr(nmo))
+        tmparr=MOocc
+        deallocate(MOocc)
+        allocate(MOocc(nbasis))
+        MOocc=tmparr(1:nbasis)
+        nmo=nbasis
+    end if
+    write(*,*) "Occupation numbers:"
+    write(*,"(6f12.6)") MOocc
+    wfntype=3
+else
+    write(*,*) "Generating alpha and beta NOs, please wait..."
+    call symmorthomat(nbasis,Sbas,Xmat,0)!Xmat=S^0.5
+    call diagsymat(matmul(matmul(transpose(Xmat),Palpha),Xmat),CObasa,MOocc(1:nbasis),ierror)
+    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
+    CObasa=matmul(Xmat,CObasa) !Convert CObasa to original basis, as what we did in HF calculation
+    MOene(1:nbasis)=0
+    do i=1,nbasis
+        do j=i+1,nbasis
+            if (MOocc(i)<MOocc(j)) then
+                tmpocc=MOocc(i)
+                MOocc(i)=MOocc(j)
+                MOocc(j)=tmpocc
+                tmparr=CObasa(:,i)
+                CObasa(:,i)=CObasa(:,j)
+                CObasa(:,j)=tmparr
+            end if
+        end do
+    end do
+    write(*,*) "Occupation numbers of Alpha NOs:"
+    write(*,"(6f12.6)") MOocc(1:nbasis)
+    write(*,*)
+    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
+    call diagsymat(matmul(matmul(transpose(Xmat),Pbeta),Xmat),CObasb,MOocc(nbasis+1:nmo),ierror)
+    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
+    CObasb=matmul(Xmat,CObasb)
+    MOene(nbasis+1:nmo)=0
+    do i=1,nbasis
+        ii=i+nbasis
+        do j=i+1,nbasis
+            jj=j+nbasis
+            if (MOocc(ii)<MOocc(jj)) then
+                tmpocc=MOocc(ii)
+                MOocc(ii)=MOocc(jj)
+                MOocc(jj)=tmpocc
+                tmparr=CObasb(:,i)
+                CObasb(:,i)=CObasb(:,j)
+                CObasb(:,j)=tmparr
+            end if
+        end do
+    end do
+    write(*,*) "Occupation numbers of Beta NOs:"
+    write(*,"(6f12.6)") MOocc(nbasis+1:nmo)
+    wfntype=4
+end if
+write(*,*) "Done! Basis function information now correspond to natural orbitals"
+
+write(*,"(/,a)") " If next you intend to analyze real space functions based on the NOs, you should export .molden file &
+and then reload it, so that GTF information will also correspond to NOs"
+write(*,*) "Would you like to do this immediately? (y/n)"
+read(*,*) selectyn
+if (selectyn=='y') then
+    call outmolden("new.molden",10)
+    write(*,*) "The NOs have been exported to NO.molden in current folder"
+    call dealloall
+    write(*,*) "Loading NO.molden..."
+    call readmolden("new.molden",1)
+    write(*,"(a)") " Loading finished, now you can use main function 0 to visualize NOs as isosurfaces"
+end if
+end subroutine
+

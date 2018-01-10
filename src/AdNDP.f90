@@ -111,7 +111,6 @@ if (ifound==0) then
     write(*,*) "Error: Cannot found NAO density matrix field in the input file"
     return
 end if
-
 !Check format before reading, NBO6 use different format to NBO3
 !For open-shell case, DMNAO doesn't print for total, so the first time loaded DMNAO is alpha(open-shell) or total(close-shell)
 read(10,"(a)") c80tmp

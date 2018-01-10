@@ -8,7 +8,6 @@ real*8 eigval(nbasis),eigvec(nbasis,nbasis),tmpmat(nbasis,nbasis)
 integer orbarr(nmo)
 integer,allocatable :: exclfragatm(:),tmparrint(:)
 
-! write(*,*) wfntype
 do while(.true.)
     write(*,*) "          ============ Modify & Check wavefunction ============ "
     write(*,"(' Number of GTFs:',i6,', Orb:',i6,', Atoms:',i5,', A/B elec:',2f8.3)") nprims,nmo,ncenter,naelec,nbelec
@@ -2932,130 +2931,6 @@ end do
 !$OMP end parallel do
 end subroutine
 
-
-
-!!------ Generate natural orbitals based on the density matrix loaded from .fch/.fck file
-subroutine fch_gennatorb
-use util
-use defvar
-implicit real*8 (a-h,o-z)
-real*8,allocatable :: tmparr(:)
-real*8 Xmat(nbasis,nbasis)
-character selectyn
-
-open(10,file=filename,status="old")
-call loclabel(10,"Total SCF Density",ifoundDM)
-if (ifoundDM==1) then
-    Ptot=0D0
-    write(*,*) "Loading density matrix..."
-    if (wfntype==0.or.wfntype==3) then
-        read(10,*)
-        read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
-        Ptot=Ptot+transpose(Ptot)
-        do i=1,nbasis
-            Ptot(i,i)=Ptot(i,i)/2D0
-        end do
-    else if (wfntype==1.or.wfntype==4) then
-        Palpha=0D0
-        Pbeta=0D0
-        read(10,*)
-        read(10,"(5(1PE16.8))") ((Ptot(i,j),j=1,i),i=1,nbasis)
-        read(10,*)
-        read(10,"(5(1PE16.8))") ((Palpha(i,j),j=1,i),i=1,nbasis) !Read spin density matrix, use Palpha as temporary slot
-        Pbeta=(Ptot-Palpha)/2
-        Palpha=(Ptot+Palpha)/2D0
-        Ptot=ptot+transpose(ptot)
-        Palpha=Palpha+transpose(Palpha)
-        Pbeta=Pbeta+transpose(Pbeta)
-        do i=1,nbasis
-            Ptot(i,i)=Ptot(i,i)/2D0
-            Palpha(i,i)=Palpha(i,i)/2D0
-            Pbeta(i,i)=Pbeta(i,i)/2D0
-        end do
-    end if
-    write(*,*) "Density matrix was loaded from .fch file"
-else
-    write(*,*) "Unable to find density matrix!"
-end if
-close(10)
-
-!To produce natural orbitals, we need to convert P to orthogonalized basis and then diagonalize it
-allocate(tmparr(nbasis))
-selectyn='n'
-if (.not.(wfntype==0.or.wfntype==3)) then
-    write(*,*) "Would you like to generate UNO orbitals? (y/n)"
-    read(*,*) selectyn
-end if
-write(*,*) "Please wait..."
-if ((wfntype==0.or.wfntype==3).or.selectyn=='y') then
-    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
-    call diagsymat(matmul(matmul(transpose(Xmat),Ptot),Xmat),CObasa,MOocc,ierror)
-    MOene=0
-    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
-    CObasa=matmul(Xmat,CObasa) !Convert CObasa to original basis, as what we did in HF calculation
-    do i=1,nbasis
-        do j=i+1,nbasis
-            if (MOocc(i)<MOocc(j)) then
-                tmpocc=MOocc(i)
-                MOocc(i)=MOocc(j)
-                MOocc(j)=tmpocc
-                tmparr=CObasa(:,i)
-                CObasa(:,i)=CObasa(:,j)
-                CObasa(:,j)=tmparr
-            end if
-        end do
-    end do
-    write(*,*) "Occupation number:"
-    write(*,"(6f12.6)") MOocc
-    wfntype=3
-else
-    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
-    call diagsymat(matmul(matmul(transpose(Xmat),Palpha),Xmat),CObasa,MOocc(1:nbasis),ierror)
-    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
-    CObasa=matmul(Xmat,CObasa) !Convert CObasa to original basis, as what we did in HF calculation
-    MOene(1:nbasis)=0
-    do i=1,nbasis
-        do j=i+1,nbasis
-            if (MOocc(i)<MOocc(j)) then
-                tmpocc=MOocc(i)
-                MOocc(i)=MOocc(j)
-                MOocc(j)=tmpocc
-                tmparr=CObasa(:,i)
-                CObasa(:,i)=CObasa(:,j)
-                CObasa(:,j)=tmparr
-            end if
-        end do
-    end do
-    write(*,*) "Occupation number of Alpha part:"
-    write(*,"(6f12.6)") MOocc(1:nbasis)
-    write(*,*)
-    call symmorthomat(nbasis,Sbas,Xmat,0)    !Xmat=S^0.5
-    call diagsymat(matmul(matmul(transpose(Xmat),Pbeta),Xmat),CObasb,MOocc(nbasis+1:nmo),ierror)
-    call symmorthomat(nbasis,Sbas,Xmat,1)  !Xmat=S^-0.5
-    CObasb=matmul(Xmat,CObasb)
-    MOene(nbasis+1:nmo)=0
-    do i=1,nbasis
-        ii=i+nbasis
-        do j=i+1,nbasis
-            jj=j+nbasis
-            if (MOocc(ii)<MOocc(jj)) then
-                tmpocc=MOocc(ii)
-                MOocc(ii)=MOocc(jj)
-                MOocc(jj)=tmpocc
-                tmparr=CObasb(:,i)
-                CObasb(:,i)=CObasb(:,j)
-                CObasb(:,j)=tmparr
-            end if
-        end do
-    end do
-    write(*,*) "Occupation number of Beta part:"
-    write(*,"(6f12.6)") MOocc(nbasis+1:nmo)
-    wfntype=4
-end if
-write(*,*) "Done! Basis function information now correspond to natural orbital cases"
-write(*,"(a)") " Note: If next you would like to analyze real space functions, you should export .molden file, &
-and then reload it, so that GTF information will also correspond to natural orbitals"
-end subroutine
 
 
 !!--------- Convert 1RDM in MO basis outputted by MRCC program to natural orbitals

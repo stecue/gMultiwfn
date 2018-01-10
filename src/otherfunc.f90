@@ -2007,10 +2007,24 @@ end subroutine
 !!----------- Detect pi orbital and set occupation number
 subroutine procpiorb
 use defvar
+use function
+use util
 implicit real*8 (a-h,o-z)
 integer piorblist(nmo) !1 means this orbital is expected pi orbital
-write(*,*) "Choose molecular plane"
+real*8,allocatable :: tmparr(:)
+real*8 :: thresdens=0.02D0,thressingle=0.85D0
+integer :: ionlyocc=1,idebug=0
+integer,allocatable :: atmrange(:)
+character c2000tmp*2000
+if (.not.allocated(b)) then
+    write(*,*) "Error: wavefunction information is not presented but needed!"
+    write(*,*) "Press ENTER to return"
+    read(*,*)
+    return
+end if
+write(*,*) "Choose molecular plane:"
 write(*,*) "0=Auto-detect  1=XY  2=YZ  3=XZ"
+write(*,*) "If orbitals are in localized form (e.g. LMO), input -1"
 read(*,*) iselmolplane
 if (iselmolplane==0) then
     avgx=sum(a(:)%x)/ncenter
@@ -2032,25 +2046,123 @@ if (iselmolplane==0) then
 end if
 piorblist=0
 pinelec=0D0
-write(*,*) "Expected pi orbitals, occupation numbers and orbital energies(eV) are:"
-do imo=1,nmo
-    do iprim=1,nprims
-        GTFtype=b(iprim)%functype
-        if (iselmolplane==1) then
-            if ( (GTFtype==1.or.GTFtype==2.or.GTFtype==3).and.abs(co(imo,iprim))>0.001D0 ) exit !Orbital has S,X,Y component, so this is not pi-Z
-        else if (iselmolplane==2) then
-!             write(*,*) imo,iprim,GTFtype,abs(co(imo,iprim))
-            if ( (GTFtype==1.or.GTFtype==3.or.GTFtype==4).and.abs(co(imo,iprim))>0.001D0 ) exit !Orbital has S,Y,Z component, so this is not pi-X
-        else if (iselmolplane==3) then
-            if ( (GTFtype==1.or.GTFtype==2.or.GTFtype==4).and.abs(co(imo,iprim))>0.001D0 ) exit !Orbital has S,X,Z component, so this is not pi-Y
+if (iselmolplane/=-1) then !Canonical MO cases
+    write(*,*) "Expected pi orbitals, occupation numbers and orbital energies (eV):"
+    do imo=1,nmo
+        do iprim=1,nprims
+            GTFtype=b(iprim)%functype
+            if (iselmolplane==1) then
+                if ( (GTFtype==1.or.GTFtype==2.or.GTFtype==3).and.abs(co(imo,iprim))>0.001D0 ) exit !Orbital has S,X,Y component, so this is not pi-Z
+            else if (iselmolplane==2) then
+                if ( (GTFtype==1.or.GTFtype==3.or.GTFtype==4).and.abs(co(imo,iprim))>0.001D0 ) exit !Orbital has S,Y,Z component, so this is not pi-X
+            else if (iselmolplane==3) then
+                if ( (GTFtype==1.or.GTFtype==2.or.GTFtype==4).and.abs(co(imo,iprim))>0.001D0 ) exit !Orbital has S,X,Z component, so this is not pi-Y
+            end if
+            if (iprim==nprims) then
+                piorblist(imo)=1
+                pinelec=pinelec+MOocc(imo)
+                write(*,"(i6,2f14.6)") imo,MOocc(imo),MOene(imo)*au2ev
+            end if
+        end do
+    end do
+else !LMO case
+    if (.not.allocated(cobasa)) then
+        write(*,*) "Error: Basis function information is not presented but needed!"
+        write(*,*) "Press ENTER to return"
+        read(*,*)
+        return
+    end if
+    do while(.true.)
+        write(*,*)
+        write(*,*) "0 Detect pi-orbitals now!"
+        write(*,"(a,f7.1,' %')") " 1 Set threshold for determining single-center orbital, current:",thressingle*100
+        write(*,"(a,f8.4,' a.u.')") " 2 Set density threshold for determining pi-orbital, current:",thresdens
+        if (ionlyocc==1) write(*,*) "3 Switch the orbitals in consideration, current: all occupied orbitals"
+        if (ionlyocc==0) write(*,*) "3 Switch the orbitals in consideration, current: all orbitals"
+        if (idebug==1) write(*,*) "4 Switch outputting debug information, current: Yes"
+        if (idebug==0) write(*,*) "4 Switch outputting debug information, current: No"
+        if (.not.allocated(atmrange)) write(*,*) "5 Set constraint of atom range, current: undefined"
+        if (allocated(atmrange)) write(*,"(a,i6,a)") " 5 Set constraint of atom range, current: ",natmrange," atoms"
+        read(*,*) isel
+        if (isel==0) then
+            exit
+        else if (isel==1) then
+            write(*,*) "Input the threshold composition, e.g. 0.8"
+            write(*,"(a)") " Note: If you input for example 0.8, then in an orbital, if an atom has contribution larger than 80%, &
+            then this orbital will be regarded as single-center orbital and will not be taken into account further"
+            read(*,*) thressingle
+        else if (isel==2) then
+            write(*,*) "Input the threshold density in a.u., e.g. 0.02"
+            write(*,"(a)") " Note: Assume that in an orbital, A and B are the two atoms having maximum contributions, &
+            the orbital will be regarded as pi orbital if electron density at midpoint between A and B is smaller than the threshold"
+            read(*,*) thresdens
+        else if (isel==3) then
+            if (ionlyocc==1) then
+                ionlyocc=0
+            else if (ionlyocc==0) then
+                ionlyocc=1
+            end if
+        else if (isel==4) then
+            if (idebug==1) then
+                idebug=0
+            else if (idebug==0) then
+                idebug=1
+            end if
+        else if (isel==5) then
+            if (allocated(atmrange)) deallocate(atmrange)
+            write(*,*) "Input index of the atoms that the orbital must cover, e.g. 2,3,7-10"
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,natmrange)
+            allocate(atmrange(natmrange))
+            call str2arr(c2000tmp,natmrange,atmrange)
         end if
-        if (iprim==nprims) then
+    end do
+    write(*,*) "Expected pi orbitals, occupation numbers and orbital energies (eV):"
+    allocate(tmparr(ncenter))
+    do imo=1,nmo
+        if (ionlyocc==1.and.MOocc(imo)==0) cycle
+        !Compute atomic composition via SCPA method
+        if (imo<=nbasis) then !Alpha orbitals
+            sumsqr=sum(cobasa(:,imo)**2)
+            do iatm=1,ncenter
+                tmparr(iatm)=sum(cobasa(basstart(iatm):basend(iatm),imo)**2)/sumsqr
+            end do
+        else !Beta orbitalss
+            sumsqr=sum(cobasb(:,imo-nbasis)**2)
+            do iatm=1,ncenter
+                tmparr(iatm)=sum(cobasb(basstart(iatm):basend(iatm),imo-nbasis)**2)/sumsqr
+            end do
+        end if
+        !Find atom with maximum contribution (imax) and that with second maximum contribution (imax2)
+        imax=maxloc(tmparr,1)
+        tmpmax=0
+        do iatm=1,ncenter
+            if (iatm==imax) cycle
+            if (tmparr(iatm)>tmpmax) then
+                imax2=iatm
+                tmpmax=tmparr(iatm)
+            end if
+        end do
+        MOocc=0
+        MOocc(imo)=2D0
+        tmpx=(a(imax)%x+a(imax2)%x)/2D0
+        tmpy=(a(imax)%y+a(imax2)%y)/2D0
+        tmpz=(a(imax)%z+a(imax2)%z)/2D0
+        densmid=fdens(tmpx,tmpy,tmpz)
+        MOocc=MOocc_org
+        if (idebug==1) write(*,"(' Orb:',i5,'  max:',i5,f6.1,'%  max2:',i5,f6.1,'%  mid.rho:',f10.5)") imo,imax,tmparr(imax)*100,imax2,tmparr(imax2)*100,densmid
+        if (tmparr(imax)>thressingle) cycle !Pass single center LMO (Lone pair, inner-core)
+        if (allocated(atmrange)) then
+            if (all(atmrange/=imax).or.all(atmrange/=imax2)) cycle
+        end if
+        if (densmid<thresdens) then
             piorblist(imo)=1
             pinelec=pinelec+MOocc(imo)
             write(*,"(i6,2f14.6)") imo,MOocc(imo),MOene(imo)*au2ev
         end if
     end do
-end do
+    deallocate(tmparr)
+end if
 write(*,"(' Total number of pi orbitals:',i6)") count(piorblist==1)
 write(*,"(' Total number of electrons in pi orbitals:',f12.6)") pinelec
 innerel=0

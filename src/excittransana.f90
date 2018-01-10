@@ -23,7 +23,7 @@ real*8 time_end,time_endtmp,orbval(nmo),wfnderv(3,nmo)
 real*8,allocatable :: tmparr1(:),tmparr2(:) !Arrays for temporary use
 real*8,allocatable :: tdmata(:,:),tdmatb(:,:) !Transition density matrix in basis function representation of alpha/total and beta electrons
 real*8,allocatable :: bastrdip(:,:) !Contribution from each basis function to transition dipole moment, the first index 1/2/3=X/Y/Z
-real*8,allocatable :: trdipmatbas(:,:,:) !Transition dipole moment matrix in basis function representation, the first index 1/2/3=X/Y/Z
+real*8,allocatable :: trdipmatbas(:,:,:),trdipmatatm(:,:,:) !Transition dipole moment matrix in basis function / atom representation, the first index 1/2/3=X/Y/Z
 real*8,allocatable :: bastrpopa(:),bastrpopb(:) !Transition population of each basis function
 !Store dipole moment integral between all GTFs, the matrix is symmetry hence stored as 1D-array to save memory. The first index is 1/2/3=X/Y/Z
 real*8,allocatable :: GTFdipint(:,:)
@@ -500,7 +500,7 @@ nthreads=getNThreads()
             end do
 !$OMP CRITICAL
             iprog=iprog+1
-            write(*,"(' Progress:',i6,'  /',i6)") iprog,nbasis
+            if (nbasis>800) write(*,"(' Progress:',i6,'  /',i6)") iprog,nbasis
 !$OMP END CRITICAL
         end do
 !$OMP END PARALLEL do
@@ -595,7 +595,7 @@ nthreads=getNThreads()
                 write(*,"(a)") " ERROR: Magnetic dipole moment integral matrix is not presented. You should set parameter ""igenMagbas"" in settings.ini to 1, &
                 so that the matrix will be generated when loading wavefunction file"
             else
-                allocate(trdipmatbas(3,nbasis,nbasis),bastrdip(3,nbasis))
+                allocate(trdipmatbas(3,nbasis,nbasis),bastrdip(3,nbasis),trdipmatatm(3,ncenter,ncenter))
                 if (idecomptype==1) then
                     if (wfntype==1.or.wfntype==4) then
                         write(*,*) "Analyze alpha or beta part?   1=Alpha  2=Beta"
@@ -657,8 +657,28 @@ nthreads=getNThreads()
                 write(ides,*)
                 write(ides,"(a,3f12.6,a)") " Transition dipole moment in X/Y/Z",sum(bastrdip(1,:)),sum(bastrdip(2,:)),sum(bastrdip(3,:))," a.u."
                 close(10)
-                deallocate(trdipmatbas,bastrdip)
                 write(*,*) "Done! The result has been outputted to trdipcontri.txt in current folder"
+                
+                write(*,*)
+                write(*,"(a)") " Would you also like to output atom-atom contribution matrix to AAtrdip.txt in current folder? (y/n)"
+                read(*,*) selectyn
+                if (selectyn=='y') then
+                    do iatm=1,ncenter
+                        do jatm=1,ncenter
+                            trdipmatatm(1,iatm,jatm)=sum( trdipmatbas(1,basstart(iatm):basend(iatm),basstart(jatm):basend(jatm)) )
+                            trdipmatatm(2,iatm,jatm)=sum( trdipmatbas(2,basstart(iatm):basend(iatm),basstart(jatm):basend(jatm)) )
+                            trdipmatatm(3,iatm,jatm)=sum( trdipmatbas(3,basstart(iatm):basend(iatm),basstart(jatm):basend(jatm)) )
+                            !Use the first slot to record sum of square
+                            trdipmatatm(1,iatm,jatm)=trdipmatatm(1,iatm,jatm)**2+trdipmatatm(2,iatm,jatm)**2+trdipmatatm(3,iatm,jatm)**2
+                        end do
+                    end do
+                    open(10,file="AAtrdip.txt",status="replace")
+                    call showmatgau(trdipmatatm(1,:,:),"Atom-Atom contribution matrix",0,"f14.8",10)
+                    close(10)
+                    write(*,"(a)") " Done! The matrix has been outputted to AAtrdip.txt in current folder"
+                    write(*,"(a)") " This file can be plotted as colored matrix via subfunction 2 of main function 18"
+                end if
+                deallocate(trdipmatbas,bastrdip,trdipmatatm)
             end if
             
         else if (isel==6) then !Calculate Mulliken atomic transition charges
@@ -2370,8 +2390,8 @@ use defvar
 use util
 implicit real*8 (a-h,o-z)
 character tdmatfilename*200
-real*8 tdmatbas(nbasis,nbasis)
-real*8,allocatable :: tdmatatmtmp(:,:),tdmatatm(:,:),tdmatatmreal(:,:)
+real*8 tdmatbas(nbasis,nbasis),tdmatatmtmp(ncenter,ncenter),tdmatatm(ncenter,ncenter)
+real*8,allocatable :: tdmatatmnoh(:,:)
 !Load density transition matrix in basis expansion
 tdmatbas=0D0
 write(*,"(a)") " Input the path of the Gaussian output file or plain text file containing transition density matrix, e.g. c:\a.out"
@@ -2381,60 +2401,64 @@ do while(.true.)
     if (alive) exit
     write(*,*) "Error: Cannot find the file, please input again"
 end do
-! open(10,file="c:\gtest\tdmat2\tdmat2-4.out",status="old")
-open(10,file=tdmatfilename,status="old")
-call loclabel(10,"Gaussian",igauout)
-rewind(10)
-if (igauout==1) then !Gaussian output file
-    call loclabel(10,"Alpha Density Matrix:",ifound)
-    if (ifound==1) then !Open-shell
-        write(*,*) "Use which type of transition density matrix?"
-        write(*,*) "1=Alpha    2=Beta"
-        read(*,*) iTDMtype
-        write(*,*) "Loading transition density matrix..."
-        if (iTDMtype==1) then
-            call readmatgau(10,tdmatbas,1,"f10.5",21,5,1)
-        else if  (iTDMtype==2) then
-            call loclabel(10,"Beta Density Matrix:",ifound)
-            call readmatgau(10,tdmatbas,1,"f10.5",21,5,1)
-        end if
-    else !Close-shell
-        call loclabel(10,"Density Matrix:",ifound)
-        if (ifound==0) call loclabel(10,"DENSITY MATRIX.",ifound)
-        if (ifound==0) then
-            write(*,"(a,/)") "Error: Cannot found transition density matrix information from the Gaussian output file, please check if iop(6/8=3) has been specified"
-            return
-        end if
-        write(*,*) "Loading transition density matrix..."
-        call readmatgau(10,tdmatbas,1,"f10.5",21,5,1)
-    end if
-else !Plain text file
-    call readmatgau(10,tdmatbas,0,"f14.8",6,5,1)
-end if
-close(10)
-! write(*,*) sum((tdmatbas*sbas)),maxval(tdmatbas),minval(tdmatbas)
 
-!Use tdmatbas to construct tdmatatm
-allocate(tdmatatm(ncenter,ncenter),tdmatatmtmp(ncenter,ncenter))
-tdmatatm=0D0
-do iatm=1,ncenter
-    do jatm=1,ncenter
-        do ibas=basstart(iatm),basend(iatm)
-            do jbas=basstart(jatm),basend(jatm)
-                tdmatatm(iatm,jatm)=tdmatatm(iatm,jatm)+tdmatbas(ibas,jbas)**2
-!                 tdmatatm(iatm,jatm)=tdmatatm(iatm,jatm)+tdmatbas(ibas,jbas)
-!                 tdmatatm(iatm,jatm)=tdmatatm(iatm,jatm)+abs(tdmatbas(ibas,jbas))
+open(10,file=tdmatfilename,status="old")
+if (index(tdmatfilename,"AAtrdip.txt")/=0) then !Directly load and use atom-atom matrix (commonly generated by option 5 of hole-electron module)
+    write(*,*) "Loading atom-atom contribution matrix..."
+    call readmatgau(10,tdmatatm,0,"f14.8",6,5,1)
+else !Load basis-basis matrix and then condense to atom-atom matrix
+    call loclabel(10,"Gaussian",igauout,maxline=100)
+    rewind(10)
+    if (igauout==1) then !Gaussian output file
+        write(*,*) "This is a Gaussian output file"
+        call loclabel(10,"Alpha Density Matrix:",ifound)
+        if (ifound==1) then !Open-shell
+            write(*,*) "Use which type of transition density matrix?"
+            write(*,*) "1=Alpha    2=Beta"
+            read(*,*) iTDMtype
+            write(*,*) "Loading transition density matrix..."
+            if (iTDMtype==1) then
+                call readmatgau(10,tdmatbas,1,"f10.5",21,5,1)
+            else if  (iTDMtype==2) then
+                call loclabel(10,"Beta Density Matrix:",ifound)
+                call readmatgau(10,tdmatbas,1,"f10.5",21,5,1)
+            end if
+        else !Close-shell
+            call loclabel(10,"Density Matrix:",ifound)
+            if (ifound==0) call loclabel(10,"DENSITY MATRIX.",ifound)
+            if (ifound==0) then
+                write(*,"(a,/)") "Error: Cannot found transition density matrix information from the Gaussian output file, please check if iop(6/8=3) has been specified"
+                return
+            end if
+            write(*,*) "Loading transition density matrix..."
+            call readmatgau(10,tdmatbas,1,"f10.5",21,5,1)
+        end if
+    else !Plain text file with transition density matrix in basis function
+        write(*,*) "Loading transition density matrix..."
+        call readmatgau(10,tdmatbas,0,"f14.8",6,5,1)
+    end if
+    !Use tdmatbas to construct tdmatatm
+    tdmatatm=0D0
+    do iatm=1,ncenter
+        do jatm=1,ncenter
+            do ibas=basstart(iatm),basend(iatm)
+                do jbas=basstart(jatm),basend(jatm)
+                    tdmatatm(iatm,jatm)=tdmatatm(iatm,jatm)+tdmatbas(ibas,jbas)**2
+    !                 tdmatatm(iatm,jatm)=tdmatatm(iatm,jatm)+tdmatbas(ibas,jbas)
+    !                 tdmatatm(iatm,jatm)=tdmatatm(iatm,jatm)+abs(tdmatbas(ibas,jbas))
+                end do
             end do
         end do
     end do
-end do
+end if
+close(10)
 
 tdmatatmtmp=tdmatatm
-!Contract tdmatatm to tdmatatmreal, tdmatatmtmp is used as a bridge
-!tdmatatmreal is the tdmatatm without hydrogens
+!Contract tdmatatm to tdmatatmnoh, tdmatatmtmp is used as a intermediate
+!tdmatatmnoh is the tdmatatm without hydrogens
 ncenreal=count(a(:)%index/=1)
-write(*,"('The number of non-hydrogen atoms:',i10)") ncenreal
-allocate(tdmatatmreal(ncenreal,ncenreal))
+write(*,"(' The number of non-hydrogen atoms:',i10)") ncenreal
+allocate(tdmatatmnoh(ncenreal,ncenreal))
 itmp=0
 do iatm=1,ncenter
     if (a(iatm)%index/=1) then
@@ -2443,12 +2467,11 @@ do iatm=1,ncenter
         tdmatatmtmp(itmp,:)=tdmatatmtmp(iatm,:)
     end if
 end do
-tdmatatmreal(:,:)=tdmatatmtmp(1:ncenreal,1:ncenreal)
-deallocate(tdmatatmtmp)
+tdmatatmnoh(:,:)=tdmatatmtmp(1:ncenreal,1:ncenreal)
 
 ifhydrogen=0
-clrlimlow=minval(tdmatatmreal)
-clrlimhigh=maxval(tdmatatmreal)
+clrlimlow=minval(tdmatatmnoh)
+clrlimhigh=maxval(tdmatatmnoh)
 ninterpo=10
 nstepsize=5
 ifnormsum=0
@@ -2490,7 +2513,7 @@ do while(.true.)
         if (ifhydrogen==0) then 
             do iatm=1,ncenreal
                 do jatm=1,ncenreal
-                    write(10,"(2i8,f12.6)") iatm,jatm,tdmatatmreal(iatm,jatm)/facnorm
+                    write(10,"(2i8,f12.6)") iatm,jatm,tdmatatmnoh(iatm,jatm)/facnorm
                 end do
             end do
         else if (ifhydrogen==1) then
@@ -2509,8 +2532,8 @@ do while(.true.)
             clrlimhigh=maxval(tdmatatm)
         else if (ifhydrogen==1) then
             ifhydrogen=0
-            clrlimlow=minval(tdmatatmreal)
-            clrlimhigh=maxval(tdmatatmreal)
+            clrlimlow=minval(tdmatatmnoh)
+            clrlimhigh=maxval(tdmatatmnoh)
         end if
     else if (isel==5) then
         write(*,*) "Input lower and upper limits, e.g. 0,1.5"
