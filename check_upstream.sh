@@ -20,7 +20,7 @@ then
 else
     echo "You need to update the build."
     parallel --lb <<EOF
-wget 'http://sobereva.com/multiwfn/misc/Manual_3.5(dev).pdf' -O doc/Manual_dev.pdf
+wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.5(dev).pdf' -O doc/Manual_dev.pdf
 wget 'http://sobereva.com/multiwfn/misc/Multiwfn_3.5(dev)_bin_Win64.rar' -O examples.rar
 EOF
     unrar x examples.rar
