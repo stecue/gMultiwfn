@@ -704,8 +704,8 @@ nthreads=getNThreads()
                 end do
             end do
             do iatm=1,ncenter
-                write(10,"(1x,a,4f12.6)") a(iatm)%name,a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a,sum(bastrpopa(basstart(iatm):basend(iatm)))
-                if (wfntype==1.or.wfntype==4) write(11,"(1x,a,4f12.6)") a(iatm)%name,a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a,sum(bastrpopb(basstart(iatm):basend(iatm)))
+                write(10,"(1x,a,4f12.6)") a(iatm)%name,a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a,-sum(bastrpopa(basstart(iatm):basend(iatm)))
+                if (wfntype==1.or.wfntype==4) write(11,"(1x,a,4f12.6)") a(iatm)%name,a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a,-sum(bastrpopb(basstart(iatm):basend(iatm)))
             end do
             close(10)
             if (wfntype==1.or.wfntype==4) then

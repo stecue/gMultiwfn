@@ -326,7 +326,7 @@ else if (isel==2) then !Multipole moment integral need electron density
     
 !AOM,LI/DI,PDI,FLU/-pi/CLRK/PLR/Multicenter DI. Note: MO values will be generated when collecting data
 else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
-    !Mayer use (30,110) for fuzzy bond order, so (45,170) is absolutely enough
+    !Even (30,110) can be used for fuzzy bond order, so (45,170) is absolutely enough
     if (iautointgrid==1) then !Allow change integration grid adapatively
         radpot=45
         sphpot=170
@@ -853,7 +853,8 @@ if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.o
         end do
         AOMerror=identmaterr(AOMsum)/ncenter
         write(*,"(' Error of AOM is',f14.8)") AOMerror
-        if (AOMerror>0.001D0) write(*,"(a)") " Warning: The integration is not very accurate, you may need to increase sphpot and radpot value in settings.ini"        
+        if (AOMerror>0.001D0) write(*,"(a)") " Warning: The integration is not very accurate, in the settings.ini, &
+        you need to set iautointgrid to 0 and proper set radpot and sphpot parameters"        
 !         call showmatgau(AOMsum,"",1,"f14.8",7)
     else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
         AOMerrorb=0D0
@@ -865,7 +866,8 @@ if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.o
         if (nmatsizeb>0) AOMerrorb=identmaterr(AOMsumb)/ncenter
         write(*,"(' Error of alpha AOM is',f14.8)") AOMerrora
         if (nmatsizeb>0) write(*,"(' Error of Beta AOM is ',f14.8)") AOMerrorb
-        if (AOMerrora>0.001D0.or.AOMerrorb>0.001D0) write(*,"(a)") " Warning: The integration is not very accurate, you may need to increase sphpot and radpot value in settings.ini"
+        if (AOMerrora>0.001D0.or.AOMerrorb>0.001D0)  write(*,"(a)") " Warning: The integration is not very accurate, in the settings.ini, &
+        you need to set iautointgrid to 0 and proper set radpot and sphpot parameters"        
     end if
 end if
 
@@ -873,13 +875,14 @@ end if
 !DI-pi will be calculated for FLU-pi at later stage
 !Multicenter DI will be calculated at later stage
 10    if (isel==4.or.isel==5.or.isel==6) then !For LI/DI, PDI and FLU
+    if (any(MOocc<0)) then
+        where(MOocc<0) MOocc=0
+        write(*,"(a)") " Note: Some occupation numbers are negative. In order to make the calculation feasible, they have been set to zero"
+        write(*,*) "Press ENTER to continue"
+        read(*,*)
+    end if
     !RHF,R-post-HF, DI_A,B=2¡Æ[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B     where i and j are non-spin orbitals
     if (wfntype==0.or.wfntype==3) then
-        if (any(MOocc<0)) then
-            write(*,"(a)") " Warning: Some occupation numbers are negative. In order to make the calculation viable, now they have been set to zero"
-            where(MOocc<0) MOocc=0
-            read(*,*)
-        end if
         DI=0D0
         do iatm=1,ncenter
             do jatm=iatm,ncenter

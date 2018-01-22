@@ -2046,6 +2046,7 @@ end function
 
 
 !------------------------- Calculate ESP from electrons at a point
+!Note that the negative sign of electron is already taken into account
 real*8 function eleesp(Cx,Cy,Cz)
 implicit none
 integer,parameter :: narrmax=396 !Enough for h-type GTF, 5+5=10. Alri(0:10,0:5,0:5)-->11*6*6=396
@@ -2364,7 +2365,7 @@ end do !end i primitive
 end subroutine
 
 
-!!!------------------------- Calculate grid data of ESP from electrons and store to cubmat
+!!!---------------- Calculate grid data of ESP from electrons and accumulate to cubmat (which may already records nuclear ESP)
 subroutine espcub
 implicit none
 integer,parameter :: narrmax=396 !Enough for h-type GTF, 5+5=10. Alri(0:10,0:5,0:5)-->11*6*6=396

@@ -1050,7 +1050,8 @@ real*8 t,time_begin,time_end,time_endtmp,tmpx,tmpy,tmpz,tmprho,xarr(nx),yarr(ny)
 character c80tmp*80
 iorbsel=iorb
 calcfunc=functype
-if (functype==12) calcfunc=8 !If calculate total ESP, first calculate nuclear ESP, then invoke espcub
+if (functype==12) calcfunc=8 !If calculate total ESP, first calculate nuclear ESP, and finally call espcub
+if (functype==100.and.iuserfunc==14) calcfunc=0 !If calculate electronic ESP, first skip grid calculation, and finally call espcub
 if (infomode==0.and.functype/=12) then
     if (expcutoff<0) write(*,"(' Note: All exponential functions exp(x) with x<',f8.3,' will be ignored ')") expcutoff
 end if
@@ -1110,8 +1111,11 @@ end do
 !$OMP END PARALLEL DO
 CALL CPU_TIME(time_end)
 call walltime(walltime2)
-if (infomode==0.and.functype/=12) write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,walltime2-walltime1
-if (functype==12) call espcub
+if (functype==12.or.(functype==100.and.iuserfunc==14)) then
+    call espcub !Calculate electronic ESP and accumulate to existing cubmat
+else
+    if (infomode==0) write(*,"(' Calculation took up CPU time',f12.2,'s, wall clock time',i10,'s')") time_end-time_begin,walltime2-walltime1
+end if
 end subroutine
 
 

@@ -2286,6 +2286,12 @@ end if
 !Generate DI and LI
 !RHF,R-post-HF, DI_A,B=2¡Æ[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B     where i and j are non-spin orbitals
 write(*,*) "Generating LI and DI..."
+if (any(MOocc<0)) then
+    where(MOocc<0) MOocc=0
+    write(*,"(a)") " Note: Some occupation numbers are negative. In order to make the calculation feasible, they have been set to zero"
+    write(*,*) "Press ENTER to continue"
+    read(*,*)
+end if
 if (wfntype==0.or.wfntype==3) then
     DI=0D0
     do ibas=1,numrealatt

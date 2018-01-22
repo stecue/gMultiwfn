@@ -10,6 +10,7 @@ else
     do while(.true.)
         imodwfnold=imodwfn
         write(*,*) "                ============== Population analysis =============="
+        write(*,*) "-2 Calculate interaction energy between fragments based on atomic charges"
         if (.not.allocated(frag1)) then
             write(*,*) "-1 Define fragment"
         else
@@ -41,6 +42,14 @@ else
         if (ipopsel==0) then
             if (allocated(frag1)) deallocate(frag1)
             return
+        else if (ipopsel==-2) then
+            if (ifiletype/=4) then
+                write(*,*) "Error: You must use .chg file for this function!"
+                write(*,*) "Press ENTER to continue"
+                read(*,*)
+                cycle
+            end if
+            call coulint_atmchg
         else if (ipopsel==-1) then
             if (allocated(frag1)) then
                 write(*,*) "Atoms in current fragment:"
@@ -123,6 +132,39 @@ else
         end if
     end do
 end if
+end subroutine
+
+
+!!---------- Calculate Coulomb interaction between two fragment based on atomic charges in .chg file
+subroutine coulint_atmchg
+use defvar
+use util
+character c2000tmp*2000
+do while(.true.)
+    write(*,*) "Input atom list for fragment 1, e.g. 1,4,6-9"
+    write(*,*) "Input 0 can exit"
+    read(*,"(a)") c2000tmp
+    if (c2000tmp(1:1)=='0') exit
+    call str2arr(c2000tmp,nfrag1)
+    if (allocated(frag1)) deallocate(frag1)
+    allocate(frag1(nfrag1))
+    call str2arr(c2000tmp,nfrag1,frag1)
+    write(*,*) "Input atom list for fragment 2, e.g. 1,4,6-9"
+    read(*,"(a)") c2000tmp
+    call str2arr(c2000tmp,nfrag2)
+    if (allocated(frag2)) deallocate(frag2)
+    allocate(frag2(nfrag2))
+    call str2arr(c2000tmp,nfrag2,frag2)
+    eleint=0
+    do iatmidx=1,nfrag1
+        iatm=frag1(iatmidx)
+        do jatmidx=1,nfrag2
+            jatm=frag2(jatmidx)
+            eleint=eleint+a(iatm)%charge*a(jatm)%charge/distmat(iatm,jatm)
+        end do
+    end do
+    write(*,"(' Electrostatic interaction energy:',f12.2,' kJ/mol',f12.2,' kcal/mol',/)") eleint*au2kJ,eleint*au2kcal
+end do
 end subroutine
 
 
@@ -1171,6 +1213,7 @@ end subroutine
 
 
 !!------------ Calculate charges by fitting ESP, currently CHELPG grid and MK grid are used
+!! TrEsp (transition charge from electrostatic potential) can also be calculated, see manual
 !itype=1:CHELPG   itype=2:MK
 subroutine fitESP(itype)
 use util
@@ -1181,6 +1224,7 @@ character*200 addcenfile,extptfile
 character selectyn,chgfilename*200
 integer itype
 integer :: nlayer=4 !Number of layers of points for MK
+integer :: inuctype=1
 real*8 :: espfitvdwr(0:nelesupp)=-1D0,sclvdwlayer(100)=(/1.4D0,1.6D0,1.8D0,2.0D0,(0D0,i=5,100)/)
 real*8,allocatable :: ESPptval(:),ESPptx(:),ESPpty(:),ESPptz(:),Bmat(:),Amat(:,:),Amatinv(:,:),atmchg(:)
 real*8,allocatable :: fitcenx(:),fitceny(:),fitcenz(:),fitcenvdwr(:),disptcen(:),origsphpt(:,:)
@@ -1244,6 +1288,10 @@ do while(.true.)
             write(*,"(' 4 Set the value times van der Waals radius in each layer')")
         end if
     end if
+    if (iuseextpt==0) then
+        if (inuctype==1) write(*,*) "5 Switch if taking nuclear charge into account, current: Yes"
+        if (inuctype==2) write(*,*) "5 Switch if taking nuclear charge into account, current: No"
+    end if
     read(*,*) isel
     
     if (isel==-2) then
@@ -1278,9 +1326,15 @@ do while(.true.)
         end do
         write(*,*)
         do ilayer=1,nlayer
-            write(*,"(a,i4)") " Input value for layer",ilayer
+            write(*,"(a,i4,',  e.g. 1.5')") " Input value for layer",ilayer
             read(*,*) sclvdwlayer(ilayer)
         end do
+    else if (isel==5) then
+        if (inuctype==1) then
+            inuctype=2
+        else if (inuctype==2) then
+            inuctype=1
+        end if
     end if
 end do
 
@@ -1464,7 +1518,11 @@ if (iskipespcalc==0) then
             write(*,"(' Finished:',i10,'  /',i10)") ipt,nESPpt
             itmp=itmp+1
         end if
-        ESPptval(ipt)=totesp((ESPptx(ipt)),(ESPpty(ipt)),(ESPptz(ipt)))
+        if (inuctype==1) then
+            ESPptval(ipt)=totesp((ESPptx(ipt)),(ESPpty(ipt)),(ESPptz(ipt)))
+        else if (inuctype==2) then !Don't consider nuclear charge contribution
+            ESPptval(ipt)=eleesp((ESPptx(ipt)),(ESPpty(ipt)),(ESPptz(ipt)))
+        end if
     end do
     write(*,*) "Done!"
 end if
@@ -1499,7 +1557,11 @@ do icen=1,nfitcen
         Bmat(icen)=Bmat(icen)+ESPptval(ipt)/dis
     end do
 end do
-Bmat(matdim)=sum(a(:)%charge)-nelec !Net charge
+if (inuctype==1) then
+    Bmat(matdim)=sum(a(:)%charge)-nelec !Net charge of the system
+else if (inuctype==2) then
+    Bmat(matdim)=-nelec
+end if
 Amatinv=invmat(Amat,matdim)
 atmchg=matmul(Amatinv,Bmat)
 

@@ -1,0 +1,11 @@
+--- sub.f90	2018-01-21 19:45:23.622065425 -0500
++++ sub.f90	2018-01-21 19:36:01.905303456 -0500
+@@ -1091,7 +1091,7 @@
+         end do
+     end do
+     if (infomode==0.and.functype/=12) then
+-        if (nthreads==1) then
++        if ( nthreads  ==1) then
+             CALL CPU_TIME(time_endtmp)
+             t=dfloat(k)/nz*100 !Completed percent
+             if (k==1) then !Show approximate time at start

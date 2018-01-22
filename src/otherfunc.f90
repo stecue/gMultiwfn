@@ -2352,7 +2352,7 @@ do while(.true.)
         end do
         write(*,*)
         do ilayer=1,nlayer
-            write(*,"(a,i4)") " Input value for layer",ilayer
+            write(*,"(a,i4,',  e.g. 1.5')") " Input value for layer",ilayer
             read(*,*) sclvdwlayer(ilayer)
         end do
     else if (isel==5) then
